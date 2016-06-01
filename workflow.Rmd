@@ -48,7 +48,7 @@ library(TxDb.Mmusculus.UCSC.mm10.ensGene)
 ```
 
 ```{r, eval=on.bioc, echo=FALSE, results='hide'}
-all.urls <- c("https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE61533&format=file&file=GSE61533%5FHTSEQ%5Fcount%5Fresults%2Exls%2Egz", 
+all.urls <- c("http://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE61533&format=file&file=GSE61533%5FHTSEQ%5Fcount%5Fresults%2Exls%2Egz", 
 "http://linnarssonlab.org/blobs/cortex/expression_mRNA_17-Aug-2014.txt", 
 "http://linnarssonlab.org/blobs/cortex/expression_mito_17-Aug-2014.txt", 
 "http://linnarssonlab.org/blobs/cortex/expression_spikes_17-Aug-2014.txt",
