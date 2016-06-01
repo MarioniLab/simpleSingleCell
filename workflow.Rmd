@@ -148,7 +148,7 @@ hist(sce$total_features, xlab="Number of expressed genes", main="",
 
 Picking a threshold for these metrics is not straightforward as their absolute values depend on the protocol and biological system.
 For example, sequencing to greater depth will lead to more reads, regardless of the quality of the cells.
-To obtain an adaptive threshold, we assume that most of the data set consists of high quality cells.
+To obtain an adaptive threshold, we assume that most of the data set consists of high-quality cells.
 We remove cells with log-library sizes that are more than 3 median absolute deviations (MADs) below the median log-library size.
 The wide range of library sizes requires a log-transformation, as the MAD would be too large on the raw scale.
 We also remove cells where the number of expressed genes is 3 MADs below the median.
@@ -193,6 +193,13 @@ spike.drop <- isOutlier(sce$pct_counts_feature_controls_Spike, n=3, type="higher
 
 Subsetting by column will retain only the high-quality cells that pass each filter described above.
 We can examine the number of cells removed by each filter, and the total number remaining in the data set.
+Removal of a substantial proportion of cells (> 10%) may be indicative of an overall issue with data quality.
+It may also reflect genuine biology in extreme cases (e.g., low numbers of expressed genes in erythrocytes) for which the filters described here are not appropriate.
+
+<!-- 
+There's an additional implicit assumption that these technical metrics are homogeneous across cells.
+That won't be true for extreme cases like erythrocytes.
+-->
 
 ```{r}
 sce <- sce[,!(libsize.drop | feature.drop | mito.drop | spike.drop)]
@@ -571,7 +578,7 @@ This might be more robust than clustering for continuous trajectories where the 
 -->
 
 ```{r, echo=FALSE, results='hide'}
-rm(list=setdiff(ls(), c("all.basenames", "on.bioc")))
+rm(sce, all.counts)
 gc()
 ```
 
@@ -982,14 +989,14 @@ The same process can be repeated for each cluster by changing `chosen.clust`, to
 
 ```{r}
 result.logFC <- result.PValue <- list()
-chosen.clust <- 2
-for (clust in as.integer(levels(cluster))) {
+chosen.clust <- which(levels(cluster)=="2") # character, as 'cluster' is a factor.
+for (clust in seq_len(nlevels(cluster))) {
     if (clust==chosen.clust) { next }
     contrast <- numeric(ncol(design))
     contrast[chosen.clust] <- 1
     contrast[clust] <- -1
     res <- glmLRT(fit, contrast=contrast)
-    con.name <- paste0('vs.', clust)
+    con.name <- paste0('vs.', levels(cluster)[clust])
     result.logFC[[con.name]] <- res$table$logFC
     result.PValue[[con.name]] <- res$table$PValue
 }
@@ -1025,6 +1032,35 @@ heat.vals <- norm.exprs - rowMeans(norm.exprs)
 heatmap.2(heat.vals, col=bluered, symbreak=TRUE, trace='none', cexRow=1,
     ColSideColors=clust.col[my.clusters], Colv=as.dendrogram(my.tree), dendrogram='none')
 legend("bottomleft", col=clust.col, legend=sort(unique(my.clusters)), pch=16)
+```
+
+An alternative approach is to identify DE genes across _any_ clusters using an ANOVA-like contrast.
+This is less stringent than identifying markers for a specific cluster, which may overlook important genes that are expressed in two or more clusters.
+(For example, in a mixed population of CD4^+^-only, CD8^+^-only, double-positive and double-negative T-cells, neither _Cd4_ or _Cd8_ would be detected as subpopulation-specific markers because each gene is expressed in two subpopulations.)
+Here, we report the log-fold changes for each cluster against the average of all other clusters for each gene.
+This facilitates interpretation of the results as the relevant cluster(s) expressing each gene can be quickly determined.
+
+```{r}
+# Automatic construction of the contrast matrix.
+nclusters <- nlevels(cluster)
+contrast.matrix <- matrix(0, ncol(design), nclusters) 
+contrast.matrix[1,] <- -1 
+diag(contrast.matrix) <- 1
+contrast.matrix <- contrast.matrix[,-1]
+res.any <- glmLRT(fit, contrast=contrast.matrix)
+
+# Computing log-fold changes between each cluster and the average of the rest.
+cluster.expression <- fit$coefficients[,seq_len(nclusters)] 
+other.expression <- (rowSums(cluster.expression) - cluster.expression)/(nclusters-1)
+log.fold.changes <- cluster.expression - other.expression
+colnames(log.fold.changes) <- paste0("LogFC.for.", levels(cluster))
+rownames(log.fold.changes) <- NULL
+
+# Ordering by the likelihood ratio; p-values affected by numerical imprecision.
+any.de <- data.frame(Gene=rownames(y), log.fold.changes, 
+    LR=res.any$table$LR, stringsAsFactors=FALSE)
+any.de <- any.de[order(any.de$LR, decreasing=TRUE),]
+head(any.de)
 ```
 
 It must be stressed that the _p_-values cannot be interpreted as measures of significance.
