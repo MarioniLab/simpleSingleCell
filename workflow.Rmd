@@ -75,7 +75,7 @@ Dedicated steps are required to deal with this noise during analysis, especially
 In addition, scRNA-seq data can be used to study cell-to-cell heterogeneity, e.g., to identify new cell subtypes, to characterize differentiation processes, to assign cells into their cell cycle phases, or to identify HVGs driving variability across the population [@vallejos2015basics;@fan2016characterizing;@trapnell2014dynamics].
 This is simply not possible with bulk data, meaning that custom methods are required to perform these analyses. 
 
-This article describes a computational workflow for basic analysis of scRNA-seq data using software packages from the open-source Bioconductor project [@huber2015orchestrating].
+This article describes a computational workflow for basic analysis of scRNA-seq data, using software packages from the open-source Bioconductor project (release 3.4) [@huber2015orchestrating].
 Starting from a count matrix, this workflow contains the steps required for quality control to remove problematic cells; normalization of cell-specific biases, with and without spike-ins; cell cycle phase classification from gene expression data; data exploration to identify putative subpopulations; and finally, HVG and marker gene identification to prioritize interesting genes.
 The application of different steps in the workflow will be demonstrated on several public scRNA-seq datasets involving haematopoietic stem cells, brain-derived cells, T-helper cells and mouse embryonic stem cells, generated with a range of experimental protocols and platforms [@wilson2015combined;@zeisel2015brain;@buettner2015computational;@kolod2015singlecell].
 The aim is to provide a variety of modular usage examples that can be applied to construct custom analysis pipelines.
@@ -902,11 +902,10 @@ gc()
 ## Cell cycle classification
 
 Application of `cyclone` to the brain dataset suggests that most of the cells are in G1 phase (Figure 17).
-However, a small number of cells lie in the centre of the plot with ambiguous scores.
-This highlights the risks of using a classifier on a dataset that is substantially different to the training set.
-In particular, the classifier was trained on C1 SMARTer data [@scialdone2015computational] and accounts for the biases in that protocol. 
+However, the intepretation of this result requires some caution due to the differences between the test and training datasets.
+The classifier was trained on C1 SMARTer data [@scialdone2015computational] and accounts for the biases in that protocol. 
 The brain dataset uses UMI counts, which has an entirely different set of biases, e.g., 3'-end coverage only, no length bias, no amplification noise.
-These new biases (and the absence of expected biases) may interfere with accurate calling of cell cycle phase.
+These new biases (and the absence of expected biases) may interfere with accurate classification of some cells.
 
 ```{r, echo=FALSE, results='hide', message=FALSE}
 mm.pairs <- readRDS(system.file("exdata", "mouse_cycle_markers.rds", package="scran"))
@@ -928,10 +927,16 @@ This will lead to a deterioration in the accuracy of the classifier.
 In general, this is unlikely to be a major issue as the cell cycle should be a conserved process across many lineages and conditions.
 -->
 
-An additional complication is that many neuronal cell types are postmitotic and do not belong in any phase of the cell cycle.
-It is not clear how these cells should be classified -- so, to avoid misleading conclusions, we will not perform any processing of this dataset by cell cycle phase.
+An additional complication is that many neuronal cell types are expected to lie in the G0 resting phase, which is distinct from the other phases of the cell cycle [@coller2006new].
+Application of `cyclone` to these cells may be suboptimal if each cell must be assigned into one of the G1, S or G2/M phases.
+To avoid problems from misclassification, we will not perform any processing of this dataset by cell cycle phase.
 This is unlikely to be problematic for this analysis, as the cell cycle effect will be relatively subtle compared to the obvious differences between cell types in a diverse population.
 Thus, the former is unlikely to distort the conclusions regarding the latter.
+
+<!--
+Misclassification due to the differences in training/test datasets, which may lead to cells being assigned to phases that they're not; 
+or misclassification due to G0, which should be closest to G1 but may be different enough that you'd get a low G1 score => more S-like?
+-->
 
 ```{r echo=FALSE, results='hide'}
 gc()
@@ -1619,6 +1624,7 @@ gc()
 This workflow provides a step-by-step guide for performing basic analyses of single-cell RNA-seq data in R.
 It provides instructions for a number of low-level steps such as quality control, normalization, cell cycle phase assignment, data exploration, HVG and marker gene detection, and clustering.
 This is done with a number of different datasets to provide a range of usage examples.
+The workflow is modular so individual steps can be substituted with alternative methods according to user preferences.
 In addition, the processed data can be easily used for higher-level analyses with other Bioconductor packages.
 We anticipate that this workflow will assist readers in assembling analyses of their own scRNA-seq data.
 
@@ -1626,6 +1632,8 @@ We anticipate that this workflow will assist readers in assembling analyses of t
 
 All software packages used in this workflow are publicly available from the Comprehensive R Archive Network (https://cran.r-project.org) or the Bioconductor project (http://bioconductor.org).
 The specific version numbers of the packages used are shown below, along with the version of the R installation.
+Versions for all Bioconductor packages correspond to release version 3.4 of the Bioconductor project.
+Users can install all required packages and execute the workflow by following the instructions at https://www.bioconductor.org/help/workflows/simpleSingleCell.
 The workflow takes less than an hour to run on a desktop computer with 8 GB of memory.
 
 ```{r}
