@@ -81,7 +81,7 @@ The application of different steps in the workflow will be demonstrated on sever
 The aim is to provide a variety of modular usage examples that can be applied to construct custom analysis pipelines.
 
 ```{r, results='asis', eval=on.bioc, echo=FALSE}
-cat("***Note:*** for how to cite this article, please refer to http://f1000research.com/articles/5-2122/v1 for instructions.*")
+cat("***Note:*** *for how to cite this article, please refer to http://f1000research.com/articles/5-2122/v1 for instructions.*")
 ```
 
 # Analysis of haematopoietic stem cells
@@ -615,7 +615,8 @@ While it won't preserve the population mean, this is largely irrelevant if HVGs 
 
 Another useful procedure is to identify the HVGs that are highly correlated with one another.
 This distinguishes between HVGs caused by random noise and those involved in driving systematic differences between subpopulations.
-Gene pairs with significantly large positive or negative values for Spearman's rho are identified using the `correlatePairs` function.
+Correlations between genes are quantified by computing Spearman's rho, which accommodates non-linear relationships in the expression values.
+Gene pairs with significantly large positive or negative values of rho are identified using the `correlatePairs` function.
 We only apply this function to the set of HVGs, because these genes have large biological components and are more likely to exhibit strong correlations driven by biology.
 In contrast, calculating correlations for all possible gene pairs would require too much computational time and increase the severity of the multiple testing correction, and may prioritize uninteresting genes that have strong correlations but low variance, e.g., tightly co-regulated house-keeping genes.
 
@@ -710,7 +711,9 @@ plotPCA(sce, exprs_values="exprs", colour_by="total_features",
 ```
 
 Another widely used approach is the _t_-stochastic neighbour embedding (_t_-SNE) method [@van2008visualizing].
-_t_-SNE tends to work better than PCA for separating cells in more diverse populations, at the cost of more computational effort and complexity.
+_t_-SNE tends to work better than PCA for separating cells in more diverse populations.
+This is because the former can directly capture non-linear relationships in high-dimensional space, whereas the latter must represent them (suboptimally) as linear components.
+However, this improvement comes at the cost of more computational effort and complexity.
 In particular, _t_-SNE is a stochastic method, so users should run the algorithm several times to ensure that the results are representative, and then set a seed to ensure that the chosen results are reproducible.
 It is also advisable to test different settings of the "perplexity" parameter as this will affect the distribution of points in the low-dimensional space.
 This is demonstrated below in Figure 14, though no consistent substructure is observed in all plots. 
