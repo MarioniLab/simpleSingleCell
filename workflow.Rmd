@@ -80,6 +80,10 @@ Starting from a count matrix, this workflow contains the steps required for qual
 The application of different steps in the workflow will be demonstrated on several public scRNA-seq datasets involving haematopoietic stem cells, brain-derived cells, T-helper cells and mouse embryonic stem cells, generated with a range of experimental protocols and platforms [@wilson2015combined;@zeisel2015brain;@buettner2015computational;@kolod2015singlecell].
 The aim is to provide a variety of modular usage examples that can be applied to construct custom analysis pipelines.
 
+```{r, results='asis', eval=on.bioc, echo=FALSE}
+cat("***Note:*** for how to cite this article, please refer to http://f1000research.com/articles/5-2122/v1 for instructions.*")
+```
+
 # Analysis of haematopoietic stem cells
 
 ## Overview
@@ -1135,6 +1139,7 @@ sum(sig.cor)
 
 We first remove the sex effect using the `removeBatchEffect` function from the `r Biocpkg("limma")` package [@ritchie2015limma].
 This ensures that any sex-specific differences will not dominate the visualization of the expression profiles.
+In this manner, we maintain consistency with the use of `design` in the previous steps.
 (However, if an analysis method can accept a design matrix, blocking on nuisance factors in the design matrix is preferable to manipulating the expression values with `removeBatchEffect`.
 This is because the latter does not account for the loss of residual degrees of freedom, nor the uncertainty of estimation of the blocking factor terms.)
 We store these sex-corrected expression values in the `norm_exprs` field of the `SCESet` object for later use.
@@ -1633,7 +1638,9 @@ We anticipate that this workflow will assist readers in assembling analyses of t
 All software packages used in this workflow are publicly available from the Comprehensive R Archive Network (https://cran.r-project.org) or the Bioconductor project (http://bioconductor.org).
 The specific version numbers of the packages used are shown below, along with the version of the R installation.
 Versions for all Bioconductor packages correspond to release version 3.4 of the Bioconductor project.
-Users can install all required packages and execute the workflow by following the instructions at https://www.bioconductor.org/help/workflows/simpleSingleCell.
+```{r, eval=!on.bioc, echo=FALSE, results='asis'}
+cat("Users can install all required packages and execute the workflow by following the instructions at https://www.bioconductor.org/help/workflows/simpleSingleCell.")
+```
 The workflow takes less than an hour to run on a desktop computer with 8 GB of memory.
 
 ```{r}
