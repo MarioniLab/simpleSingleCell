@@ -81,7 +81,7 @@ The application of different steps in the workflow will be demonstrated on sever
 The aim is to provide a variety of modular usage examples that can be applied to construct custom analysis pipelines.
 
 ```{r, results='asis', eval=on.bioc, echo=FALSE}
-cat("***Note:*** *for how to cite this article, please refer to http://f1000research.com/articles/5-2122/v1 for instructions.*")
+cat("***Note:*** *to cite this article, please refer to http://f1000research.com/articles/5-2122/v1 for instructions.*")
 ```
 
 # Analysis of haematopoietic stem cells
@@ -1640,7 +1640,7 @@ We anticipate that this workflow will assist readers in assembling analyses of t
 
 All software packages used in this workflow are publicly available from the Comprehensive R Archive Network (https://cran.r-project.org) or the Bioconductor project (http://bioconductor.org).
 The specific version numbers of the packages used are shown below, along with the version of the R installation.
-Versions for all Bioconductor packages correspond to release version 3.4 of the Bioconductor project.
+Version numbers of all Bioconductor packages correspond to release version 3.4 of the Bioconductor project.
 ```{r, echo=FALSE, results='asis'}
 if (!on.bioc) { 
     cat("Users can install all required packages and execute the workflow by following the instructions at https://www.bioconductor.org/help/workflows/simpleSingleCell.\n")
