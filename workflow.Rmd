@@ -7,7 +7,7 @@ author:
       affiliation: EMBL European Bioinformatics Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SD, United Kingdom; St Vincent's Institute of Medical Research, 41 Victoria Parade, Fitzroy, Victoria 3065, Australia
     - name: John C. Marioni
       affiliation: Cancer Research UK Cambridge Institute, Li Ka Shing Centre, Robinson Way, Cambridge CB2 0RE, United Kingdom; EMBL European Bioinformatics Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SD, United Kingdom; Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
-date: 19 October 2016
+date: 25 October 2016
 vignette: >
     %\VignetteIndexEntry{A worfklow for low-level analyses of single-cell RNA-seq data}
     %\VignetteEngine{knitr::rmarkdown}
@@ -235,7 +235,7 @@ It may also reflect genuine biology in extreme cases (e.g., low numbers of expre
 
 <!-- 
 There's an additional implicit assumption that these technical metrics are homogeneous across cells.
-That won't be true for extreme cases like erythrocytes.
+That won't be true for extreme cases like erythrocytes, where the "outliers" would just be a genuine biological clustering.
 -->
 
 ```{r}
@@ -299,9 +299,9 @@ Pre-trained classifiers are available in `r Biocpkg("scran")` for human and mous
 While the mouse classifier used here was trained on data from embryonic stem cells, it is still accurate for other cell types [@scialdone2015computational].
 This may be due to the conservation of the transcriptional program associated with the cell cycle [@bertoli2013control;@conboy2007cell].
 The pair-based method is also a non-parametric procedure that is robust to most technical differences between datasets.
-However, it will be less accurate for data that are substantially different from those used in the training set.
+However, it will be less accurate for data that are substantially different from those used in the training set, e.g., due to the use of a different protocol.
 In such cases, users can construct a custom classifier from their own training data using the `sandbag` function.
-This will be necessary for other model organisms where pre-trained classifiers are not available.
+This will also be necessary for other model organisms where pre-trained classifiers are not available.
 
 <!--
 In general, it seems to more sense to apply cyclone before filtering out low-abundance genes.
@@ -377,6 +377,14 @@ This removes all rows corresponding to endogenous genes or spike-in transcripts 
 ```{r}
 sce <- sce[keep,] 
 ```
+
+<!--
+It could be argued that you don't need to do filtering on abundance if you're going to select on HVGs anyway.
+This is because the HVG screen would throw out low-abundance genes, so you might as well skip the abundance filter.
+The disadvantage is if the HVG screen depends on significance, in which case the low abundances would increase the severity of the MTC.
+This could be mild (~20% increase in the p-value) or quite severe (2-3-fold), depending on how many annotated genes are retained.
+The worst case occurs if you had mild contamination so that every gene had a count of one - you'd retain too many uninteresting genes if you just filtered on non-zero totals.
+-->
 
 ## Normalization of cell-specific biases
 
@@ -464,7 +472,7 @@ This bias is purely technical in origin, given that the same amount of spike-in 
 Thus, any association of gene expression with this factor is not biologically interesting and should be removed.
 
 For each gene, we calculate the percentage of the variance of the expression values that is explained by the spike-in totals (Figure 9).
-The percentages are generally small (1-3%), indicating that the expression of most genes does not associate with this factor.
+The percentages are generally small (1-3%), indicating that the expression profiles of most genes are not strongly associated with this factor.
 This result is consistent with successful removal of cell-specific biases by scaling normalization.
 Thus, the spike-in total does not need to be explicitly modelled in our downstream analyses.
 
@@ -486,13 +494,14 @@ Thus, blocking should be performed sparingly, rather than being performed by def
 
 Note that the use of the spike-in total as an accurate proxy for the relative technical bias assumes that no library quantification is performed.
 Otherwise, the coverage of the spike-in transcripts would be dependent on the total amount of endogenous RNA in each cell.
+(Specifically, if the same amount of cDNA is used for sequencing per cell, any increase in the amount of endogenous RNA will suppress the coverage of the spike-in transcripts.)
 This means that the spike-in totals could be confounded with genuine biological effects associated with changes in RNA content.
 
 ## Identifying HVGs from the normalized log-expression 
 
 We identify HVGs to focus on the genes that are driving heterogeneity across the population of cells.
 This requires estimation of the variance in expression for each gene, followed by decomposition of the variance into biological and technical components.
-HVGs are then identified as those genes with the highest biological components.
+HVGs are then identified as those genes with the largest biological components.
 This avoids prioritizing genes that are highly variable due to technical factors such as sampling noise during RNA capture and library preparation.
 
 Ideally, the technical component would be estimated by fitting a mean-variance trend to the spike-in transcripts using the `trendVar` function.
@@ -618,7 +627,8 @@ This distinguishes between HVGs caused by random noise and those involved in dri
 Correlations between genes are quantified by computing Spearman's rho, which accommodates non-linear relationships in the expression values.
 Gene pairs with significantly large positive or negative values of rho are identified using the `correlatePairs` function.
 We only apply this function to the set of HVGs, because these genes have large biological components and are more likely to exhibit strong correlations driven by biology.
-In contrast, calculating correlations for all possible gene pairs would require too much computational time and increase the severity of the multiple testing correction, and may prioritize uninteresting genes that have strong correlations but low variance, e.g., tightly co-regulated house-keeping genes.
+In contrast, calculating correlations for all possible gene pairs would require too much computational time and increase the severity of the multiple testing correction.
+It may also prioritize uninteresting genes that have strong correlations but low variance, e.g., tightly co-regulated house-keeping genes.
 
 <!--
 As opposed to technical noise, which should be random and reduce the correlations (and power). 
@@ -633,7 +643,7 @@ head(var.cor)
 
 The significance of each correlation is determined using a permutation test.
 For each pair of genes, the null hypothesis is that the expression profiles of two genes are independent.
-Shuffling the profiles and recalculating the correlation will yield a null distribution that is used to obtain a _p_-value for each observed correlation value [@phipson2010permutation].
+Shuffling the profiles and recalculating the correlation yields a null distribution that is used to obtain a _p_-value for each observed correlation value [@phipson2010permutation].
 Correction for multiple testing across many gene pairs is performed by controlling the FDR at 5%.
 Correlated gene pairs can be directly used for experimental validation with orthogonal techniques (e.g., fluorescence-activated cell sorting, immunohistochemistry or RNA fluorescence _in situ_ hybridization) to verify that these expression patterns are genuinely present across the cell population.
 
@@ -1082,7 +1092,7 @@ gc()
 
 Figure 21 suggests that the trend is fitted accurately to the technical variances.
 Errors in fitting are negligible due to the precision of the variance estimates in a large dataset containing thousands of cells.
-The technical variances are also much smaller than those in the HSC dataset.
+The technical and total variances are also much smaller than those in the HSC dataset.
 This is due to the use of UMIs which reduces the noise caused by variable PCR amplification.
 Furthermore, the spike-in trend is consistently lower than the variances of the endogenous genes.
 This reflects the heterogeneity in gene expression across cells of different types.
@@ -1309,7 +1319,7 @@ for (clust in seq_len(nlevels(cluster))) {
 ```
 
 Potential marker genes are identified by taking the top set of DE genes from each pairwise comparison between clusters.
-We arrange the results into a single output table that allows a marker set to be easily defined for a user-specified size for the top set.
+We arrange the results into a single output table that allows a marker set to be easily defined for a user-specified size of the top set.
 For example, to construct a marker set from the top 10 genes of each comparison, one would filter `marker.set` to retain rows with `Top` less than or equal to 10.
 
 ```{r}
@@ -1676,7 +1686,7 @@ D.J.M and J.C.M. were also supported by core funding from EMBL.
 
 # Acknowledgements
 
-We would like to thank Antonio Scialdone for helpful discussions, and Michael Epstein for testing the workflow on other datasets.
+We would like to thank Antonio Scialdone for helpful discussions, as well as Michael Epstein, James R. Smith and John Wilson-Kanamori for testing the workflow on other datasets.
 
 # References
 
