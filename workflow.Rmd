@@ -107,7 +107,7 @@ Alternatively, rapid quantification of expression with alignment-free methods su
 The first task is to load the count matrix into memory.
 In this case, some work is required to retrieve the data from the Gzip-compressed Excel format.
 Each row of the matrix represents an endogenous gene or a spike-in transcript, and each column represents a single HSC.
-For convenience, the counts for spike-in transcripts and endogenous genes are stored in a `SCESet` object from the `r Biocpkg("scater")` package.
+For convenience, the counts for spike-in transcripts and endogenous genes are stored in a `SCESet` object from the `r Biocpkg("scater")` package [@mccarthy2016scater].
 
 ```{r}
 library(R.utils)
@@ -246,7 +246,7 @@ data.frame(ByLibSize=sum(libsize.drop), ByFeature=sum(feature.drop),
 
 An alternative approach to quality control is to perform a principal components analysis (PCA) based on the quality metrics for each cell, e.g., the total number of reads, the total number of features and the proportion of mitochondrial or spike-in reads.
 Outliers on a PCA plot may be indicative of low-quality cells that have aberrant technical properties compared to the (presumed) majority of high-quality cells.
-In Figure 3, no obvious outliers are present which is consistent with the removal of suspect cells in the preceding quality control steps.
+In Figure 3, no obvious outliers are present, which is consistent with the removal of suspect cells in the preceding quality control steps.
 
 ```{r pcaqualplothsc, fig.cap="**Figure 3:** PCA plot for cells in the HSC dataset, constructed using quality metrics. The first and second components are shown on each axis, along with the percentage of total variance explained by each component. Bars represent the coordinates of the cells on each axis."}
 fontsize <- theme(axis.text=element_text(size=12), axis.title=element_text(size=16))
@@ -345,7 +345,7 @@ An alternative approach to gene filtering is to select genes that have non-zero 
 This provides some more protection against genes with outlier expression patterns, i.e., strong expression in only one or two cells. 
 Such outliers are typically uninteresting as they can arise from amplification artifacts that are not replicable across cells.
 (The exception is for studies involving rare cells where the outliers may be biologically relevant.)
-An example of this filtering approach is shown below for _n_ set to 10.
+An example of this filtering approach is shown below for _n_ set to 10, though smaller values may be necessary to retain genes expressed in rare cell types.
 
 ```{r}
 numcells <- nexprs(sce, byrow=TRUE)
@@ -719,6 +719,11 @@ Even so, no clear separation of cells into distinct subpopulations is observed.
 plotPCA(sce, exprs_values="exprs", colour_by="total_features",
     feature_set=chosen) + fontsize
 ```
+
+On a related note, we only show the first two components that contribute most to the variance in Figure 13.
+Additional components can be visualized by increasing the `ncomponents` argument in `plotPCA` to construct pairwise plots.
+The percentage of variance explained by each component can also be obtained by running `plotPCA` with `return_SCESet=TRUE`, and then calling `reducedDimension` on the returned object.
+This information may be useful for selecting high-variance components (possibly corresponding to interesting underlying factors) for further examination. 
 
 Another widely used approach is the _t_-stochastic neighbour embedding (_t_-SNE) method [@van2008visualizing].
 _t_-SNE tends to work better than PCA for separating cells in more diverse populations.
