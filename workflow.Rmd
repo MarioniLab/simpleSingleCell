@@ -1131,7 +1131,6 @@ plotExpression(sce, rownames(hvg.out)[1:10], alpha=0.05, jitter="jitter") + font
 ```
 
 To identify genes involved in defining subpopulations, the set of HVGs is tested for significant pairwise correlations.
-Given the size of the set, we only use the top 500 HVGs to reduce computational work.
 Here, the number of significantly correlated pairs is much higher than in the HSC dataset, indicating that strong substructure is present.
 These results are also saved to file for use in designing validation experiments.
 
@@ -1142,11 +1141,14 @@ It is also valid without further work -- unlike log-fold changes in DE, the abso
 Thus, you can threshold on the correlation without affecting FDR control, because loss of elements with higher p-values just means the FDR is lower across the rest.
 However, I'm disinclined to recommend this explicitly, as you would lose power to detect subtle correlations driving minor subpopulations.
 This would defeat the purpose of having lots of cells to improve power to detect those subpopulations.
+
+I also switched to using all genes, rather than the top 500 as published.
+This is because if you have lots of heterogeneity, genes corresponding to relatively weaker effects are not visible, even if those effects are actually absolutely large.
 -->
 
 ```{r}
 set.seed(100)
-var.cor <- correlatePairs(sce, design=design, subset.row=rownames(hvg.out)[1:500])
+var.cor <- correlatePairs(sce, design=design, subset.row=rownames(hvg.out))
 write.table(file="brain_cor.tsv", var.cor, sep="\t", quote=FALSE, row.names=FALSE)
 head(var.cor)
 sig.cor <- var.cor$FDR <= 0.05
@@ -1201,6 +1203,11 @@ tsne2 <- plotTSNE(sce, exprs_values="norm_exprs", colour_by="Mog",
 multiplot(tsne1, tsne2, cols=2)
 ```
 
+```{r echo=FALSE, results='hide'}
+rm(var.cor)
+gc()
+```
+
 The PCA plot is less effective at separating cells into many different clusters (Figure 24).
 This is because the first two principal components are driven by strong differences between specific subpopulations, which reduces the resolution of more subtle differences between some of the other subpopulations.
 Nonetheless, some substructure is still visible.
@@ -1246,15 +1253,17 @@ This is consistent with the presence of well-defined subpopulations that were pr
 heat.vals <- chosen.exprs - rowMeans(chosen.exprs)
 clust.col <- rainbow(max(my.clusters))
 heatmap.2(heat.vals, col=bluered, symbreak=TRUE, trace='none', cexRow=0.3,
-    ColSideColors=clust.col[my.clusters], Colv=as.dendrogram(my.tree))
+    ColSideColors=clust.col[my.clusters], Colv=as.dendrogram(my.tree), 
+    breaks=seq(-5, 5, length.out=21), symmbreaks=FALSE)
 ```
 
 This heatmap can be stored at a greater resolution for detailed inspection later.
 
 ```{r, results='hide'}
-pdf("brain_heat.pdf", width=20, height=40)
+pdf("brain_heat.pdf", width=10, height=100)
 heatmap.2(heat.vals, col=bluered, symbreak=TRUE, trace='none', cexRow=0.3,
-    ColSideColors=clust.col[my.clusters], Colv=as.dendrogram(my.tree))
+    ColSideColors=clust.col[my.clusters], Colv=as.dendrogram(my.tree), 
+    breaks=seq(-5, 5, length.out=21), symmbreaks=FALSE)
 dev.off()
 ```
 
