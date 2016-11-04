@@ -7,7 +7,7 @@ author:
       affiliation: EMBL European Bioinformatics Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SD, United Kingdom; St Vincent's Institute of Medical Research, 41 Victoria Parade, Fitzroy, Victoria 3065, Australia
     - name: John C. Marioni
       affiliation: Cancer Research UK Cambridge Institute, Li Ka Shing Centre, Robinson Way, Cambridge CB2 0RE, United Kingdom; EMBL European Bioinformatics Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SD, United Kingdom; Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
-date: 25 October 2016
+date: 3 November 2016
 vignette: >
     %\VignetteIndexEntry{A worfklow for low-level analyses of single-cell RNA-seq data}
     %\VignetteEngine{knitr::rmarkdown}
@@ -632,6 +632,10 @@ It may also prioritize uninteresting genes that have strong correlations but low
 
 <!--
 As opposed to technical noise, which should be random and reduce the correlations (and power). 
+
+An alternative approach would be a method that detects correlations and HVGs at the same time, where strong correlations would offset low variances for gene detection.
+The problem is that, taken to its logical conclusion, this would probably pick up a large web of genes that have strong correlations with low total variances.
+This is probably uninteresting, e.g., residual technical effects (like cell size) or uninteresting biology (ribosome-related correlations).
 -->
 
 ```{r}
@@ -1144,6 +1148,7 @@ This would defeat the purpose of having lots of cells to improve power to detect
 
 I also switched to using all genes, rather than the top 500 as published.
 This is because if you have lots of heterogeneity, genes corresponding to relatively weaker effects are not visible, even if those effects are actually absolutely large.
+In any case, it actually doesn't take that long, so we might as well just do it using all genes.
 -->
 
 ```{r}
@@ -1249,26 +1254,38 @@ my.clusters <- unname(cutreeDynamic(my.tree, distM=as.matrix(my.dist), verbose=0
 Figure 25 contains a clear block-like pattern, representing systematic differences between clusters of cells with distinct expression profiles.
 This is consistent with the presence of well-defined subpopulations that were previously observed in the dimensionality reduction plots.
 
-```{r heatmapbrain, message=FALSE, fig.width=7, fig.height=10, fig.cap="**Figure 25:** Heatmap of mean-centred normalized and corrected log-expression values for correlated HVGs in the brain dataset. Dendrograms are formed by hierarchical clustering on the Euclidean distances between genes (row) or cells (column). Column colours represent the cluster to which each cell is assigned after a dynamic tree cut."}
+```{r heatmapbrain, message=FALSE, fig.width=7, fig.height=10, fig.cap="**Figure 25:** Heatmap of mean-centred normalized and corrected log-expression values for correlated HVGs in the brain dataset. Dendrograms are formed by hierarchical clustering on the Euclidean distances between genes (row) or cells (column). Column colours represent the cluster to which each cell is assigned after a dynamic tree cut. Heatmap colours are capped at a maximum absolute log-fold change of 5."}
 heat.vals <- chosen.exprs - rowMeans(chosen.exprs)
 clust.col <- rainbow(max(my.clusters))
 heatmap.2(heat.vals, col=bluered, symbreak=TRUE, trace='none', cexRow=0.3,
     ColSideColors=clust.col[my.clusters], Colv=as.dendrogram(my.tree), 
-    breaks=seq(-5, 5, length.out=21), symmbreaks=FALSE)
+    breaks=seq(-5, 5, length.out=21))
 ```
 
 This heatmap can be stored at a greater resolution for detailed inspection later.
 
 ```{r, results='hide'}
-pdf("brain_heat.pdf", width=10, height=100)
+pdf("brain_heat.pdf", width=10, height=100) # Large 'height' to store all gene names.
 heatmap.2(heat.vals, col=bluered, symbreak=TRUE, trace='none', cexRow=0.3,
     ColSideColors=clust.col[my.clusters], Colv=as.dendrogram(my.tree), 
-    breaks=seq(-5, 5, length.out=21), symmbreaks=FALSE)
+    lwid=c(1, 4), lhei=c(1, 50), # Avoid having a very large colour key.
+    breaks=seq(-5, 5, length.out=21))
 dev.off()
 ```
 
 <!--
 Use Acrobat reader or zathura for linux (selecting gene names and looking a copied text works better than continually zooming in/out).
+-->
+
+When examining very heterogeneous datasets, it can be useful to repeat the HVG detection and clustering using only the cells within a particular cluster.
+This can be achieved by subsetting `sce` according to a particular level of `my.clusters`, and applying the same functions that were previously described.
+Doing so may identify a different set of correlated HVGs that define heterogeneity within the cluster, as opposed to those that define differences between clusters.
+In this manner, fine-scale structure within each cluster can be explored at greater resolution. 
+For simplicity, though, we will only use the broad clusters corresponding to clear subpopulations in this workflow.
+
+<!--
+It may be a more relevant set, because you can detect HVGs at greater power if you didn't have uninvolved, constantly-expressing cells dragging down the variance/correlations.
+Similarly, you'd get rid of genes that are HVGs between clusters but are not within the cluster, which wouldn't help with internal clustering.
 -->
 
 ```{r echo=FALSE, results='hide'}
