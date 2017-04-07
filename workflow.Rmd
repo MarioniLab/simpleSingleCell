@@ -7,7 +7,7 @@ author:
       affiliation: EMBL European Bioinformatics Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SD, United Kingdom; St Vincent's Institute of Medical Research, 41 Victoria Parade, Fitzroy, Victoria 3065, Australia
     - name: John C. Marioni
       affiliation: Cancer Research UK Cambridge Institute, Li Ka Shing Centre, Robinson Way, Cambridge CB2 0RE, United Kingdom; EMBL European Bioinformatics Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SD, United Kingdom; Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
-date: 3 November 2016
+date: 14 March 2017
 vignette: >
     %\VignetteIndexEntry{A worfklow for low-level analyses of single-cell RNA-seq data}
     %\VignetteEngine{knitr::rmarkdown}
@@ -75,7 +75,7 @@ Dedicated steps are required to deal with this noise during analysis, especially
 In addition, scRNA-seq data can be used to study cell-to-cell heterogeneity, e.g., to identify new cell subtypes, to characterize differentiation processes, to assign cells into their cell cycle phases, or to identify HVGs driving variability across the population [@vallejos2015basics;@fan2016characterizing;@trapnell2014dynamics].
 This is simply not possible with bulk data, meaning that custom methods are required to perform these analyses. 
 
-This article describes a computational workflow for basic analysis of scRNA-seq data, using software packages from the open-source Bioconductor project (release 3.4) [@huber2015orchestrating].
+This article describes a computational workflow for basic analysis of scRNA-seq data, using software packages from the open-source Bioconductor project (release 3.5) [@huber2015orchestrating].
 Starting from a count matrix, this workflow contains the steps required for quality control to remove problematic cells; normalization of cell-specific biases, with and without spike-ins; cell cycle phase classification from gene expression data; data exploration to identify putative subpopulations; and finally, HVG and marker gene identification to prioritize interesting genes.
 The application of different steps in the workflow will be demonstrated on several public scRNA-seq datasets involving haematopoietic stem cells, brain-derived cells, T-helper cells and mouse embryonic stem cells, generated with a range of experimental protocols and platforms [@wilson2015combined;@zeisel2015brain;@buettner2015computational;@kolod2015singlecell].
 The aim is to provide a variety of modular usage examples that can be applied to construct custom analysis pipelines.
@@ -112,8 +112,10 @@ For convenience, the counts for spike-in transcripts and endogenous genes are st
 ```{r}
 library(R.utils)
 gunzip("GSE61533_HTSEQ_count_results.xls.gz", remove=FALSE, overwrite=TRUE)
-library(gdata)
-all.counts <- read.xls('GSE61533_HTSEQ_count_results.xls', sheet=1, header=TRUE, row.names=1)
+library(readxl)
+all.counts <- as.data.frame(read_excel('GSE61533_HTSEQ_count_results.xls', sheet=1))
+rownames(all.counts) <- all.counts$ID
+all.counts <- all.counts[,-1]
 library(scater)
 sce <- newSCESet(countData=all.counts)
 dim(sce)
@@ -138,11 +140,11 @@ head(colnames(pData(sce)))
 
 We need to explicitly indicate that the ERCC set is, in fact, a spike-in set.
 This is necessary as spike-ins require special treatment in some downstream steps such as variance estimation and normalization.
-We do this by supplying the name of the spike-in set to `isSpike`.
+We do this by supplying the name of the spike-in set to `setSpike`.
 
 ```{r}
 library(scran)
-isSpike(sce) <- "ERCC"
+setSpike(sce) <- "ERCC"
 ```
 
 ## Quality control on the cells 
@@ -170,17 +172,6 @@ We remove cells with log-library sizes that are more than 3 median absolute devi
 (A log-transformation improves resolution at small values, especially when the MAD of the raw values is comparable to or greater than the median.)
 We also remove cells where the log-transformed number of expressed genes is 3 MADs below the median.
 
-<!--
-By improving resolution, I refer to compression of high values and expansion of the range of low values.
-The former reduces the MAD relative to the median, such that "3 MADs away" is a sensible statistic.
-The latter makes it easier to distinguish between outliers and the edge of the distribution of acceptable values.
-Or, from another perspective, the large MAD that is driven by greater variability at high values isn't relevant to the threshold choice at low values when working on the raw scale.
-By transforming to the log scale, the variance is stabilised across the real line.
-
-On a more conceptual note, the MAD is necessary to account for genuine biological heterogeneity in these metrics.
-That's why we don't use a hard-and-fast fold-change threshold from the median, as this would be too aggressive or not aggressive enough in some situations.
--->
-
 ```{r}
 libsize.drop <- isOutlier(sce$total_counts, nmads=3, type="lower", log=TRUE)
 feature.drop <- isOutlier(sce$total_features, nmads=3, type="lower", log=TRUE)
@@ -191,23 +182,6 @@ High proportions are indicative of poor-quality cells [@islam2014quantitative;@i
 Similar reasoning applies to the proportion of reads mapped to spike-in transcripts.
 The quantity of spike-in RNA added to each cell should be constant, which means that the proportion should increase upon loss of endogenous RNA in low-quality cells.
 The distributions of mitochondrial and spike-in proportions across all cells are shown in Figure 2.
-
-<!-- 
-It shouldn't matter too much if it's the proportion against total counts, or proportion against endogenous counts.
-This is because we're not measuring an increase in mitochondrial/spike-in counts, but rather, a depletion of endogenous RNA.
-If endogenous RNA decreases in low-quality cells, the mitochondrial/spike-in proportions against the total count should both increase.
-We don't have to worry about effects of e.g. an increase in mitochondrial counts affecting the proportion of spike-in counts.
-
-The absolute value of the spike-in proportion can also be used for QC.
-You would want about 5-10% of the reads going to the spike-ins.
-If this is not the case, it suggests that you need to alter the dilution.
-You can also compare the observed proportions to the expected values, which can be calculated if RNA quantification was done on the cells beforehand.
-Neither of these approaches provide a threshold for filtering, but they do tell you if the experiment went well or not.
-
-Also, we don't use the logit transform for the proportions, even though on the raw scale we could theoretically end up with a above-unity threshold.
-This is because the logit transform compresses changes within the middle of the [0,1] range.
-This reduces the resolution for where the threshold would usually be.
--->
 
 ```{r controlplothsc, fig.width=12, fig.height=6, fig.cap="**Figure 2:** Histogram of the proportion of reads mapped to mitochondrial genes (left) or spike-in transcripts (right) across all cells in the HSC dataset."}
 par(mfrow=c(1,2))
@@ -232,11 +206,6 @@ Subsetting by column will retain only the high-quality cells that pass each filt
 We examine the number of cells removed by each filter as well as the total number of retained cells.
 Removal of a substantial proportion of cells (> 10%) may be indicative of an overall issue with data quality.
 It may also reflect genuine biology in extreme cases (e.g., low numbers of expressed genes in erythrocytes) for which the filters described here are inappropriate.
-
-<!-- 
-There's an additional implicit assumption that these technical metrics are homogeneous across cells.
-That won't be true for extreme cases like erythrocytes, where the "outliers" would just be a genuine biological clustering.
--->
 
 ```{r}
 sce <- sce[,!(libsize.drop | feature.drop | mito.drop | spike.drop)]
@@ -303,11 +272,6 @@ However, it will be less accurate for data that are substantially different from
 In such cases, users can construct a custom classifier from their own training data using the `sandbag` function.
 This will also be necessary for other model organisms where pre-trained classifiers are not available.
 
-<!--
-In general, it seems to more sense to apply cyclone before filtering out low-abundance genes.
-This is because phase-specific genes that are not expressed in *any* cell will still be useful for classification.
--->
-
 ## Filtering out low-abundance genes
 
 Low-abundance genes are problematic as zero or near-zero counts do not contain enough information for reliable statistical inference [@bourgon2010independent].
@@ -317,7 +281,7 @@ These genes are likely to be dominated by drop-out events [@brennecke2013account
 Removal of these genes mitigates discreteness and reduces the amount of computational work without major loss of information.
 
 ```{r}
-ave.counts <- rowMeans(counts(sce))
+ave.counts <- calcAverage(sce)
 keep <- ave.counts >= 1
 sum(keep)
 ```
@@ -377,14 +341,6 @@ This removes all rows corresponding to endogenous genes or spike-in transcripts 
 ```{r}
 sce <- sce[keep,] 
 ```
-
-<!--
-It could be argued that you don't need to do filtering on abundance if you're going to select on HVGs anyway.
-This is because the HVG screen would throw out low-abundance genes, so you might as well skip the abundance filter.
-The disadvantage is if the HVG screen depends on significance, in which case the low abundances would increase the severity of the MTC.
-This could be mild (~20% increase in the p-value) or quite severe (2-3-fold), depending on how many annotated genes are retained.
-The worst case occurs if you had mild contamination so that every gene had a count of one - you'd retain too many uninteresting genes if you just filtered on non-zero totals.
--->
 
 ## Normalization of cell-specific biases
 
@@ -453,15 +409,6 @@ sce <- normalize(sce)
 The log-transformation provides some measure of variance stabilization [@law2014voom], so that high-abundance genes with large variances do not dominate downstream analyses.
 The computed values are stored as an `exprs` matrix in addition to the other assay elements.
 
-<!-- 
-Specifically, variance stabilization for NB-distributed counts with a constant dispersion but a variable mean. 
-This seems better than square-rooting it, which only works for the Poisson.
-
-We don't bother imputing, because we don't know whether a zero is a true dropout or a genuine zero.
-Besides, it seems somewhat circular if you try to impute from the same data, rather than using some external data (e.g., in variant calling).
-The simpler approach seems to be to try to properly model it downstream.
--->
-
 ## Checking for important technical factors 
 
 We check whether there are technical factors that contribute substantially to the heterogeneity of gene expression.
@@ -480,17 +427,6 @@ Thus, the spike-in total does not need to be explicitly modelled in our downstre
 plotExplanatoryVariables(sce, variables=c("counts_feature_controls_ERCC", 
     "log10_counts_feature_controls_ERCC")) + fontsize
 ```
-
-<!--
-The percentage of variance explained also affects the correlation.
-For a factor with percentage explained 'p', the upper bound on the increase to the Pearson's correlation would be '2p', when the correlation is -1; 'p', when the correlation is zero, and 0, when the correlation is 1, obviously.
-If 'p' is decently large (>10%), we're likely to have problems, so the corresponding factor will be need to be regressed out.
-
-Of course, blocking on factors introduces more assumptions and points of failure to the analysis (e.g., linearity in the covariates).
-If the model is misspecified, you can end up with spurious patterns in the residuals - possibly larger than that caused by the technical bias in the first place.
-This is compounded by the presence of zeroes, non-normality and heteroskedasticity, etc.
-Thus, blocking should be performed sparingly, rather than being performed by default.
--->
 
 Note that the use of the spike-in total as an accurate proxy for the relative technical bias assumes that no library quantification is performed.
 Otherwise, the coverage of the spike-in transcripts would be dependent on the total amount of endogenous RNA in each cell.
@@ -538,12 +474,6 @@ cur.spike <- isSpike(sce)
 points(var.out$mean[cur.spike], var.out$total[cur.spike], col="red", pch=16)
 ```
 
-<!--
-The thin line to the left is a mathematical artifact when you have discrete counts.
-- the variance will increase as a concave quadratic when you can only choose between 0 and 1 (low 'p' increases with fixed 'n' in a binomial RV).
-- the variance will increase as a convex quadratic with the mean, if variance is driven by an outlier and everything else is 0.
-Not sure how much effort it's worth to extract HVG information from this part of the plot, as low counts are dominated by Poisson sampling noise.
--->
 
 HVGs are defined as genes with biological components that are significantly greater than zero at a false discovery rate (FDR) of 5%. 
 These genes are interesting as they drive differences in the expression profiles between cells, and should be prioritized for further investigation.
@@ -561,25 +491,6 @@ write.table(file="hsc_hvg.tsv", hvg.out, sep="\t", quote=FALSE, col.names=NA)
 head(hvg.out)
 ```
 
-<!--
-Specifically, for a standard normal, the square root of the expected squared distance between two cells would be sqrt(2). 
-So, if you set the standard error to 1/sqrt(2), the distance would become 1 (i.e., 2-fold change).
-Setting this threshold avoids selecting genes with high fold changes above the technical variance, but small absolute total variances.
-Such genes are more likely to be true positives but also less likely to be strongly variable and biologically interesting.
-
-The threshold is a bit informal, but that's okay (the DM, for example, is no better, and Brennecke has that +0.25 value that isn't very interpretable).
-In and of themselves, HVGs are not of interest -- rather, they prioritise genes for more interesting analyses, e.g., clustering, correlation and gene set analyses.
-If HVG detection is considered as a screen, it is better to focus on potentially interesting (but possibly false) genes rather than true and uninteresting ones.
-
-To this end, it is permissible to relax the FDR for detecting HVGs, especially if you didn't get anything interesting things with a low threshold.
-Of course, this would also increase the amount of genes dominated by technical noise later on, so it's not preferable if you can avoid it.
-One could argue that this is not problematic if you just get more low-variability genes, as these don't contribute much to relative differences betwen cells.
-However, technical noise is still high (in absolute terms) and there are a lot more of them, so it would probably still mess up the results.
-
-In any case, the p-values calculated here are probably more appropriate than those from Brennecke.
-Log-expression values are a lot more normal-looking than the raw counts, due to the skew of the latter.
--->
-
 We recommend checking the distribution of expression values for the top HVGs to ensure that the variance estimate is not being dominated by one or two outlier cells (Figure 11).
 
 ```{r hvgvioplothsc, fig.cap="**Figure 11:** Violin plots of normalized log-expression values for the top 10 HVGs in the HSC dataset. Each point represents the log-expression value in a single cell."}
@@ -591,35 +502,6 @@ Some of these methods are available in `r Biocpkg("scran")` -- for example, see 
 Here, we use the variance of the log-expression values because the log-transformation protects against genes with strong expression in only one or two cells.
 This ensures that the set of top HVGs is not dominated by genes with (mostly uninteresting) outlier expression patterns.
 
-<!--
-For the same reason, detection power is reduced for HVGs driven by rare subpopulations.
-The only way to maximize power for rare subpopulations would be to use something like the Gini index (Jiang et al., 2016).
-This risks throwing up a lot of noise, though, as outliers will now be very highly ranked -- this is also true of the CV2-based methods, due to the small mean.
--->
-
-<!--
-The mean-variance trend in Figure 10 is also more complex and difficult to fit than that of other approaches.
-But we can do it, so it's a technical challenge rather than a philosophical one.
--->
-
-<!--
-The use of variance of log-values is also more consistent with downstream applications.
-For example, PCA and t-SNE are applied on the log-values, as is visualization of expression with boxplots or violin plots.
-Making the latter with genes identified as HVGs from CV2 would give outliers that get shrunk upon log-transformation.
-Indeed, the variance of the log-values provides a measure of the log-fold change between cells, which is arguably more relevant than the absolute differences in expression.
--->
-
-<!--
-We can interpret HVGs as genes where each cell has an (unknown) true expression that varies across cells, e.g., due to subpopulations or across a continuum.
-This can also be extended across time, e.g., due to transcriptional bursting or circadian rhythms.
-In other words, HVGs are equivalent to DE genes for unknown subsets of cells.
-Validating whether the variability is functionally relevant becomes straightforward, as we can just KO or overexpress the gene.
-This is equivalent to the strategy that would be used to validate the underlying DE, if the subsets were known.
-One can also see this as seeing what happens after reducing the variance by coercing everyone to be lowly or highly-expressing.
-While it won't preserve the population mean, this is largely irrelevant if HVGs are to equivalent to DEGs anyway.
-(Such a task -- reducing variability while preserving the mean -- would be monumentally difficult.)
--->
-
 ## Identifying correlated gene pairs with Spearman's rho
 
 Another useful procedure is to identify the HVGs that are highly correlated with one another.
@@ -629,14 +511,6 @@ Gene pairs with significantly large positive or negative values of rho are ident
 We only apply this function to the set of HVGs, because these genes have large biological components and are more likely to exhibit strong correlations driven by biology.
 In contrast, calculating correlations for all possible gene pairs would require too much computational time and increase the severity of the multiple testing correction.
 It may also prioritize uninteresting genes that have strong correlations but low variance, e.g., tightly co-regulated house-keeping genes.
-
-<!--
-As opposed to technical noise, which should be random and reduce the correlations (and power). 
-
-An alternative approach would be a method that detects correlations and HVGs at the same time, where strong correlations would offset low variances for gene detection.
-The problem is that, taken to its logical conclusion, this would probably pick up a large web of genes that have strong correlations with low total variances.
-This is probably uninteresting, e.g., residual technical effects (like cell size) or uninteresting biology (ribosome-related correlations).
--->
 
 ```{r}
 set.seed(100)
@@ -650,20 +524,6 @@ For each pair of genes, the null hypothesis is that the expression profiles of t
 Shuffling the profiles and recalculating the correlation yields a null distribution that is used to obtain a _p_-value for each observed correlation value [@phipson2010permutation].
 Correction for multiple testing across many gene pairs is performed by controlling the FDR at 5%.
 Correlated gene pairs can be directly used for experimental validation with orthogonal techniques (e.g., fluorescence-activated cell sorting, immunohistochemistry or RNA fluorescence _in situ_ hybridization) to verify that these expression patterns are genuinely present across the cell population.
-
-<!-- 
-The idea is to use the correlated gene pairs without having to rely on clustering.
-This is closer to the raw data and avoids the errors and ambiguities introduced by clustering.
-Negative correlations are particularly powerful as they provide definitive signals for both opposing clusters (or both ends of a trajectory).
-This gets around problems in validation where double positive/negative signals might just be due to differences in cell accessibility, permeability, etc.
-
-Of course, relying solely on correlations is also a bit less interpretable, as the identities of the cells in the subpopulations are not explicitly set.
-It is also limited to the top set of HVGs, whereas DE between clusters can be checked between all genes.
-(Although the rest of the genes are unlikely to have strong DE, otherwise they would have been HVGs.)
-
-At the very least, one can use the correlation results to back up the (less reliable but more interpretable) higher-level analyses.
-So if you get a result from the latter that you mightn't trust (due to uncertainty of clustering, etc.), you can fall back to the correlations if it shows up there.
--->
 
 ```{r}
 sig.cor <- var.cor$FDR <= 0.05
@@ -690,12 +550,17 @@ If many pairs were significant, this would indicate that the subpopulations were
 For this particular dataset, a relatively low number of HVGs exhibit significant correlations.
 This suggests that any substructure in the data will be modest, which is expected given that rigorous selection was performed to obtain a homogeneous population of HSCs [@wilson2015combined].
 
+The `correlatePairs` function can also return gene-centric output by setting `per.gene=TRUE`.
+This calculates a combined _p_-value [@simes1986improved] for each HVG that indicates whether it is significantly correlated to at least one other HVG.
+From a statistical perspective, this is a more natural approach to correcting for multiple testing when genes, rather than pairs of genes, are of interest.
+We define correlated HVGs as those that are detected here at a FDR of 5%.
 
-<!--
-Standard bootstrapping requires IID genes in order to generate bootstrap replicates of the original data.
-This is not the case, which makes it difficult to interpret the bootstrap probabilities on an absolute scale.
-Doing it correctly would require block resampling to account for correlations -- hence the difficulty.
--->
+```{r}
+var.cor <- correlatePairs(sce, subset.row=rownames(hvg.out), per.gene=TRUE)
+head(var.cor)
+sig.cor <- var.cor$FDR <= 0.05
+summary(sig.cor)
+```
 
 ## Using correlated HVGs for further data exploration
 
@@ -706,7 +571,7 @@ This is not observed in Figure 12, consistent with the lack of strong substructu
 There may be a subpopulation of _Fos_ and _Jun_-negative cells, but it is poorly defined given the small numbers of cells and genes involved.
 
 ```{r heatmaphsc, message=FALSE, fig.width=7, fig.height=7, fig.cap="**Figure 12:** Heatmap of mean-centred normalized log-expression values for correlated HVGs in the HSC dataset. Dendrograms are formed by hierarchical clustering on the Euclidean distances between genes (row) or cells (column)."}
-chosen <- unique(c(var.cor$gene1[sig.cor], var.cor$gene2[sig.cor]))
+chosen <- var.cor$gene[sig.cor]
 norm.exprs <- exprs(sce)[chosen,,drop=FALSE]
 heat.vals <- norm.exprs - rowMeans(norm.exprs)
 library(gplots)
@@ -762,12 +627,6 @@ If the differences between cells are subtle, the assignment of cells into cluste
 Moreover, different algorithms can yield substantially different clusters by focusing on different aspects of the data.
 Experimental validation of the clusters is critical to ensure that the putative subpopulations actually exist.
 
-<!--
-Standard bootstrapping requires IID genes in order to generate bootstrap replicates of the original data.
-This is not the case, which makes it difficult to interpret the bootstrap probabilities on an absolute scale.
-Doing it correctly would require block resampling to account for correlations -- hence the difficulty.
--->
-
 ## Additional comments
 
 Once the basic analysis is completed, it is often useful to save the `SCESet` object to file with the `saveRDS` function.
@@ -784,11 +643,6 @@ cell-state hierarchies can be characterized with the `r Biocpkg("sincell")` pack
 and oscillatory behaviour can be identified using `r Biocpkg("Oscope")` [@leng2015oscope].
 HVGs can be used in gene set enrichment analyses to identify biological pathways and processes with heterogeneous activity, using packages designed for bulk data like `r Biocpkg("topGO")` or with dedicated single-cell methods like `r Biocpkg("scde")` [@fan2016characterizing].
 Full descriptions of these analyses are outside the scope of this workflow, so interested users are advised to consult the relevant documentation.
-
-<!-- 
-Pseudotime coordinates can be extracted for DE analyses with edgeR/DESeq, a la empirical clustering.
-This might be more robust than clustering for continuous trajectories where the cluster boundaries would be more or less arbitrary.
--->
 
 ```{r, echo=FALSE, results='hide'}
 rm(sce, all.counts)
@@ -847,6 +701,15 @@ stopifnot(identical(endo.data$metadata$cell_id, spike.data$metadata$cell_id)) # 
 stopifnot(all(endo.data$metadata$cell_id==mito.data$metadata$cell_id)) # should now be the same.
 ```
 
+In this particular data set, some genes are represented by multiple rows corresponding to alternative genomic locations.
+We sum the counts for all rows corresponding to a single gene for ease of interpretation.
+
+```{r}
+raw.names <- sub("_loc[0-9]+$", "", rownames(endo.data$counts))
+new.counts <- rowsum(endo.data$counts, group=raw.names, reorder=FALSE)
+endo.data$counts <- new.counts
+```
+
 The counts are then combined into a single matrix for constructing a `SCESet` object.
 For convenience, metadata for all cells are stored in the same object for later access.
 
@@ -867,7 +730,7 @@ is.mito <- rep(c(FALSE, TRUE, FALSE), nrows)
 
 ```{r, echo=FALSE, results='hide'}
 # Save some memory.
-rm(mito.data, endo.data, spike.data)
+rm(mito.data, endo.data, spike.data, new.counts)
 gc()
 ```
 
@@ -878,7 +741,7 @@ Nonetheless, we compute some quality control metrics to check whether the remain
 
 ```{r}
 sce <- calculateQCMetrics(sce, feature_controls=list(Spike=is.spike, Mt=is.mito)) 
-isSpike(sce) <- "Spike"
+setSpike(sce) <- "Spike"
 ```
 
 We examine the distribution of library sizes and numbers of expressed genes across cells (Figure 15).
@@ -945,24 +808,11 @@ assignments <- cyclone(sce, mm.pairs, gene.names=ensembl)
 plot(assignments$score$G1, assignments$score$G2M, xlab="G1 score", ylab="G2/M score", pch=16)
 ```
 
-<!--
-Another possible contributor to poor performance is the difference in the cells used for training and those in the test data.
-If certain expression patterns are associated with the cell cycle in the training set (of mouse embryonic stem cells), these may be incorporated into the classifier.
-However, if those patterns are not associated with the cell cycle in the test data, their inclusion will add noise without providing any phase information.
-This will lead to a deterioration in the accuracy of the classifier.
-In general, this is unlikely to be a major issue as the cell cycle should be a conserved process across many lineages and conditions.
--->
-
 An additional complication is that many neuronal cell types are expected to lie in the G0 resting phase, which is distinct from the other phases of the cell cycle [@coller2006new].
 Application of `cyclone` to these cells may be suboptimal if each cell must be assigned into one of the G1, S or G2/M phases.
 To avoid problems from misclassification, we will not perform any processing of this dataset by cell cycle phase.
 This is unlikely to be problematic for this analysis, as the cell cycle effect will be relatively subtle compared to the obvious differences between cell types in a diverse population.
 Thus, the former is unlikely to distort the conclusions regarding the latter.
-
-<!--
-Misclassification due to the differences in training/test datasets, which may lead to cells being assigned to phases that they're not; 
-or misclassification due to G0, which should be closest to G1 but may be different enough that you'd get a low G1 score => more S-like?
--->
 
 ```{r echo=FALSE, results='hide'}
 gc()
@@ -977,8 +827,8 @@ While some information and power will be lost due to the decrease in the size of
 Specifically, the use of UMIs eliminates technical noise due to amplification biases [@islam2014quantitative].
 
 ```{r}
-ave.counts <- rowMeans(counts(sce))
-keep <- rowMeans(counts(sce)) >= 0.2
+ave.counts <- calcAverage(sce)
+keep <- ave.counts >= 0.1
 ```
 
 Figure 18 suggests that our choice of threshold is appropriate.
@@ -987,7 +837,7 @@ The filter removes the bulk of lowly expressed genes while preserving the peak o
 ```{r abhistbrain, fig.cap="**Figure 18:** Histogram of log-average counts for all genes in the brain dataset. The filter threshold is represented by the blue line."}
 hist(log10(ave.counts), breaks=100, main="", col="grey",
     xlab=expression(Log[10]~"average count"))
-abline(v=log10(0.2), col="blue", lwd=2, lty=2)
+abline(v=log10(0.1), col="blue", lwd=2, lty=2)
 ```
 
 The mean-based filter is applied to the dataset by subsetting `sce` as previously described.
@@ -1088,18 +938,37 @@ Blocking on these factors may be necessary to account for batch effects that are
 
 We identify HVGs that may be involved in driving population heterogeneity.
 This is done by fitting a trend to the technical variances for the spike-in transcripts.
-We then compute the biological component of the variance for each endogenous gene by subtracting the fitted value of the trend from the total variance.
+We compute the biological component of the variance for each endogenous gene by subtracting the fitted value of the trend from the total variance.
+To account for uninteresting factors, we supply `design` to `trendVar` to regress out any technical differences due to sex.
+HVGs are then detected in the same manner as described in the HSC data analysis.
 
 ```{r}
-var.fit <- trendVar(sce, trend="loess", design=design, span=0.4)
-var.out <- decomposeVar(sce, var.fit)
+var.fit.des <- trendVar(sce, trend="loess", span=0.4, design=design)
+var.out.des <- decomposeVar(sce, var.fit.des)
+hvg.out.des <- var.out.des[which(var.out.des$FDR <= 0.05 & var.out.des$bio >= 0.5),]
+nrow(hvg.out.des)
+```
+
+Alternatively, for data sets containing multiple batches, a more robust strategy is to perform trend fitting and variance decomposition separately for each batch.
+This accommodates differences in the mean-variance trends between batches, especially if a different amount of spike-in RNA was added to the cells in each batch.
+We demonstrate the second approach below by treating each sex as a different "batch".
+
+```{r}
+collected <- list()
+for (block in levels(sce$sex)) {
+    cur.sce <- sce[,sce$sex==block]
+    cur.sce <- normalize(cur.sce) 
+    var.fit <- trendVar(cur.sce, trend="loess", span=0.4)
+    collected[[block]] <- decomposeVar(cur.sce, var.fit)
+}
 ```
 
 ```{r, echo=FALSE, results='hide', message=FALSE}
+rm(cur.sce)
 gc()
 ```
 
-Figure 21 suggests that the trend is fitted accurately to the technical variances.
+Figure 21 suggests that the trend is fitted accurately to the technical variances for each sex.
 Errors in fitting are negligible due to the precision of the variance estimates in a large dataset containing thousands of cells.
 The technical and total variances are also much smaller than those in the HSC dataset.
 This is due to the use of UMIs which reduces the noise caused by variable PCR amplification.
@@ -1107,19 +976,24 @@ Furthermore, the spike-in trend is consistently lower than the variances of the 
 This reflects the heterogeneity in gene expression across cells of different types.
 It also means the previous strategy of fitting a trend to the endogenous variances would not be appropriate here (or necessary, given the quality of the spike-in trend). 
 
-```{r hvgplotbrain, fig.cap="**Figure 21:** Variance of normalized log-expression values for each gene in the brain dataset, plotted against the mean log-expression. The red line represents the mean-   dependent trend in the technical variance of the spike-in transcripts (also highlighted as red points)."}
-plot(var.out$mean, var.out$total, pch=16, cex=0.6, xlab="Mean log-expression", 
-    ylab="Variance of log-expression")
-points(var.fit$mean, var.fit$var, col="red", pch=16)
-o <- order(var.out$mean)
-lines(var.out$mean[o], var.out$tech[o], col="red", lwd=2)
+```{r hvgplotbrain, fig.width=12, fig.height=6, fig.cap="**Figure 21:** Variance of normalized log-expression values against the mean for each gene, calculated across all cells from male (left) or female mice (right). In each plot, the red line represents the mean-dependent trend in the technical variance of the spike-in transcripts (also highlighted as red points)."}
+par(mfrow=c(1,2))
+for (block in c("1", "-1")) { 
+    var.out <- collected[[block]]
+    plot(var.out$mean, var.out$total, pch=16, cex=0.6, xlab="Mean log-expression", 
+        ylab="Variance of log-expression", main=ifelse(block=="1", "Male", "Female"))
+    points(var.out$mean[isSpike(sce)], var.out$total[isSpike(sce)], col="red", pch=16)
+    o <- order(var.out$mean)
+    lines(var.out$mean[o], var.out$tech[o], col="red", lwd=2)
+}
 ```
 
-HVGs are identified as genes with large positive biological components.
-These are saved to file for future reference.
+Statistics are combined across the two sexes using the `combineVar` function.
+HVGs are identified as genes with large positive biological components, and are saved to file for future reference.
 Note that some of the p-values are reported as zero due to numerical imprecision.
 
 ```{r}
+var.out <- do.call(combineVar, collected)
 hvg.out <- var.out[which(var.out$FDR <= 0.05 & var.out$bio >= 0.5),]
 hvg.out <- hvg.out[order(hvg.out$bio, decreasing=TRUE),] 
 nrow(hvg.out)
@@ -1134,30 +1008,17 @@ Some tweaking of the `plotExpression` parameters is necessary to visualize a lar
 plotExpression(sce, rownames(hvg.out)[1:10], alpha=0.05, jitter="jitter") + fontsize
 ```
 
-To identify genes involved in defining subpopulations, the set of HVGs is tested for significant pairwise correlations.
-Here, the number of significantly correlated pairs is much higher than in the HSC dataset, indicating that strong substructure is present.
-These results are also saved to file for use in designing validation experiments.
-
-<!--
-We could also set a threshold on the absolute value of the correlation.
-This is useful when you have lots of cells, which gives you (too much) power to detect non-zero correlations.
-It is also valid without further work -- unlike log-fold changes in DE, the absolute correlation here directly determines the p-value.
-Thus, you can threshold on the correlation without affecting FDR control, because loss of elements with higher p-values just means the FDR is lower across the rest.
-However, I'm disinclined to recommend this explicitly, as you would lose power to detect subtle correlations driving minor subpopulations.
-This would defeat the purpose of having lots of cells to improve power to detect those subpopulations.
-
-I also switched to using all genes, rather than the top 500 as published.
-This is because if you have lots of heterogeneity, genes corresponding to relatively weaker effects are not visible, even if those effects are actually absolutely large.
-In any case, it actually doesn't take that long, so we might as well just do it using all genes.
--->
+To identify genes involved in defining subpopulations, correlations in the expression profiles are calculated between pairs of HVGs.
+Correlated HVGs are defined as those with significant correlations to one or more other HVGs at a FDR of 5%.
+Here, the proportion of HVGs with significant correlations is much higher than in the HSC dataset, indicating that strong substructure is present.
 
 ```{r}
 set.seed(100)
-var.cor <- correlatePairs(sce, design=design, subset.row=rownames(hvg.out))
+var.cor <- correlatePairs(sce, design=design, subset.row=rownames(hvg.out), per.gene=TRUE)
 write.table(file="brain_cor.tsv", var.cor, sep="\t", quote=FALSE, row.names=FALSE)
 head(var.cor)
 sig.cor <- var.cor$FDR <= 0.05
-sum(sig.cor)
+summary(sig.cor)
 ```
 
 ## Further data exploration with the correlated HVGs
@@ -1176,30 +1037,12 @@ adj.exprs <- removeBatchEffect(adj.exprs, batch=sce$sex)
 norm_exprs(sce) <- adj.exprs 
 ```
 
-<!--
-Comparing residuals between blocking factor levels can run into problems if population structure varies between levels.
-Imagine a case where we have two batches, NO batch effect and different proportions of the same cell types in each batch.
-Computing residuals can result in spurious differences within each cell type for genes that are DE between cell types.
-This is because the batch-specific average will be different due to the different composition of each batch.
-It's actually worse than a completely confounding effect, as at least total confounding would just result in loss of differences and a false negative.
-
-This seems to only affect situations where residuals need to compared across levels.
-For variance calculations, residual effects are evaluated in terms of their total size, so this is less of an issue.
-In fact, the whole point is to pick up highly variable genes that aren't captured well by the model, so this is a good thing.
-For correlations with one-way layouts, comparisons are done within each level so it should be fine.
-There are problems for additive designs, but we knew that already.
-
-With all that being said, correction is probably the lesser of two evils if you have a strong batch effect that compromises the visualization.
-It shouldn't matter for technical effects that are largely orthogonal to population structure.
-Problems would only occur when you try to regress out uninteresting biological effects that might have some composition differences.
--->
-
 We perform dimensionality reduction on the correlated HVGs to check if there is any substructure. 
 Cells separate into clear clusters in the _t_-SNE plot (Figure 23), corresponding to distinct subpopulations.
 This is consistent with the presence of multiple cell types in the diverse brain population.
 
 ```{r tsneplotbrain, fig.cap="**Figure 23:** _t_-SNE plots constructed from the normalized and corrected log-expression values of correlated HVGs for cells in the brain dataset. Each point represents a cell and is coloured according to its expression of the top HVG (left) or _Mog_ (right).", fig.width=15, fig.height=6}
-chosen <- unique(c(var.cor$gene1[sig.cor], var.cor$gene2[sig.cor]))
+chosen <- var.cor$gene[sig.cor]
 top.hvg <- rownames(hvg.out)[1]
 tsne1 <- plotTSNE(sce, exprs_values="norm_exprs", colour_by=top.hvg,
     perplexity=10, rand_seed=100, feature_set=chosen) + fontsize
@@ -1214,10 +1057,10 @@ gc()
 ```
 
 The PCA plot is less effective at separating cells into many different clusters (Figure 24).
-This is because the first two principal components are driven by strong differences between specific subpopulations, which reduces the resolution of more subtle differences between some of the other subpopulations.
+This is because the first two principal components (PCs) are driven by strong differences between specific subpopulations, which reduces the resolution of more subtle differences between some of the other subpopulations.
 Nonetheless, some substructure is still visible.
 
-```{r pcaplotbrain, fig.cap="**Figure 24:** PCA plots constructed from the normalized and corrected log-expression values of correlated HVGs for cells in the brain dataset. Each point          represents a cell and is coloured according to its expression of the top HVG (left) or _Mog_ (right).", fig.width=15, fig.height=6}
+```{r pcaplotbrain, fig.cap="**Figure 24:** PCA plots constructed from the normalized and corrected log-expression values of correlated HVGs for cells in the brain dataset. Each point represents a cell and is coloured according to its expression of the top HVG (left) or _Mog_ (right).", fig.width=15, fig.height=6}
 pca1 <- plotPCA(sce, exprs_values="norm_exprs", colour_by=top.hvg) + fontsize
 pca2 <- plotPCA(sce, exprs_values="norm_exprs", colour_by="Mog") + fontsize
 multiplot(pca1, pca2, cols=2)
@@ -1263,9 +1106,11 @@ heatmap.2(heat.vals, col=bluered, symbreak=TRUE, trace='none', cexRow=0.3,
 ```
 
 This heatmap can be stored at a greater resolution for detailed inspection later.
+It is advisable to verify the separatedness of the clusters using metrics such as the silhouette width or gap statistic (see the `r CRANpkg("cluster")` package for details).
+The same statistics can also be used to gauge the optimal parameter values (e.g., cut height, number of clusters) that maximize the separation between clusters.
 
 ```{r, results='hide'}
-pdf("brain_heat.pdf", width=10, height=100) # Large 'height' to store all gene names.
+pdf("brain_heat.pdf", width=10, height=100) # Large 'height' to show all gene names.
 heatmap.2(heat.vals, col=bluered, symbreak=TRUE, trace='none', cexRow=0.3,
     ColSideColors=clust.col[my.clusters], Colv=as.dendrogram(my.tree), 
     lwid=c(1, 4), lhei=c(1, 50), # Avoid having a very large colour key.
@@ -1277,16 +1122,22 @@ dev.off()
 Use Acrobat reader or zathura for linux (selecting gene names and looking a copied text works better than continually zooming in/out).
 -->
 
+A complementary approach is to perform PCA on the log-expression values for correlated HVGs and cluster on the first few PCs.
+This assumes that random technical noise in each gene will be represented by later PCs, while biological substructure involving coregulated groups of genes will contribute more variance and be represented by earlier PCs.
+The `denoisePCA` function will remove later PCs until the total discard variance is equal to the sum of technical components for all genes used in the PCA.
+This eliminates technical noise and enriches for biological signal in the remaining PCs, allowing for improved resolution during clustering.
+
+```{r}
+# Using the technical components computed with a design matrix.
+pcs <- denoisePCA(sce, design=design, technical=var.fit.des$trend, subset.row=chosen) 
+dim(reducedDimension(pcs)) # Cluster on this instead of t(chosen.exprs)
+```
+
 When examining very heterogeneous datasets, it can be useful to repeat the HVG detection and clustering using only the cells within a particular cluster.
 This can be achieved by subsetting `sce` according to a particular level of `my.clusters`, and applying the same functions that were previously described.
 Doing so may identify a different set of correlated HVGs that define heterogeneity within the cluster, as opposed to those that define differences between clusters.
-In this manner, fine-scale structure within each cluster can be explored at greater resolution. 
+This would allow fine-scale structure within each cluster to be explored at greater resolution. 
 For simplicity, though, we will only use the broad clusters corresponding to clear subpopulations in this workflow.
-
-<!--
-It may be a more relevant set, because you can detect HVGs at greater power if you didn't have uninvolved, constantly-expressing cells dragging down the variance/correlations.
-Similarly, you'd get rid of genes that are HVGs between clusters but are not within the cluster, which wouldn't help with internal clustering.
--->
 
 ```{r echo=FALSE, results='hide'}
 gc()
@@ -1294,86 +1145,38 @@ gc()
 
 ## Detecting marker genes between subpopulations
 
-Once putative subpopulations are identified, we can identify marker genes for specific subpopulations of interest.
-This is done by identifying genes that are consistently DE in one subpopulation compared to the others.
-DE testing can be performed using a number of packages, but for this workflow, we will use the `r Biocpkg("edgeR")` package [@robinson2010edgeR].
-First, we set up a design matrix specifying which cells belong to each cluster.
-Each `cluster*` coefficient represents the average log-expression of all cells in the corresponding cluster.
-We also block on uninteresting factors such as sex.
+Once putative subpopulations are identified by clustering, we can identify marker genes for each cluster using the `findMarkers` function.
+This fits a linear model to the log-expression values for each gene, using methods in the `r Biocpkg("limma")` package [@law2014voom; @ritchie2015limma].
+The aim is to test for DE in each cluster compared to the others while blocking on uninteresting factors in `design`.
+The top DE genes are likely to be good candidate markers as they can effectively distinguish between cells in different clusters.
 
 ```{r}
-cluster <- factor(my.clusters)
-de.design <- model.matrix(~0 + cluster + sce$sex)
-head(colnames(de.design))
+markers <- findMarkers(sce, my.clusters, block=design)
 ```
 
-We set up a `DGEList` object for entry into the `r Biocpkg("edgeR")` analysis.
-This new object contains all relevant information from the original `SCESet` object, including the counts and (library size-adjusted) size factors.
+For each cluster, the DE results of the relevant comparisons are consolidated into a single output table.
+This allows a set of marker genes to be easily defined by taking the top DE genes from each pairwise comparison between clusters.
+For example, to construct a marker set for cluster 1 from the top 10 genes of each comparison, one would filter `marker.set` to retain rows with `Top` less than or equal to 10.
+Other statistics are also reported for each gene, including the adjusted p-values (see below) and the log-fold changes relative to every other cluster.
+
+```{r, echo=FALSE, results="hide"}
+old.digits <- options()$digits
+options(digits=3)
+```
 
 ```{r}
-library(edgeR)
-y <- convertTo(sce, type="edgeR")
-```
-
-`r Biocpkg("edgeR")` uses negative binomial (NB) distributions to model the read/UMI counts for each sample.
-We estimate the NB dispersion parameter that quantifies the biological variability in expression across cells in the same cluster.
-Large dispersion estimates above 0.5 are often observed in scRNA-seq data due to technical noise, in contrast to bulk data where values of 0.05-0.2 are more typical.
-We then use the design matrix to fit a NB GLM to the counts for each gene [@mccarthy2012differential].
-
-```{r}
-y <- estimateDisp(y, de.design)
-fit <- glmFit(y, de.design)
-summary(y$tagwise.dispersion)
-```
-
-```{r echo=FALSE, results='hide'}
-gc()
-```
-
-We assume that one of the clusters corresponds to our subpopulation of interest.
-Each gene is tested for DE between the chosen cluster and every other cluster in the dataset.
-We demonstrate this below for cluster 1, though the same process can be applied to any other cluster by changing `chosen.clust`.
-
-```{r}
-result.logFC <- result.PValue <- list()
-chosen.clust <- which(levels(cluster)=="1") # character, as 'cluster' is a factor.
-for (clust in seq_len(nlevels(cluster))) {
-    if (clust==chosen.clust) { next }
-    contrast <- numeric(ncol(de.design))
-    contrast[chosen.clust] <- 1
-    contrast[clust] <- -1
-    res <- glmLRT(fit, contrast=contrast)
-    con.name <- paste0('vs.', levels(cluster)[clust])
-    result.logFC[[con.name]] <- res$table$logFC
-    result.PValue[[con.name]] <- res$table$PValue
-}
-```
-
-Potential marker genes are identified by taking the top set of DE genes from each pairwise comparison between clusters.
-We arrange the results into a single output table that allows a marker set to be easily defined for a user-specified size of the top set.
-For example, to construct a marker set from the top 10 genes of each comparison, one would filter `marker.set` to retain rows with `Top` less than or equal to 10.
-
-```{r}
-collected.ranks <- lapply(result.PValue, rank, ties="first")
-min.rank <- do.call(pmin, collected.ranks)
-marker.set <- data.frame(Top=min.rank, Gene=rownames(y), 
-    logFC=do.call(cbind, result.logFC), stringsAsFactors=FALSE)
-marker.set <- marker.set[order(marker.set$Top),]
+marker.set <- markers[["1"]]
 head(marker.set, 10)
+```
+
+```{r, echo=FALSE, results="hide"}
+options(digits=old.digits)
 ```
 
 We save the list of candidate marker genes for further examination.
 We also examine their expression profiles to verify that the DE signature is robust.
 Figure 26 indicates that most of the top markers have strong and consistent up- or downregulation in cells of cluster 1 compared to some or all of the other clusters.
 Thus, cells from the subpopulation of interest can be identified as those that express the upregulated markers and do not express the downregulated markers.
-
-<!--
-DE genes between subpopulations are not necessarily marker genes.
-The latter requires that the gene be consistently expressed (or not) in all cells of one subpopulation compared to the other.
-This means that the variance needs to be modelled across cells.
-For DE genes, any change will do, even if it only appears in a small percentage of cells of the subpopulation.
-This requires modelling of the variance across replicate instances of the entire subpopulation.
--->
 
 ```{r heatmapmarkerbrain, fig.cap="**Figure 26:** Heatmap of mean-centred normalized and corrected log-expression values for the top set of markers for cluster 1 in the brain dataset. Column colours represent the cluster to which each cell is assigned, as indicated by the legend."}
 write.table(marker.set, file="brain_marker_1.tsv", sep="\t", quote=FALSE, col.names=NA)
@@ -1391,12 +1194,20 @@ For example, in a mixed population of CD4^+^-only, CD8^+^-only, double-positive 
 With our approach, both of these genes will be picked up as candidate markers as they will be DE between at least one pair of subpopulations.
 A combination of markers can then be chosen to characterize a subpopulation, which is more flexible than trying to find uniquely DE genes.
 
-It must be stressed that the _p_-values computed here cannot be interpreted as measures of significance.
+It must be stressed that the (adjusted) _p_-values computed here cannot be properly interpreted as measures of significance.
 This is because the clusters have been empirically identified from the data.
-`r Biocpkg("edgeR")` does not account for the uncertainty and stochasticity in clustering, which means that the _p_-values are much lower than they should be. 
-As such, these _p_-values should only be used for ranking candidate markers for follow-up studies.
+`r Biocpkg("limma")` does not account for the uncertainty of clustering, which means that the _p_-values are much lower than they should be. 
 However, this is not a concern in other analyses where the groups are pre-defined.
 For such analyses, the FDR-adjusted _p_-value can be directly used to define significant genes for each DE comparison, though some care may be required to deal with plate effects [@hicks2015widespread; @tung2016batch].
+
+The `SCESet` object can also be easily transformed for use in other DE analysis methods.
+For example, the `convertTo` function can be used to construct a `DGEList` for input into the `r Biocpkg("edgeR")` pipeline [@robinson2010edgeR].
+This allows users to construct their own marker detection pipeline, though we find that direct use of `findMarkers` is usually sufficient.
+
+```{r}
+library(edgeR)
+y <- convertTo(sce, type="edgeR")
+```
 
 ## Additional comments
 
@@ -1441,7 +1252,7 @@ sce <- newSCESet(countData=counts)
 sce$grouping <- rep(c("mESC", "MEF", "Neg"), c(48, 44, 4))
 sce <- sce[,sce$grouping!="Neg"] # Removing negative control wells.
 sce <- calculateQCMetrics(sce, feature_controls=list(spike=grep("SPIKE", rownames(counts))))
-isSpike(sce) <- "spike"
+setSpike(sce) <- "spike"
 ```
 
 We then apply the `computeSpikeFactors` method to estimate size factors for all cells.
@@ -1491,10 +1302,11 @@ Rather, more sophisticated strategies are required, one of which is demonstrated
 @buettner2015computational have already applied quality control and normalized the data, so we can use them directly as log-expression values (accessible as Supplementary Data 1 of https://dx.doi.org/10.1038/nbt.3102).
 
 ```{r}
-library(openxlsx)
-incoming <- read.xlsx("nbt.3102-S7.xlsx", sheet=1, rowNames=TRUE)
+incoming <- as.data.frame(read_excel("nbt.3102-S7.xlsx", sheet=1))
+rownames(incoming) <- incoming[,1]
+incoming <- incoming[,-1]
 incoming <- incoming[,!duplicated(colnames(incoming))] # Remove duplicated genes.
-sce <- newSCESet(exprsData=t(incoming), logged=TRUE)
+sce <- newSCESet(exprsData=t(incoming))
 ```
 
 We empirically identify the cell cycle phase using the pair-based classifier in `cyclone`.
@@ -1563,50 +1375,6 @@ saveRDS(file="th2_data.rds", sce)
 gc()
 ```
 
-<!--
-### Using cycle-annotated genes to identify hidden variation
-
-An alternative approach uses genes that have annotated functions in cell cycling and division.
-We extract all genes associated with the relevant GO terms and use them to construct a PCA plot for the brain dataset.
-Figure 31 contains three clusters that may correspond to distinct phases of the cell cycle.
-This can be determined explicitly by identifying marker genes for each cluster as previously described, and checking whether each marker has known phase-specific expression with resources such as [Cyclebase](http://www.cyclebase.org) [@santos2015cyclebase].
-
-```{r, echo=FALSE, results='hide', message=FALSE, eval=FALSE}
-library(org.Mm.eg.db)
-fontsize <- theme(axis.text=element_text(size=12), axis.title=element_text(size=16))
-```
-
-```{r braincyclepca, fig.width=10, fig.height=5, fig.cap="**Figure 31:** PCA plot of the brain dataset, using only genes with annotated functions in cell cycling or division.", eval=FALSE}
-ccgenes <- select(org.Mm.eg.db, keys=c("GO:0022403", "GO:0051301"), keytype="GOALL", column="SYMBOL")
-sce <- readRDS("brain_data.rds")
-chosen.genes <- which(rownames(sce) %in% ccgenes$SYMBOL)
-plotPCA(sce, feature_set=chosen.genes) + fontsize 
-```
-
-We can also identify hidden factors of variation across the annotated genes using `r Biocpkg("RUVSeq")`.
-This assumes that, if all cells were in the same phase of the cell cycle, there should be no DE across cells for genes associated with the cell cycle.
-Any systematic differences between cells are incorporated into the `W` matrix containing the factors of unwanted variation.
-These factors can then be included as covariates in the design matrix to absorb cell cycle effects in the rest of the dataset.
-We set `k=2` here to capture the variation corresponding to the two principal components in Figure 31.
-
-```{r, eval=FALSE}
-library(RUVSeq)
-ruv.out <- RUVg(exprs(sce), isLog=TRUE, cIdx=chosen.genes, k=2)
-head(ruv.out$W)
-```
-
-In general, we prefer using the `cyclone`-based approach for phase identification and blocking.
-This is because the expression of cell cycle genes may be affected by other biological/experimental factors at the single-cell level.
-As a result, the inferred factors of variation may include interesting differences between cells, such that blocking on those factors would result in loss of detection power.
-`cyclone` calls the phase for each cell separately and is more robust to systematic (non-cell-cycle-related) differences between cells.
--->
-
-<!--
-The obvious example would be if cells in the same phase had different amounts of expression for cell cycle genes, corresponding to some other factor (e.g., treatment).
-This would get picked up as a hidden factor of variation, leading to loss of power to detect that other factor.
-In contrast, cyclone wouldn't care as the relative amounts of expression within each cell would be the same for all cells, leading to correct calling of phase.
--->
-
 ## Extracting annotation from Ensembl identifiers
 
 Feature-counting tools typically report genes in terms of standard identifiers from Ensembl or Entrez.
@@ -1651,7 +1419,7 @@ anno <- anno[,-1,drop=FALSE]
 rownames(anno) <- my.ids
 sce <- newSCESet(countData=incoming, featureData=AnnotatedDataFrame(anno))
 sce <- calculateQCMetrics(sce, feature_controls=list(ERCC=is.spike))
-isSpike(sce) <- "ERCC"
+setSpike(sce) <- "ERCC"
 ```
 
 We filter out rows that do not correspond to endogenous genes or spike-in transcripts.
@@ -1681,7 +1449,7 @@ We anticipate that this workflow will assist readers in assembling analyses of t
 
 All software packages used in this workflow are publicly available from the Comprehensive R Archive Network (https://cran.r-project.org) or the Bioconductor project (http://bioconductor.org).
 The specific version numbers of the packages used are shown below, along with the version of the R installation.
-Version numbers of all Bioconductor packages correspond to release version 3.4 of the Bioconductor project.
+Version numbers of all Bioconductor packages correspond to release version 3.5 of the Bioconductor project.
 ```{r, echo=FALSE, results='asis'}
 if (!on.bioc) { 
     cat("Users can install all required packages and execute the workflow by following the instructions at https://www.bioconductor.org/help/workflows/simpleSingleCell.\n")
