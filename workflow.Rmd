@@ -358,7 +358,7 @@ To overcome this, we pool counts from many cells to increase the count size for 
 Pool-based size factors are then "deconvolved" into cell-based factors for cell-specific normalization.
 
 ```{r, warning=FALSE}
-sce <- computeSumFactors(sce, sizes=c(20, 40, 60, 80))
+sce <- computeSumFactors(sce, sizes=seq(20, 80, 5))
 summary(sizeFactors(sce))
 ```
 
@@ -876,6 +876,7 @@ Scaling is then performed to ensure that size factors of cells in different clus
 ```{r}
 clusters <- quickCluster(sce)
 sce <- computeSumFactors(sce, cluster=clusters)
+summary(sizeFactors(sce))
 ```
 
 ```{r echo=FALSE, results='hide'}
@@ -1151,7 +1152,7 @@ The aim is to test for DE in each cluster compared to the others while blocking 
 The top DE genes are likely to be good candidate markers as they can effectively distinguish between cells in different clusters.
 
 ```{r}
-markers <- findMarkers(sce, my.clusters, block=design)
+markers <- findMarkers(sce, my.clusters, design=design)
 ```
 
 For each cluster, the DE results of the relevant comparisons are consolidated into a single output table.
@@ -1174,12 +1175,17 @@ options(digits=old.digits)
 ```
 
 We save the list of candidate marker genes for further examination.
-We also examine their expression profiles to verify that the DE signature is robust.
+The `overlapExprs` function may also be useful here, to prioritize candidates where there is clear separation between the distributions of expression values of different clusters.
+
+```{r}
+write.table(marker.set, file="brain_marker_1.tsv", sep="\t", quote=FALSE, col.names=NA)
+```
+
+We visualize the expression profiles of the top candidates to verify that the DE signature is robust.
 Figure 26 indicates that most of the top markers have strong and consistent up- or downregulation in cells of cluster 1 compared to some or all of the other clusters.
 Thus, cells from the subpopulation of interest can be identified as those that express the upregulated markers and do not express the downregulated markers.
 
 ```{r heatmapmarkerbrain, fig.cap="**Figure 26:** Heatmap of mean-centred normalized and corrected log-expression values for the top set of markers for cluster 1 in the brain dataset. Column colours represent the cluster to which each cell is assigned, as indicated by the legend."}
-write.table(marker.set, file="brain_marker_1.tsv", sep="\t", quote=FALSE, col.names=NA)
 top.markers <- marker.set$Gene[marker.set$Top <= 10]
 top.exprs <- norm_exprs(sce)[top.markers,,drop=FALSE]
 heat.vals <- top.exprs - rowMeans(top.exprs)
