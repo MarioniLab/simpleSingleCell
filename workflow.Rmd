@@ -7,7 +7,7 @@ author:
       affiliation: EMBL European Bioinformatics Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SD, United Kingdom; St Vincent's Institute of Medical Research, 41 Victoria Parade, Fitzroy, Victoria 3065, Australia
     - name: John C. Marioni
       affiliation: Cancer Research UK Cambridge Institute, Li Ka Shing Centre, Robinson Way, Cambridge CB2 0RE, United Kingdom; EMBL European Bioinformatics Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SD, United Kingdom; Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
-date: 14 March 2017
+date: 7 June 2017
 vignette: >
     %\VignetteIndexEntry{A worfklow for low-level analyses of single-cell RNA-seq data}
     %\VignetteEngine{knitr::rmarkdown}
@@ -1107,8 +1107,6 @@ heatmap.2(heat.vals, col=bluered, symbreak=TRUE, trace='none', cexRow=0.3,
 ```
 
 This heatmap can be stored at a greater resolution for detailed inspection later.
-It is advisable to verify the separatedness of the clusters using metrics such as the silhouette width or gap statistic (see the `r CRANpkg("cluster")` package for details).
-The same statistics can also be used to gauge the optimal parameter values (e.g., cut height, number of clusters) that maximize the separation between clusters.
 
 ```{r, results='hide'}
 pdf("brain_heat.pdf", width=10, height=100) # Large 'height' to show all gene names.
@@ -1122,6 +1120,22 @@ dev.off()
 <!--
 Use Acrobat reader or zathura for linux (selecting gene names and looking a copied text works better than continually zooming in/out).
 -->
+
+It is advisable to verify the separatedness of the clusters using metrics such as the silhouette width or gap statistic (see the `r CRANpkg("cluster")` package for details).
+For example, cells with large positive silhouette widths are closer to other cells in the _same_ cluster than to cells in _different_ clusters (Figure 26).
+Conversely, cells with negative widths are closer to other clusters than to other cells in the cluster to which it was assigned.
+Each cluster would ideally contain many cells with large positive widths, indicating that it is well-separated from other clusters.
+The same statistics can also be used to gauge the optimal parameter values (e.g., cut height, number of clusters) that maximize the separation between clusters.
+In this case, one could vary the cut height in `cutreeDynamic` to maximize the average silhouette width across all cells.
+
+```{r silhouettebrain, message=FALSE, fig.cap="**Figure 26:** Barplot of silhouette widths for cells in each cluster. Each cluster is assigned a colour and cells with positive widths are coloured according to the colour of its assigned cluster. Any cell with a negative width is coloured according to the colour of the cluster that it is closest to. The average width for all cells in each cluster is shown, along with the average width for all cells in the data set."}
+library(cluster)
+sil <- silhouette(my.clusters, dist = my.dist)
+sil.cols <- clust.col[ifelse(sil[,3] > 0, sil[,1], sil[,2])]
+sil.cols <- sil.cols[order(-sil[,1], sil[,3])]
+plot(sil, main = paste(length(unique(my.clusters)), "clusters"), 
+    border=sil.cols, col=sil.cols, do.col.sort=FALSE) 
+```
 
 A complementary approach is to perform PCA on the log-expression values for correlated HVGs and cluster on the first few PCs.
 This assumes that random technical noise in each gene will be represented by later PCs, while biological substructure involving coregulated groups of genes will contribute more variance and be represented by earlier PCs.
@@ -1182,10 +1196,10 @@ write.table(marker.set, file="brain_marker_1.tsv", sep="\t", quote=FALSE, col.na
 ```
 
 We visualize the expression profiles of the top candidates to verify that the DE signature is robust.
-Figure 26 indicates that most of the top markers have strong and consistent up- or downregulation in cells of cluster 1 compared to some or all of the other clusters.
+Figure 27 indicates that most of the top markers have strong and consistent up- or downregulation in cells of cluster 1 compared to some or all of the other clusters.
 Thus, cells from the subpopulation of interest can be identified as those that express the upregulated markers and do not express the downregulated markers.
 
-```{r heatmapmarkerbrain, fig.cap="**Figure 26:** Heatmap of mean-centred normalized and corrected log-expression values for the top set of markers for cluster 1 in the brain dataset. Column colours represent the cluster to which each cell is assigned, as indicated by the legend."}
+```{r heatmapmarkerbrain, fig.cap="**Figure 27:** Heatmap of mean-centred normalized and corrected log-expression values for the top set of markers for cluster 1 in the brain dataset. Column colours represent the cluster to which each cell is assigned, as indicated by the legend."}
 top.markers <- marker.set$Gene[marker.set$Top <= 10]
 top.exprs <- norm_exprs(sce)[top.markers,,drop=FALSE]
 heat.vals <- top.exprs - rowMeans(top.exprs)
@@ -1194,7 +1208,7 @@ heatmap.2(heat.vals, col=bluered, symbreak=TRUE, trace='none', cexRow=0.6,
 legend("bottomleft", col=clust.col, legend=sort(unique(my.clusters)), pch=16)
 ```
 
-Many of the markers in Figure 26 are not uniquely up- or downregulated in the chosen cluster.
+Many of the markers in Figure 27 are not uniquely up- or downregulated in the chosen cluster.
 Testing for unique DE tends to be too stringent as it overlooks important genes that are expressed in two or more clusters.
 For example, in a mixed population of CD4^+^-only, CD8^+^-only, double-positive and double-negative T cells, neither _Cd4_ or _Cd8_ would be detected as subpopulation-specific markers because each gene is expressed in two subpopulations.
 With our approach, both of these genes will be picked up as candidate markers as they will be DE between at least one pair of subpopulations.
@@ -1279,12 +1293,12 @@ sce <- normalize(sce)
 ```
 
 For comparison, we also compute the deconvolution size factors and plot them against the spike-in factors.
-We observe a negative correlation between the two sets of values (Figure 27).
+We observe a negative correlation between the two sets of values (Figure 28).
 This is because MEFs contain more endogenous RNA, which reduces the relative spike-in coverage in each library (thereby decreasing the spike-in size factors) but increases the coverage of endogenous genes (thus increasing the deconvolution size factors).
 If the spike-in size factors were applied to the counts, the expression values in MEFs would be scaled up while expression in mESCs would be scaled down.
 However, the opposite would occur if deconvolution size factors were used.
 
-```{r normplotspikemef, fig.cap="**Figure 27:** Size factors from spike-in normalization, plotted against the size factors from deconvolution for all cells in the mESC/MEF dataset. Axes are shown on a log-scale, and cells are coloured according to their identity. Deconvolution size factors were computed with small pool sizes owing to the low number of cells of each type."}
+```{r normplotspikemef, fig.cap="**Figure 28:** Size factors from spike-in normalization, plotted against the size factors from deconvolution for all cells in the mESC/MEF dataset. Axes are shown on a log-scale, and cells are coloured according to their identity. Deconvolution size factors were computed with small pool sizes owing to the low number of cells of each type."}
 colours <- c(mESC="red", MEF="grey")
 deconv.sf <- computeSumFactors(sce, sf.out=TRUE, cluster=sce$grouping, sizes=1:4*10)
 plot(sizeFactors(sce), deconv.sf, col=colours[sce$grouping], pch=16, log="xy", 
@@ -1316,7 +1330,7 @@ sce <- newSCESet(exprsData=t(incoming))
 ```
 
 We empirically identify the cell cycle phase using the pair-based classifier in `cyclone`.
-The majority of cells in Figure 28 seem to lie in G1 phase, with small numbers of cells in the other phases.
+The majority of cells in Figure 29 seem to lie in G1 phase, with small numbers of cells in the other phases.
 
 ```{r, echo=FALSE, results='hide', message=FALSE}
 mm.pairs <- readRDS(system.file("exdata", "mouse_cycle_markers.rds", package="scran"))
@@ -1325,7 +1339,7 @@ fontsize <- theme(axis.text=element_text(size=12), axis.title=element_text(size=
 set.seed(100)
 ```
 
-```{r phaseplotth2, message=FALSE, fig.cap="**Figure 28:** Cell cycle phase scores from applying the pair-based classifier on the T~H~2 dataset, where each point represents a cell."}
+```{r phaseplotth2, message=FALSE, fig.cap="**Figure 29:** Cell cycle phase scores from applying the pair-based classifier on the T~H~2 dataset, where each point represents a cell."}
 anno <- select(org.Mm.eg.db, keys=rownames(sce), keytype="SYMBOL", column="ENSEMBL")
 ensembl <- anno$ENSEMBL[match(rownames(sce), anno$SYMBOL)]
 assignments <- cyclone(sce, mm.pairs, gene.names=ensembl, assay="exprs")
@@ -1345,11 +1359,11 @@ dec.block <- decomposeVar(sce, fit.block)
 ```
 
 For analyses that do not use design matrices, we remove the cell cycle effect directly from the expression values using `removeBatchEffect`.
-The result of this procedure is visualized with some PCA plots in Figure 29.
+The result of this procedure is visualized with some PCA plots in Figure 30.
 Before removal, the distribution of cells along the first two principal components is strongly associated with their G1 and G2/M scores.
 This is no longer the case after removal, which suggests that the cell cycle effect has been mitigated.
 
-```{r pcaplotth2, fig.width=12, fig.height=6, fig.cap="**Figure 29:** PCA plots before (left) and after (right) removal of the cell cycle effect in the T~H~2 dataset. Each cell is represented by a point with colour and size determined by the G1 and G2/M scores, respectively. Only HVGs were used to construct each plot."}
+```{r pcaplotth2, fig.width=12, fig.height=6, fig.cap="**Figure 30:** PCA plots before (left) and after (right) removal of the cell cycle effect in the T~H~2 dataset. Each cell is represented by a point with colour and size determined by the G1 and G2/M scores, respectively. Only HVGs were used to construct each plot."}
 # Finding HVGs without blocking on phase score.
 fit <- trendVar(sce, use.spikes=NA, trend="loess") 
 dec <- decomposeVar(sce, fit)
@@ -1369,10 +1383,10 @@ multiplot(out, out2, cols=2)
 
 As an aside, this dataset contains cells at various stages of differentiation [@mahata2014singlecell].
 This is an ideal use case for diffusion maps which perform dimensionality reduction along a continuous process.
-In Figure 30, cells are arranged along a trajectory in the low-dimensional space.
+In Figure 31, cells are arranged along a trajectory in the low-dimensional space.
 The first diffusion component is likely to correspond to T~H~2 differentiation, given that a key regulator _Gata3_ [@zhu2006gata3] changes in expression from left to right.
 
-```{r diffusionth2, fig.cap="**Figure 30:** A diffusion map for the T~H~2 dataset, where each cell is coloured by its expression of _Gata3_."}
+```{r diffusionth2, fig.cap="**Figure 31:** A diffusion map for the T~H~2 dataset, where each cell is coloured by its expression of _Gata3_."}
 plotDiffusionMap(sce, exprs_values="norm_exprs", colour_by="Gata3") + fontsize
 ```
 
