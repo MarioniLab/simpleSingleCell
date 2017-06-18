@@ -1121,12 +1121,12 @@ dev.off()
 Use Acrobat reader or zathura for linux (selecting gene names and looking a copied text works better than continually zooming in/out).
 -->
 
-It is advisable to verify the separatedness of the clusters using metrics such as the silhouette width or gap statistic (see the `r CRANpkg("cluster")` package for details).
-For example, cells with large positive silhouette widths are closer to other cells in the _same_ cluster than to cells in _different_ clusters (Figure 26).
+We check the separatedness of the clusters using the silhouette width (Figure 26).
+Cells with large positive silhouette widths are closer to other cells in the _same_ cluster than to cells in _different_ clusters.
 Conversely, cells with negative widths are closer to other clusters than to other cells in the cluster to which it was assigned.
 Each cluster would ideally contain many cells with large positive widths, indicating that it is well-separated from other clusters.
-The same statistics can also be used to gauge the optimal parameter values (e.g., cut height, number of clusters) that maximize the separation between clusters.
-In this case, one could vary the cut height in `cutreeDynamic` to maximize the average silhouette width across all cells.
+This can be used to gauge the optimal parameter values (e.g., cut height, number of clusters) that maximize the separation between clusters.
+For example, we could vary the cut height in `cutreeDynamic` to maximize the average silhouette width across all cells.
 
 ```{r silhouettebrain, message=FALSE, fig.cap="**Figure 26:** Barplot of silhouette widths for cells in each cluster. Each cluster is assigned a colour and cells with positive widths are coloured according to the colour of its assigned cluster. Any cell with a negative width is coloured according to the colour of the cluster that it is closest to. The average width for all cells in each cluster is shown, along with the average width for all cells in the data set."}
 library(cluster)
