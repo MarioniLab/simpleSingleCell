@@ -10,26 +10,24 @@ Description: This workflow implements a low-level analysis pipeline for scRNA-se
              and cell cycle phase identification. Procedures to detect highly variable genes, significantly correlated genes and 
              subpopulation-specific marker genes are also shown. These analyses are demonstrated on a range of publicly available scRNA-seq data sets. 
 Depends: R (>= 3.3.0), 
-        scater, 
-        scran,
-        SingleCellExperiment
-Suggests: BiocStyle,
-        BiocParallel,
+        BiocStyle,
         knitr,
+        BiocParallel,
+        Rtsne,
         mvoutlier,
         destiny,
-        Rtsne,
-        R.utils,
         readxl,
+        SingleCellExperiment
+        scater, 
         org.Mm.eg.db,
+        scran,
         limma,
+        pheatmap
         dynamicTreeCut,
         cluster,
-        edgeR,
-        TxDb.Mmusculus.UCSC.mm10.ensGene,
-        R.utils,
-        cluster,
-        pheatmap
+        edgeR
+Suggests: R.utils,
+        TxDb.Mmusculus.UCSC.mm10.ensGene
 License: Artistic-2.0
 Encoding: UTF-8
 LazyData: true
