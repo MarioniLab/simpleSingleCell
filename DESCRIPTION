@@ -9,7 +9,7 @@ Description: This workflow implements a low-level analysis pipeline for scRNA-se
              It describes how to perform quality control on the libraries, normalization of cell-specific biases, basic data exploration 
              and cell cycle phase identification. Procedures to detect highly variable genes, significantly correlated genes and 
              subpopulation-specific marker genes are also shown. These analyses are demonstrated on a range of publicly available scRNA-seq data sets. 
-Depends: R (>= 3.3.0), 
+Depends: R (>= 3.3.0),
         BiocStyle,
         knitr,
         BiocParallel,
@@ -17,12 +17,12 @@ Depends: R (>= 3.3.0),
         mvoutlier,
         destiny,
         readxl,
-        SingleCellExperiment
-        scater, 
+        SingleCellExperiment,
+        scater,
         org.Mm.eg.db,
         scran,
         limma,
-        pheatmap
+        pheatmap,
         dynamicTreeCut,
         cluster,
         edgeR
