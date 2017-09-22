@@ -321,6 +321,9 @@ This protects against cell cycle effects without discarding information, and wil
 - The classifier may not be accurate for data that are substantially different from those used in the training set, e.g., due to the use of a different protocol.
 In such cases, users can construct a custom classifier from their own training data using the `sandbag` function.
 This will also be necessary for other model organisms where pre-trained classifiers are not available.
+- Do not filter out low-abundance genes before applying `cyclone`.
+Even if a gene is not expressed in *any* cell, it may still be useful for classification if it is phase-specific.
+Its lack of expression relative to other genes will still yield informative pairs, and filtering them out would reduce power.
 
 ## Examining gene-level expression metrics
 
@@ -1590,7 +1593,7 @@ gc()
 repeat {
     present <- setdiff(loadedNamespaces(), 
         c(rownames(installed.packages(.Library, priority="base")), 
-        "AnnotationDbi", "GenomeInfoDb", "scran"))
+        "AnnotationDbi", "GenomeInfoDb", "scran", "BiocStyle"))
     discarded <- 0L        
     for (pkg in present) { 
        try({ 
