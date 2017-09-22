@@ -1593,7 +1593,7 @@ gc()
 repeat {
     present <- setdiff(loadedNamespaces(), 
         c(rownames(installed.packages(.Library, priority="base")), 
-        "AnnotationDbi", "GenomeInfoDb", "scran", "BiocStyle"))
+        "AnnotationDbi", "GenomeInfoDb", "scran"))
     discarded <- 0L        
     for (pkg in present) { 
        try({ 
@@ -1604,6 +1604,8 @@ repeat {
     if (discarded==0) break
 }
 library(R.utils)
+library(org.Mm.eg.db)
+library(BiocStyle)
 gcDLLs()
 ```
 
