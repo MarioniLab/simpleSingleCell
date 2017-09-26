@@ -26,7 +26,6 @@ Depends: R (>= 3.3.0),
         dynamicTreeCut,
         cluster,
         edgeR,
-        R.utils,
         TxDb.Mmusculus.UCSC.mm10.ensGene
 License: Artistic-2.0
 Encoding: UTF-8

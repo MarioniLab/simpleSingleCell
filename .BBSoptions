@@ -1,5 +1,5 @@
 UnsupportedPlatforms: win
-RbuildPrepend: R_MAX_NUM_DLLS=150
-RbuildPrepend.win: set R_MAX_NUM_DLLS=150&&
-RcheckPrepend: R_MAX_NUM_DLLS=150
-RcheckPrepend.win: set R_MAX_NUM_DLLS=150&&
+RbuildPrepend: R_MAX_NUM_DLLS=200
+RbuildPrepend.win: set R_MAX_NUM_DLLS=200&&
+RcheckPrepend: R_MAX_NUM_DLLS=200
+RcheckPrepend.win: set R_MAX_NUM_DLLS=200&&
