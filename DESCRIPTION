@@ -25,8 +25,8 @@ Depends: R (>= 3.3.0),
         pheatmap,
         dynamicTreeCut,
         cluster,
-        edgeR
-Suggests: R.utils,
+        edgeR,
+        R.utils,
         TxDb.Mmusculus.UCSC.mm10.ensGene
 License: Artistic-2.0
 Encoding: UTF-8

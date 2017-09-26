@@ -1588,7 +1588,7 @@ gc()
 
 ## Extracting annotation from Ensembl identifiers
 
-```{r, echo=FALSE, results="hide"}
+```{r, eval=FALSE, echo=FALSE, results="hide"}
 # Cleaning out DLLs, with some protection to get it to work.
 repeat {
     present <- setdiff(loadedNamespaces(), 
