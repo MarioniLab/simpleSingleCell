@@ -23,22 +23,19 @@ bibliography: ref.bib
 ---
 
 ```{r style, echo=FALSE, results='hide', message=FALSE}
-library(BiocStyle)
-library(knitr)
 opts_chunk$set(error=FALSE, message=FALSE, warning=FALSE)
 opts_chunk$set(fig.width=7, fig.height=7)
 opts_chunk$set(dpi=300, dev="png", dev.args=list(pointsize=15))
 options(bitmapType="cairo", width=100)
 
 # Setting single-core unless explicitly specified otherwise.
-library(BiocParallel)
 register(SerialParam())
 
 # Deciding whether we want to re-download everything or not.
 on.bioc <- TRUE
 ```
 
-```{r, message=FALSE, echo=FALSE, results='hide'}
+```{r, message=FALSE, echo=FALSE, results='hide', eval=FALSE}
 library(Rtsne)
 library(mvoutlier)
 library(destiny)
@@ -114,9 +111,7 @@ In this case, some work is required to retrieve the data from the Gzip-compresse
 Each row of the matrix represents an endogenous gene or a spike-in transcript, and each column represents a single HSC.
 
 ```{r}
-library(R.utils)
 gunzip("GSE61533_HTSEQ_count_results.xls.gz", remove=FALSE, overwrite=TRUE)
-library(readxl)
 all.counts <- as.data.frame(read_excel('GSE61533_HTSEQ_count_results.xls', sheet=1))
 rownames(all.counts) <- all.counts$ID
 all.counts <- as.matrix(all.counts[,-1])
@@ -125,7 +120,6 @@ all.counts <- as.matrix(all.counts[,-1])
 For convenience, the counts for spike-in transcripts and endogenous genes are stored in a `SingleCellExperiment` object from the `r Biocpkg("SingleCellExperiment")` package.
 
 ```{r}
-library(SingleCellExperiment)
 sce <- SingleCellExperiment(list(counts=all.counts))
 dim(sce)
 ```
@@ -171,7 +165,6 @@ For each cell, we calculate these quality control metrics using the `calculateQC
 These are stored in the row- and column-wise metadata of the `SingleCellExperiment` for future reference.
 
 ```{r}
-library(scater)
 sce <- calculateQCMetrics(sce, feature_controls=list(ERCC=is.spike, Mt=is.mito))
 head(colnames(colData(sce)))
 ```
@@ -283,9 +276,7 @@ This approach is implemented in the `cyclone` function using a pre-trained set o
 ```{r}
 set.seed(100)
 mm.pairs <- readRDS(system.file("exdata", "mouse_cycle_markers.rds", package="scran"))
-library(org.Mm.eg.db)
 ensembl <- mapIds(org.Mm.eg.db, keys=rownames(sce), keytype="SYMBOL", column="ENSEMBL")
-library(scran)
 assignments <- cyclone(sce, mm.pairs, gene.names=ensembl)
 ```
 
@@ -706,7 +697,6 @@ This is done by applying methods from the `r Biocpkg("limma")` package to the lo
 ```{r}
 pc1 <- reducedDim(sce, "PCA")[,1]
 design <- model.matrix(~pc1)
-library(limma)
 fit <- lmFit(logcounts(sce), design)
 fit <- eBayes(fit, trend=TRUE, robust=TRUE)
 topTable(fit)
@@ -724,7 +714,6 @@ heat.vals <- logcounts(sce)[de.genes,]
 heat.vals <- heat.vals - rowMeans(heat.vals)
 heat.vals[heat.vals > 2] <- 2
 heat.vals[heat.vals < -2] <- -2
-library(pheatmap)
 pheatmap(heat.vals[,order(pc1)], cluster_cols=FALSE)
 ```
 
@@ -907,7 +896,6 @@ These new biases (and the absence of expected biases) may interfere with accurat
 
 ```{r, echo=FALSE, results='hide', message=FALSE}
 mm.pairs <- readRDS(system.file("exdata", "mouse_cycle_markers.rds", package="scran"))
-library(org.Mm.eg.db)
 ```
 
 ```{r phaseplotbrain, message=FALSE, fig.cap="Cell cycle phase scores from applying the pair-based classifier on the brain dataset, where each point represents a cell."}
@@ -1126,7 +1114,6 @@ This is demonstrated below for the sex effect in the brain data.
 Note that this step is automatically performed inside `denoisePCA` when `design` is supplied, and does not need to be repeated.
 
 ```{r}
-library(limma)
 adj.exprs <- logcounts(sce)
 adj.exprs <- removeBatchEffect(adj.exprs, batch=sce$sex)
 norm_exprs(sce) <- adj.exprs 
@@ -1195,7 +1182,6 @@ This exploits the shape of the branches in the dendrogram to refine the cluster 
 Greater control of the empirical clusters can be obtained by manually specifying `cutHeight` in `cutreeDynamic`.
 
 ```{r}
-library(dynamicTreeCut)
 my.clusters <- unname(cutreeDynamic(my.tree, distM=as.matrix(my.dist), verbose=0))
 ```
 
@@ -1216,7 +1202,6 @@ This can be used to gauge the optimal parameter values (e.g., cut height, number
 For example, we could vary the cut height in `cutreeDynamic` to maximize the average silhouette width across all cells.
 
 ```{r silhouettebrain, message=FALSE, fig.cap="Barplot of silhouette widths for cells in each cluster. Each cluster is assigned a colour and cells with positive widths are coloured according to the colour of its assigned cluster. Any cell with a negative width is coloured according to the colour of the cluster that it is closest to. The average width for all cells in each cluster is shown, along with the average width for all cells in the data set."}
-library(cluster)
 clust.col <- scater:::.get_palette("tableau10medium") # hidden scater colours
 sil <- silhouette(my.clusters, dist = my.dist)
 sil.cols <- clust.col[ifelse(sil[,3] > 0, sil[,1], sil[,2])]
@@ -1329,7 +1314,6 @@ For example, the `convertTo` function can be used to construct a `DGEList` for i
 This allows users to construct their own marker detection pipeline, though we find that direct use of `findMarkers` is usually sufficient.
 
 ```{r}
-library(edgeR)
 y <- convertTo(sce, type="edgeR")
 ```
 
@@ -1526,7 +1510,6 @@ The majority of cells in Figure \@ref(phaseplotth2) seem to lie in G1 phase, wit
 
 ```{r, echo=FALSE, results='hide', message=FALSE}
 mm.pairs <- readRDS(system.file("exdata", "mouse_cycle_markers.rds", package="scran"))
-library(org.Mm.eg.db)
 fontsize <- theme(axis.text=element_text(size=12), axis.title=element_text(size=16))
 ```
 
@@ -1627,7 +1610,6 @@ To identify which rows correspond to mitochondrial genes, we need to use extra a
 For Ensembl, this involves using the `r Biocpkg("TxDb.Mmusculus.UCSC.mm10.ensGene")` package.
 
 ```{r}
-library(TxDb.Mmusculus.UCSC.mm10.ensGene)
 location <- mapIds(TxDb.Mmusculus.UCSC.mm10.ensGene, keys=my.ids, 
     column="CDSCHROM", keytype="GENEID")
 is.mito <- location == "chrM" & !is.na(location)
