@@ -24,6 +24,7 @@ bibliography: ref.bib
 
 ```{r style, echo=FALSE, results='hide', message=FALSE}
 library("simpleSingleCell")
+library('knitr')
 opts_chunk$set(error=FALSE, message=FALSE, warning=FALSE)
 opts_chunk$set(fig.width=7, fig.height=7)
 opts_chunk$set(dpi=300, dev="png", dev.args=list(pointsize=15))
