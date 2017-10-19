@@ -1247,7 +1247,6 @@ Clustering parameters can be optimized by maximizing the modularity score for th
 snn.gr <- buildSNNGraph(sce, use.dimred="PCA")
 gr.clusters <- igraph::cluster_fast_greedy(snn.gr)
 table(gr.clusters$membership)
-gr.clusters$modularity
 ```
 
 ```{r echo=FALSE, results='hide'}
@@ -1588,7 +1587,7 @@ gc()
 
 ## Extracting annotation from Ensembl identifiers
 
-```{r, eval=FALSE, echo=FALSE, results="hide"}
+```{r, eval=!on.bioc, echo=FALSE, results="hide"}
 # Cleaning out DLLs, with some protection to get it to work.
 repeat {
     present <- setdiff(loadedNamespaces(), 
