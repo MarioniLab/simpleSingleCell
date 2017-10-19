@@ -1204,7 +1204,7 @@ Adjacent cells are generally assigned to the same cluster, indicating that the c
 
 ```{r tsneclusterbrain, message=FALSE, fig.width=7, fig.height=10, fig.cap="_t_-SNE plot of the denoised PCs of the brain data set. Each point represents a cell and is coloured according to the cluster identity to which it was assigned."}
 sce$cluster <- factor(my.clusters)
-plotTSNE(sce, use_reddim=TRUE, colour_by="cluster",
+plotTSNE(sce, use_dimred="PCA", colour_by="cluster",
     perplexity=10, rand_seed=100) + fontsize
 ```
 
@@ -1577,7 +1577,7 @@ The first diffusion component is likely to correspond to T~H~2 differentiation, 
 ```{r diffusionth2, fig.cap="A diffusion map for the T~H~2 dataset, where each cell is coloured by its expression of _Gata3_."}
 sce.block <- denoisePCA(sce, technical=fit.block$trend, design=design, 
     min.rank=10) # avoid odd-looking plot due to too few PCs.
-plotDiffusionMap(sce.block, use_reddim="PCA", colour_by="Gata3") + fontsize
+plotDiffusionMap(sce.block, use_dimred="PCA", colour_by="Gata3") + fontsize
 ```
 
 ```{r, echo=FALSE, results='hide'}
