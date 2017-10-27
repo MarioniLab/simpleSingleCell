@@ -12,7 +12,7 @@ author:
   - *CRUK
   - *EMBL
   - Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
-date: 28 August 2017
+date: 27 October 2017
 vignette: >
   %\VignetteIndexEntry{A worfklow for low-level analyses of single-cell RNA-seq data
   %\VignetteEngine{knitr::rmarkdown}
@@ -26,9 +26,6 @@ bibliography: ref.bib
 library(BiocStyle)
 library(knitr)
 opts_chunk$set(error=FALSE, message=FALSE, warning=FALSE)
-opts_chunk$set(fig.width=7, fig.height=7)
-opts_chunk$set(dpi=300, dev="png", dev.args=list(pointsize=15))
-options(bitmapType="cairo", width=100)
 
 # Setting single-core unless explicitly specified otherwise.
 library(BiocParallel)
@@ -36,6 +33,13 @@ register(SerialParam())
 
 # Deciding whether we want to re-download everything or not.
 on.bioc <- TRUE
+
+# Further arguments for local execution.
+opts_chunk$set(fig.asp=1)
+if (!on.bioc) {
+    opts_chunk$set(dpi=300, dev="png", dev.args=list(pointsize=15))
+    options(bitmapType="cairo", width=100)
+}
 ```
 
 ```{r, message=FALSE, echo=FALSE, results='hide'}
@@ -179,8 +183,8 @@ head(colnames(colData(sce)))
 The distributions of these metrics are shown in Figure \@ref(fig:qcplothsc).
 The aim is to remove putative low-quality cells that have low library sizes, low numbers of expressed features, and high spike-in (or mitochondrial) proportions.
 
-```{r qcplothsc, fig.height=12, fig.width=12, fig.cap="Histograms of various QC metrics for all cells in the HSC data set. This includes the library sizes, number of expressed genes, and proportion of reads mapped to spike-in transcripts or mitochondrial genes."}
-par(mfrow=c(2,2))
+```{r qcplothsc, fig.wide=TRUE, fig.cap="Histograms of various QC metrics for all cells in the HSC data set. This includes the library sizes, number of expressed genes, and proportion of reads mapped to spike-in transcripts or mitochondrial genes."}
+par(mfrow=c(2,2), mar=c(5.1, 4.1, 2.1, 2.1))
 hist(sce$total_counts/1e6, xlab="Library sizes (millions)", main="", 
     breaks=20, col="grey80", ylab="Number of cells")
 hist(sce$total_features, xlab="Number of expressed genes", main="", 
@@ -294,7 +298,8 @@ Each cell is assigned a score for each phase, with a higher score corresponding 
 We focus on the G1 and G2/M scores as these are the most informative for classification.
 
 ```{r phaseplothsc, message=FALSE, fig.cap="Cell cycle phase scores from applying the pair-based classifier on the HSC dataset, where each point represents a cell."}
-plot(assignments$score$G1, assignments$score$G2M, xlab="G1 score", ylab="G2/M score", pch=16)
+plot(assignments$score$G1, assignments$score$G2M, 
+     xlab="G1 score", ylab="G2/M score", pch=16)
 ```
 
 Cells are classified as being in G1 phase if the G1 score is above 0.5 and greater than the G2/M score; 
