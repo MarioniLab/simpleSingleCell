@@ -184,7 +184,7 @@ The distributions of these metrics are shown in Figure \@ref(fig:qcplothsc).
 The aim is to remove putative low-quality cells that have low library sizes, low numbers of expressed features, and high spike-in (or mitochondrial) proportions.
 
 ```{r qcplothsc, fig.wide=TRUE, fig.cap="Histograms of various QC metrics for all cells in the HSC data set. This includes the library sizes, number of expressed genes, and proportion of reads mapped to spike-in transcripts or mitochondrial genes."}
-par(mfrow=c(2,2), mar=c(5.1, 4.1, 2.1, 2.1))
+par(mfrow=c(2,2), mar=c(5.1, 4.1, 0.1, 0.1))
 hist(sce$total_counts/1e6, xlab="Library sizes (millions)", main="", 
     breaks=20, col="grey80", ylab="Number of cells")
 hist(sce$total_features, xlab="Number of expressed genes", main="", 
@@ -339,7 +339,7 @@ This should generally be dominated by constitutively expressed transcripts, such
 The presence of other classes of features may be cause for concern if they are not consistent with expected biology.
 For example, a top set containing many spike-in transcripts suggests that too much spike-in RNA was added during library preparation, while the absence of ribosomal proteins and/or the presence of their pseudogenes are indicative of suboptimal alignment.
 
-```{r topgenehsc, fig.height=9, fig.width=6, fig.cap="Percentage of total counts assigned to the top 50 most highly-abundant features in the HSC dataset. For each feature, each bar represents the percentage assigned to that feature for a single cell, while the circle represents the average across all cells. Bars are coloured by the total number of expressed features in each cell, while circles are coloured according to whether the feature is labelled as a control feature."}
+```{r topgenehsc, fig.asp=1.5, fig.wide=TRUE, fig.cap="Percentage of total counts assigned to the top 50 most highly-abundant features in the HSC dataset. For each feature, each bar represents the percentage assigned to that feature for a single cell, while the circle represents the average across all cells. Bars are coloured by the total number of expressed features in each cell, while circles are coloured according to whether the feature is labelled as a control feature."}
 plotQC(sce, type = "highest-expression", n=50) + fontsize
 ```
 
@@ -655,7 +655,7 @@ Cells with similar expression profiles should be located close together in the p
 In this case, no clear separation of cells into distinct subpopulations is observed.
 This is consistent with the presence of a highly homogeneous population of HSCs [@wilson2015combined].
 
-```{r pcaplothsc, fig.cap="Pairwise PCA plots of the first three PCs in the HSC data set, constructed from normalized log-expression values of genes with positive biological components. Each point represents a cell, coloured according to its total number of expressed features. Bars represent the coordinates of the cells on each axis.", fig.height=9, fig.width=9}
+```{r pcaplothsc, fig.cap="Pairwise PCA plots of the first three PCs in the HSC data set, constructed from normalized log-expression values of genes with positive biological components. Each point represents a cell, coloured according to its total number of expressed features. Bars represent the coordinates of the cells on each axis.", fig.width=9}
 plotReducedDim(sce, use_dimred="PCA", ncomponents=3, colour_by="total_features") + fontsize
 ```
 
@@ -666,7 +666,7 @@ However, this improvement comes at the cost of more computational effort and req
 We demonstrate the generation of _t_-SNE plots in Figure \@ref(fig:tsneplothsc), using the low-rank approximation of the data to take advantage of the denoising step.
 As with the PCA plots, no consistent substructure is observed.
 
-```{r tsneplothsc, fig.cap="_t_-SNE plots constructed from the denoised PCs in the HSC data set, using a range of perplexity values. Each point represents a cell, coloured according to its total number of expressed features. Bars represent the coordinates of the cells on each axis.", fig.width=12, fig.height=6}
+```{r tsneplothsc, fig.cap="_t_-SNE plots constructed from the denoised PCs in the HSC data set, using a range of perplexity values. Each point represents a cell, coloured according to its total number of expressed features. Bars represent the coordinates of the cells on each axis.", fig.width=12, fig.asp=0.5}
 out5 <- plotTSNE(sce, use_dimred="PCA", perplexity=5, colour_by="total_features", 
     rand_seed=100) + fontsize + ggtitle("Perplexity = 5")
 out10 <- plotTSNE(sce, use_dimred="PCA", perplexity=10, colour_by="total_features",
@@ -723,7 +723,7 @@ However, there are also a few genes that decrease in expression, e.g., _Lst1_.
 This suggests that the first PC corresponds to genuine biology (namely the cell cycle),
 not just a change in total RNA content that non-specifically increases the expression of all transcripts.
 
-```{r heatmaphsc, fig.height=10, fig.width=6, fig.cap="Heatmap of the top 50 DE genes along the first PC in the HSC data set. The colour for each cell (column) represents the log-fold change from the average log-expression for each gene (row), bounded to [-2, 2] for visualization purposes. Cells are ordered by their location on the first PC."}
+```{r heatmaphsc, fig.width=6, fig.asp=1.5, fig.cap="Heatmap of the top 50 DE genes along the first PC in the HSC data set. The colour for each cell (column) represents the log-fold change from the average log-expression for each gene (row), bounded to [-2, 2] for visualization purposes. Cells are ordered by their location on the first PC."}
 de.genes <- rownames(topTable(fit, coef=2, n=50))
 heat.vals <- logcounts(sce)[de.genes,]
 heat.vals <- heat.vals - rowMeans(heat.vals)
@@ -793,8 +793,10 @@ readFormat <- function(infile) {
     rownames(metadata) <- metadata[,1]
     metadata <- metadata[,-1]
     metadata <- as.data.frame(t(metadata))
+
     # First column after row names is some useless filler.
-    counts <- read.delim(infile, stringsAsFactors=FALSE, header=FALSE, row.names=1, skip=11)[,-1] 
+    counts <- read.delim(infile, stringsAsFactors=FALSE, 
+        header=FALSE, row.names=1, skip=11)[,-1] 
     counts <- as.matrix(counts)
     return(list(metadata=metadata, counts=counts))
 }
@@ -868,8 +870,8 @@ We examine the distribution of library sizes and numbers of expressed genes acro
 In particular, the spike-in proportions here are more variable than in the HSC dataset.
 This may reflect a greater variability in the total amount of endogenous RNA per cell when many cell types are present.
 
-```{r libplotbrain, fig.width=12, fig.height=12, fig.cap="Histograms of QC metrics including the library sizes, number of expressed genes and proportion of UMIs assigned to spike-in transcripts or mitochondrial genes for all cells in the brain dataset."}
-par(mfrow=c(2,2))
+```{r libplotbrain, fig.wide=TRUE, fig.cap="Histograms of QC metrics including the library sizes, number of expressed genes and proportion of UMIs assigned to spike-in transcripts or mitochondrial genes for all cells in the brain dataset."}
+par(mfrow=c(2,2), mar=c(5.1, 4.1, 0.1, 0.1))
 hist(sce$total_counts/1e3, xlab="Library sizes (thousands)", main="", 
     breaks=20, col="grey80", ylab="Number of cells")
 hist(sce$total_features, xlab="Number of expressed genes", main="", 
@@ -937,7 +939,7 @@ Figure \@ref(fig:topgenebrain) shows the most highly expressed genes across the 
 This is mostly occupied by spike-in transcripts, suggesting that too much spike-in RNA may be have been used.
 There are also a number of constitutively expressed genes, as expected.
 
-```{r topgenebrain, fig.height=9, fig.width=6, fig.cap="Percentage of total counts assigned to the top 50 most highly-abundant features in the brain dataset. For each feature, each bar represents the percentage assigned to that feature for a single cell, while the circle represents the average across all cells. Bars are coloured by the total number of expressed features in each cell, while circles are coloured according to whether the feature is labelled as a control feature."}
+```{r topgenebrain, fig.asp=1.5, fig.wide=TRUE, fig.cap="Percentage of total counts assigned to the top 50 most highly-abundant features in the brain dataset. For each feature, each bar represents the percentage assigned to that feature for a single cell, while the circle represents the average across all cells. Bars are coloured by the total number of expressed features in each cell, while circles are coloured according to whether the feature is labelled as a control feature."}
 plotQC(sce, type = "highest-expression", n=50) + fontsize
 ```
 
@@ -1153,7 +1155,7 @@ We perform dimensionality reduction on the denoised PCs to check if there is any
 Cells separate into clear clusters in the _t_-SNE plot (Figure \@ref(fig:tsneplotbrain)), corresponding to distinct subpopulations.
 This is consistent with the presence of multiple cell types in the diverse brain population.
 
-```{r tsneplotbrain, fig.cap="_t_-SNE plots constructed from the denoised PCs of the brain dataset. Each point represents a cell and is coloured according to its expression of _Neurod6_ (left) or _Mog_ (right).", fig.width=15, fig.height=6}
+```{r tsneplotbrain, fig.cap="_t_-SNE plots constructed from the denoised PCs of the brain dataset. Each point represents a cell and is coloured according to its expression of _Neurod6_ (left) or _Mog_ (right).", fig.width=12, fig.asp=0.5}
 tsne1 <- plotTSNE(sce, use_dimred="PCA", colour_by="Neurod6",
     perplexity=10, rand_seed=100) + fontsize
 tsne2 <- plotTSNE(sce, use_dimred="PCA", colour_by="Mog",
@@ -1165,7 +1167,7 @@ The PCA plot is less effective at separating cells into many different clusters 
 This is because the first two PCs are driven by strong differences between specific subpopulations, which reduces the resolution of more subtle differences between some of the other subpopulations.
 Nonetheless, some substructure is still visible.
 
-```{r pcaplotbrain, fig.cap="PCA plots constructed from the denoised PCs of the brain dataset. Each point represents a cell and is coloured according to its expression of the _Neurod6_ (left) or _Mog_ (right).", fig.width=15, fig.height=6}
+```{r pcaplotbrain, fig.cap="PCA plots constructed from the denoised PCs of the brain dataset. Each point represents a cell and is coloured according to its expression of the _Neurod6_ (left) or _Mog_ (right).", fig.width=12, fig.asp=0.5}
 pca1 <- plotReducedDim(sce, use_dimred="PCA", colour_by="Neurod6") + fontsize
 pca2 <- plotReducedDim(sce, use_dimred="PCA", colour_by="Mog") + fontsize
 multiplot(pca1, pca2, cols=2)
@@ -1207,7 +1209,7 @@ my.clusters <- unname(cutreeDynamic(my.tree, distM=as.matrix(my.dist), verbose=0
 We visualize the cluster assignments for all cells on the _t_-SNE plot in Figure \@(fig:tsneclusterbrain).
 Adjacent cells are generally assigned to the same cluster, indicating that the clustering procedure was applied correctly.
 
-```{r tsneclusterbrain, message=FALSE, fig.width=7, fig.height=10, fig.cap="_t_-SNE plot of the denoised PCs of the brain data set. Each point represents a cell and is coloured according to the cluster identity to which it was assigned."}
+```{r tsneclusterbrain, message=FALSE, fig.cap="_t_-SNE plot of the denoised PCs of the brain data set. Each point represents a cell and is coloured according to the cluster identity to which it was assigned."}
 sce$cluster <- factor(my.clusters)
 plotTSNE(sce, use_dimred="PCA", colour_by="cluster",
     perplexity=10, rand_seed=100) + fontsize
@@ -1558,7 +1560,7 @@ The result of blocking on `design` is visualized with some PCA plots in Figure \
 Before removal, the distribution of cells along the first two principal components is strongly associated with their G1 and G2/M scores.
 This is no longer the case after removal, which suggests that the cell cycle effect has been mitigated.
 
-```{r pcaplotth2, fig.width=12, fig.height=6, fig.cap="PCA plots before (left) and after (right) removal of the cell cycle effect in the T~H~2 dataset. Each cell is represented by a point with colour and size determined by the G1 and G2/M scores, respectively."}
+```{r pcaplotth2, fig.width=12, fig.asp=0.5, fig.cap="PCA plots before (left) and after (right) removal of the cell cycle effect in the T~H~2 dataset. Each cell is represented by a point with colour and size determined by the G1 and G2/M scores, respectively."}
 sce$G1score <- sce.block$G1score <- assignments$score$G1
 sce$G2Mscore <- sce.block$G2Mscore <- assignments$score$G2M
 
