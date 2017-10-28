@@ -666,7 +666,7 @@ However, this improvement comes at the cost of more computational effort and req
 We demonstrate the generation of _t_-SNE plots in Figure \@ref(fig:tsneplothsc), using the low-rank approximation of the data to take advantage of the denoising step.
 As with the PCA plots, no consistent substructure is observed.
 
-```{r tsneplothsc, fig.cap="_t_-SNE plots constructed from the denoised PCs in the HSC data set, using a range of perplexity values. Each point represents a cell, coloured according to its total number of expressed features. Bars represent the coordinates of the cells on each axis.", fig.width=12, fig.asp=0.5}
+```{r tsneplothsc, fig.cap="_t_-SNE plots constructed from the denoised PCs in the HSC data set, using a range of perplexity values. Each point represents a cell, coloured according to its total number of expressed features. Bars represent the coordinates of the cells on each axis.", fig.width=15, fig.asp=0.5}
 out5 <- plotTSNE(sce, use_dimred="PCA", perplexity=5, colour_by="total_features", 
     rand_seed=100) + fontsize + ggtitle("Perplexity = 5")
 out10 <- plotTSNE(sce, use_dimred="PCA", perplexity=10, colour_by="total_features",
@@ -1046,7 +1046,7 @@ plotExplanatoryVariables(sce, variables=c("log10_total_counts_Spike",
 Nonetheless, we demonstrate how to account for uninteresting technical factors by using sex as an example.
 We set up a design matrix with the sex of the animal as the explanatory factor for each cell.
 This ensures that any sex-specific changes in expression will be modelled in our downstream analyses.
-We do not block on the tissue of origin, despite the fact that it explains more of the variance than sex in Figure \@ref(explvarplotbrain).
+We do not block on the tissue of origin, despite the fact that it explains more of the variance than sex in Figure \@ref(fig:explvarplotbrain).
 This is because the tissue factor is likely to be associated with genuine differences between cell types, so including it in the model might regress out interesting biological effects.
 
 ```{r}
@@ -1528,7 +1528,7 @@ sce <- SingleCellExperiment(list(logcounts=t(incoming)))
 ```
 
 We empirically identify the cell cycle phase using the pair-based classifier in `cyclone`.
-The majority of cells in Figure \@ref(phaseplotth2) seem to lie in G1 phase, with small numbers of cells in the other phases.
+The majority of cells in Figure \@ref(fig:phaseplotth2) seem to lie in G1 phase, with small numbers of cells in the other phases.
 
 ```{r, echo=FALSE, results='hide', message=FALSE}
 mm.pairs <- readRDS(system.file("exdata", "mouse_cycle_markers.rds", package="scran"))
@@ -1537,8 +1537,7 @@ fontsize <- theme(axis.text=element_text(size=12), axis.title=element_text(size=
 ```
 
 ```{r phaseplotth2, message=FALSE, fig.cap="Cell cycle phase scores from applying the pair-based classifier on the T~H~2 dataset, where each point represents a cell."}
-anno <- select(org.Mm.eg.db, keys=rownames(sce), keytype="SYMBOL", column="ENSEMBL")
-ensembl <- anno$ENSEMBL[match(rownames(sce), anno$SYMBOL)]
+anno <- mapIds(org.Mm.eg.db, keys=rownames(sce), keytype="SYMBOL", column="ENSEMBL")
 set.seed(100)
 assignments <- cyclone(sce, mm.pairs, gene.names=ensembl, assay.type="logcounts")
 plot(assignments$score$G1, assignments$score$G2M, xlab="G1 score", ylab="G2/M score", pch=16)
@@ -1556,7 +1555,7 @@ fit.block <- trendVar(sce, design=design, parametric=TRUE, use.spikes=NA)
 sce.block <- denoisePCA(sce, technical=fit.block$trend, design=design) 
 ```
 
-The result of blocking on `design` is visualized with some PCA plots in Figure \@ref(pcaplotth2).
+The result of blocking on `design` is visualized with some PCA plots in Figure \@ref(fig:pcaplotth2).
 Before removal, the distribution of cells along the first two principal components is strongly associated with their G1 and G2/M scores.
 This is no longer the case after removal, which suggests that the cell cycle effect has been mitigated.
 
@@ -1578,13 +1577,12 @@ multiplot(out, out2, cols=2)
 
 As an aside, this dataset contains cells at various stages of differentiation [@mahata2014singlecell].
 This is an ideal use case for diffusion maps which perform dimensionality reduction along a continuous process.
-In Figure \@ref(diffusionth2), cells are arranged along a trajectory in the low-dimensional space.
+In Figure \@ref(fig:diffusionth2), cells are arranged along a trajectory in the low-dimensional space.
 The first diffusion component is likely to correspond to T~H~2 differentiation, given that a key regulator _Gata3_ [@zhu2006gata3] changes in expression from left to right.
 
-```{r diffusionth2, fig.cap="A diffusion map for the T~H~2 dataset, where each cell is coloured by its expression of _Gata3_."}
-sce.block <- denoisePCA(sce, technical=fit.block$trend, design=design, 
-    min.rank=10) # avoid odd-looking plot due to too few PCs.
-plotDiffusionMap(sce.block, use_dimred="PCA", colour_by="Gata3") + fontsize
+```{r diffusionth2, fig.cap="A diffusion map for the T~H~2 dataset, where each cell is coloured by its expression of _Gata3_. A larger `sigma` is used compared to the default value to obtain a smoother plot."}
+plotDiffusionMap(sce.block, use_dimred="PCA", sigma=25,
+    colour_by="Gata3") + fontsize
 ```
 
 ```{r, echo=FALSE, results='hide'}
