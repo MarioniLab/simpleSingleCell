@@ -1537,7 +1537,7 @@ fontsize <- theme(axis.text=element_text(size=12), axis.title=element_text(size=
 ```
 
 ```{r phaseplotth2, message=FALSE, fig.cap="Cell cycle phase scores from applying the pair-based classifier on the T~H~2 dataset, where each point represents a cell."}
-anno <- mapIds(org.Mm.eg.db, keys=rownames(sce), keytype="SYMBOL", column="ENSEMBL")
+ensembl <- mapIds(org.Mm.eg.db, keys=rownames(sce), keytype="SYMBOL", column="ENSEMBL")
 set.seed(100)
 assignments <- cyclone(sce, mm.pairs, gene.names=ensembl, assay.type="logcounts")
 plot(assignments$score$G1, assignments$score$G2M, xlab="G1 score", ylab="G2/M score", pch=16)
