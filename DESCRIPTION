@@ -1,7 +1,7 @@
 Package: simpleSingleCell 
 Title: A step-by-step workflow for low-level analysis of single-cell RNA-seq data with Bioconductor
-Version: 1.0.4
-Date: 2017-10-28
+Version: 1.0.5
+Date: 2017-12-12
 Authors@R: c(person(role=c("aut", "cre"), "Aaron", "Lun", email = "alun@wehi.edu.au"),
         person(role="aut", "Davis", "McCarthy", email = "davis@ebi.ac.uk"),
         person(role="aut", "John", "Marioni", email = "marioni@ebi.ac.uk"))
@@ -26,7 +26,8 @@ Depends: R (>= 3.3.0),
         dynamicTreeCut,
         cluster,
         edgeR,
-        TxDb.Mmusculus.UCSC.mm10.ensGene
+        TxDb.Mmusculus.UCSC.mm10.ensGene,
+        scRNAseq
 License: Artistic-2.0
 Encoding: UTF-8
 LazyData: true
