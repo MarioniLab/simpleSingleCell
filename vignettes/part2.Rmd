@@ -49,8 +49,9 @@ library(Rtsne)
 all.urls <- c("https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt",
 "https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mito_17-Aug-2014.txt",
 "https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_spikes_17-Aug-2014.txt")
+all.basenames <- basename(all.urls)
 for (x in seq_along(all.urls)) { 
-    download.file(all.urls[x], all.basenames[x], mode=all.modes[x])
+    download.file(all.urls[x], all.basenames[x])
 }
 ```
 
