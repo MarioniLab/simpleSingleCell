@@ -1,0 +1,505 @@
+---
+title: "Analyzing single-cell RNA-seq data with Bioconductor (miscellaneous)"
+author: 
+- name: Aaron T. L. Lun
+  affiliation: &CRUK Cancer Research UK Cambridge Institute, Li Ka Shing Centre, Robinson Way, Cambridge CB2 0RE, United Kingdom
+- name: Davis J. McCarthy
+  affiliation: 
+  - &EMBL EMBL European Bioinformatics Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SD, United Kingdom
+  - St Vincent's Institute of Medical Research, 41 Victoria Parade, Fitzroy, Victoria 3065, Australia
+- name: John C. Marioni
+  affiliation: 
+  - *CRUK
+  - *EMBL
+  - Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
+date: 27 October 2017
+vignette: >
+  %\VignetteIndexEntry{A worfklow for low-level analyses of single-cell RNA-seq data
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}    
+output: 
+    BiocStyle::html_document
+bibliography: ref.bib
+---
+
+```{r style, echo=FALSE, results='hide', message=FALSE}
+library(BiocStyle)
+library(knitr)
+opts_chunk$set(error=FALSE, message=FALSE, warning=FALSE)
+
+# Setting single-core unless explicitly specified otherwise.
+library(BiocParallel)
+register(SerialParam())
+
+# Deciding whether we want to re-download everything or not.
+on.bioc <- TRUE
+
+# Further arguments for local execution.
+opts_chunk$set(fig.asp=1)
+if (!on.bioc) {
+    opts_chunk$set(dpi=300, dev="png", dev.args=list(pointsize=15))
+    options(bitmapType="cairo", width=100)
+}
+
+# Loading extra libraries.
+library(destiny)
+```
+
+```{r, eval=on.bioc, echo=FALSE, results='hide'}
+all.urls <- c("https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE61533&format=file&file=GSE61533%5FHTSEQ%5Fcount%5Fresults%2Exls%2Egz", 
+"https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE29087&format=file&file=GSE29087%5FL139%5Fexpression%5Ftab%2Etxt%2Egz",
+"http://www.ebi.ac.uk/teichmann-srv/espresso/static/counttable_es.csv", 
+"http://www.nature.com/nbt/journal/v33/n2/extref/nbt.3102-S7.xlsx")
+all.basenames <- basename(all.urls)
+all.basenames[1] <- "GSE61533_HTSEQ_count_results.xls.gz"
+all.basenames[2] <- "GSE29087_L139_expression_tab.txt.gz"
+all.modes <- rep("w", length(all.urls))
+all.modes[!grepl("(txt|csv)$", all.basenames)] <- "wb"
+for (x in seq_along(all.urls)) { 
+    download.file(all.urls[x], all.basenames[x], mode=all.modes[x])
+}
+```
+
+# Overview
+
+The previous workflows focused on analyzing single-cell RNA-seq data with "standard" procedures.
+However, a number of alternative parameter settings and strategies can be used at some steps of the workflow.
+This article describes a few of these alternative settings as well as the rationale behind choosing them instead of the defaults.
+
+# Alternative approaches to quality control
+
+## Using fixed thresholds
+
+One alternative strategy is to set pre-defined thresholds on each QC metric.
+For example, we might remove all cells with library sizes below 100000 and numbers of expressed genes below 4000.
+This generally requires substantial experience to determine appropriate thresholds for each experimental protocol and biological system.
+Indeed, even with the same protocol and system, the appropriate threshold can vary from run to run due to the vagaries of RNA capture and sequencing.
+
+## Using PCA-based outliers
+
+Another strategy is to perform a principal components analysis (PCA) based on the quality metrics for each cell, e.g., the total number of reads, the total number of features and the proportion of mitochondrial or spike-in reads.
+Outliers on a PCA plot may be indicative of low-quality cells that have aberrant technical properties compared to the (presumed) majority of high-quality cells.
+This is demonstrated below using a brain cell dataset from @tasic2016adult.
+
+```{r}
+# Obtaining the dataset.
+library(scRNAseq)
+data(allen)
+
+# Setting up the data.
+library(SingleCellExperiment)
+sce <- as(allen, "SingleCellExperiment")
+assayNames(sce) <- "counts"
+isSpike(sce, "ERCC") <- grep("ERCC", rownames(sce))
+
+# Computing the QC metrics and running PCA.
+library(scater)
+sce <- calculateQCMetrics(sce, feature_controls=list(ERCC=isSpike(sce)))
+sce <- runPCA(sce, pca_data_input="coldata", detect_outliers=TRUE)
+table(sce$outlier)
+```
+
+Methods like PCA-based outlier detection and support vector machines can provide more power to distinguish low-quality cells from high-quality counterparts [@ilicic2016classification].
+This is because they are able to detect subtle patterns across many quality metrics simultaneously. 
+However, this comes at some cost to interpretability, as the reason for removing a given cell may not always be obvious.
+Users interested in the more sophisticated approaches are referred to the `r Biocpkg("scater")` and `r Biocpkg("cellity")` packages.
+
+## Using expression-based outliers
+
+For completeness, we note that outliers can also be identified based on the gene expression profiles, rather than QC metrics.
+However, we consider this to be a risky strategy as it can remove high-quality cells in rare populations.
+
+# Normalizing based on spike-in coverage
+
+## Motivation 
+
+Scaling normalization strategies for scRNA-seq data can be broadly divided into two classes.
+The first class assumes that there exists a subset of genes that are not DE between samples, as previously described.
+The second class uses the fact that the same amount of spike-in RNA was added to each cell [@lun2017assessing].
+Differences in the coverage of the spike-in transcripts can only be due to cell-specific biases, e.g., in capture efficiency or sequencing depth.
+Scaling normalization is then applied to equalize spike-in coverage across cells.
+
+The choice between these two normalization strategies depends on the biology of the cells and the features of interest.
+If the majority of genes are expected to be DE and there is no reliable house-keeping set, spike-in normalization may be the only option for removing cell-specific biases.
+Spike-in normalization should also be used if differences in the total RNA content of individual cells are of interest.
+In any particular cell, an increase in the amount of endogenous RNA will not increase spike-in coverage (with or without library quantification).
+Thus, the former will not be represented as part of the bias in the latter, which means that the effects of total RNA content on expression will not be removed upon scaling.
+With non-DE normalization, an increase in RNA content will systematically increase the expression of all genes in the non-DE subset, such that it will be treated as bias and removed.
+
+## Setting up the data
+
+We demonstrate the use of spike-in normalization on a dataset involving different cell types -- namely, mouse embryonic stem cells (mESCs) and mouse embryonic fibroblasts (MEFs) [@islam2011characterization].
+The count table was obtained from NCBI GEO as a supplementary file using the accession number [GSE29087](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE29087).
+We load the counts into R and specify the rows corresponding to spike-in transcripts.
+
+```{r}
+library(scater)
+counts <- read.table("GSE29087_L139_expression_tab.txt.gz", colClasses=c(list("character", 
+    NULL, NULL, NULL, NULL, NULL, NULL), rep("integer", 96)), skip=6, sep='\t', row.names=1)
+is.spike <- grep("SPIKE", rownames(counts)) 
+sce <- SingleCellExperiment(list(counts=as.matrix(counts)))
+isSpike(sce, "spike") <- is.spike
+dim(sce)
+```
+
+We perform some quality control to remove low-quality cells using the `calculateQCMetrics` function.
+Outliers are identified within each cell type to avoid issues with systematic differences in the metrics between cell types.
+The negative control wells do not contain any cells and are useful for quality control (as they _should_ manifest as outliers for the various metrics), but need to be removed prior to downstream analysis.
+
+```{r}
+sce <- calculateQCMetrics(sce, feature_controls=list(spike=is.spike))
+sce$grouping <- rep(c("mESC", "MEF", "Neg"), c(48, 44, 4))
+libsize.drop <- isOutlier(sce$total_counts, nmads=3, type="lower", log=TRUE, batch=sce$grouping)
+feature.drop <- isOutlier(sce$total_features, nmads=3, type="lower", log=TRUE, batch=sce$grouping)
+spike.drop <- isOutlier(sce$pct_counts_spike, nmads=3, type="higher", batch=sce$grouping)
+sce <- sce[,!(libsize.drop | feature.drop | spike.drop | sce$grouping=="Neg")]
+data.frame(ByLibSize=sum(libsize.drop), ByFeature=sum(feature.drop),
+    BySpike=sum(spike.drop), Remaining=ncol(sce))
+```
+
+## Calculating spike-in size factors 
+
+We apply the `computeSpikeFactors` method to estimate size factors for all cells.
+This method computes the total count over all spike-in transcripts in each cell, and calculates size factors to equalize the total spike-in count across cells. 
+Here, we set `general.use=TRUE` as we intend to apply the spike-in factors to all counts.
+
+```{r}
+library(scran)
+sce <- computeSpikeFactors(sce, general.use=TRUE)
+```
+
+Running `normalize` will use the spike-in-based size factors to compute normalized log-expression values.
+Unlike the previous analyses, we do not have to define separate size factors for the spike-in transcripts.
+This is because the relevant factors are already being used for all genes and spike-in transcripts when `general.use=TRUE`.
+(The exception is if the experiment uses multiple spike-in sets that behave differently and need to be normalized separately.)
+
+```{r}
+sce <- normalize(sce)
+```
+
+For comparison, we also compute the deconvolution size factors and plot them against the spike-in factors.
+We observe a negative correlation between the two sets of values (Figure \@ref(fig:normplotspikemef)).
+This is because MEFs contain more endogenous RNA, which reduces the relative spike-in coverage in each library (thereby decreasing the spike-in size factors) but increases the coverage of endogenous genes (thus increasing the deconvolution size factors).
+If the spike-in size factors were applied to the counts, the expression values in MEFs would be scaled up while expression in mESCs would be scaled down.
+However, the opposite would occur if deconvolution size factors were used.
+
+```{r normplotspikemef, fig.cap="Size factors from spike-in normalization, plotted against the size factors from deconvolution for all cells in the mESC/MEF dataset. Axes are shown on a log-scale, and cells are coloured according to their identity. Deconvolution size factors were computed with small pool sizes owing to the low number of cells of each type."}
+colours <- c(mESC="red", MEF="grey")
+deconv.sf <- computeSumFactors(sce, sf.out=TRUE, cluster=sce$grouping)
+plot(sizeFactors(sce), deconv.sf, col=colours[sce$grouping], pch=16, log="xy", 
+    xlab="Size factor (spike-in)", ylab="Size factor (deconvolution)")
+legend("bottomleft", col=colours, legend=names(colours), pch=16)
+```
+
+Whether or not total RNA content is relevant -- and thus, the choice of normalization strategy -- depends on the biological hypothesis. 
+In the HSC and brain analyses, variability in total RNA across the population was treated as noise and removed by non-DE normalization.
+This may not always be appropriate if total RNA is associated with a biological difference of interest.
+For example, @islam2011characterization observe a 5-fold difference in total RNA between mESCs and MEFs.
+Similarly, the total RNA in a cell changes across phases of the cell cycle [@buettner2015computational].
+Spike-in normalization will preserve these differences in total RNA content such that the corresponding biological groups can be easily resolved in downstream analyses.
+
+__Comments from Aaron:__
+
+- We only use genes with average counts greater than 1 (as specified in `subset.row`) to compute the deconvolution size factors.
+This avoids problems with discreteness as mentioned in our previous uses of `computeSumFactors`.
+- Setting `sf.out=TRUE` will directly return the size factors, rather than a `SingleCellExperiment` object containing those factors.
+This is more convenient when only the size factors are required for further analysis.
+
+# Detecting highly variable genes
+
+## Motivation 
+
+Highly variable genes (HVGs) are defined as genes with biological components that are significantly greater than zero.
+These genes are interesting as they drive differences in the expression profiles between cells, and should be prioritized for further investigation.
+Formal detection of HVGs allows us to avoid genes that are highly variable due to technical factors such as sampling noise during RNA capture and library preparation.
+
+## Setting up the data 
+
+Here, we use data from haematopoietic stem cells (HSCs) [@wilson2015combined], generated using the Smart-seq2 protocol [@picelli2014fulllength] with ERCC spike-ins.
+Counts were obtained from the NCBI Gene Expression Omnibus (GEO) as a supplementary file using the accession number [GSE61533](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE61533).
+Our first task is to load the count matrix into memory.
+In this case, some work is required to retrieve the data from the Gzip-compressed Excel format.
+
+```{r}
+library(R.utils)
+gunzip("GSE61533_HTSEQ_count_results.xls.gz", remove=FALSE, overwrite=TRUE)
+library(readxl)
+all.counts <- as.data.frame(read_excel('GSE61533_HTSEQ_count_results.xls', sheet=1))
+rownames(all.counts) <- all.counts$ID
+all.counts <- as.matrix(all.counts[,-1])
+```
+
+We store the results in a `SingleCellExperiment` object and identify the rows corresponding to the spike-ins based on the row names.
+We also identify the rows corresponding to mitochondrial genes, which is useful for quality control.
+
+
+```{r}
+sce <- SingleCellExperiment(list(counts=all.counts))
+dim(sce)
+is.spike <- grepl("^ERCC", rownames(sce))
+isSpike(sce, "ERCC") <- is.spike
+summary(is.spike)
+is.mito <- grepl("^mt-", rownames(sce))
+summary(is.mito)
+```
+
+For each cell, we calculate quality control metrics using the `calculateQCMetrics` function as previously described [@mccarthy2016scater].
+We filter out HSCs that are outliers for any metric, under the assumption that these represent low-quality libraries. 
+
+```{r}
+sce <- calculateQCMetrics(sce, feature_controls=list(ERCC=is.spike, Mt=is.mito))
+libsize.drop <- isOutlier(sce$total_counts, nmads=3, type="lower", log=TRUE)
+feature.drop <- isOutlier(sce$total_features, nmads=3, type="lower", log=TRUE)
+spike.drop <- isOutlier(sce$pct_counts_ERCC, nmads=3, type="higher")
+sce <- sce[,!(libsize.drop | feature.drop | spike.drop)]
+data.frame(ByLibSize=sum(libsize.drop), ByFeature=sum(feature.drop),
+    BySpike=sum(spike.drop), Remaining=ncol(sce))
+```
+
+We remove genes that are not expressed in any cell to reduce computational work in downstream steps. 
+
+```{r}
+to.keep <- nexprs(sce, byrow=TRUE) > 0
+sce <- sce[to.keep,]
+summary(to.keep)
+```
+
+We apply the deconvolution method to compute size factors for the endogenous genes [@@lun2016pooling].
+Separate size factors for the spike-in transcripts are also calculated, as previously discussed.
+We then calculate log-transformed normalized expression values for further use.
+
+```{r, warning=FALSE}
+sce <- computeSumFactors(sce)
+summary(sizeFactors(sce))
+sce <- computeSpikeFactors(sce, type="ERCC", general.use=FALSE)
+summary(sizeFactors(sce, "ERCC"))
+sce <- normalize(sce)
+```
+
+## Detecting highly variable genes
+
+We fit a mean-variance trend to the spike-in transcripts to quantify the technical component of the variance, as previously described.
+The biological component for each gene is defined as the difference between its total variance and the fitted value of the trend (Figure \@(fig:hvgplothsc)).
+
+```{r hvgplothsc, fig.cap="Variance of normalized log-expression values for each gene in the HSC dataset, plotted against the mean log-expression. The blue line represents the mean-dependent trend fitted to the variances of the spike-in transcripts (red)."}
+var.fit <- trendVar(sce, parametric=TRUE, span=0.2)
+var.out <- decomposeVar(sce, var.fit)
+plot(var.out$mean, var.out$total, pch=16, cex=0.6, xlab="Mean log-expression", 
+    ylab="Variance of log-expression")
+curve(var.fit$trend(x), col="dodgerblue", lwd=2, add=TRUE)
+cur.spike <- isSpike(sce)
+points(var.out$mean[cur.spike], var.out$total[cur.spike], col="red", pch=16)
+```
+
+We define HVGs as those genes that have a biological component that is significantly greater than zero.
+We use a false discovery rate (FDR) of 5% after correcting for multiple testing with the Benjamini-Hochberg method.
+
+```{r}
+hvg.out <- var.out[which(var.out$FDR <= 0.05),]
+nrow(hvg.out)
+```
+
+We rank the results to focus on genes with larger biological components.
+This highlights an interesting aspect of the underlying hypothesis test, which is based on the ratio of the total variance to the expected technical variance.
+Ranking based on _p_-value tends to prioritize HVGs that are more likely to be true positives but, at the same time, less likely to be interesting.
+This is because the ratio can be very large for HVGs that have very low total variance and do not contribute much to the cell-cell heterogeneity.
+
+```{r}
+hvg.out <- hvg.out[order(hvg.out$bio, decreasing=TRUE),] 
+write.table(file="hsc_hvg.tsv", hvg.out, sep="\t", quote=FALSE, col.names=NA)
+head(hvg.out)
+```
+
+We check the distribution of expression values for the genes with the largest biological components.
+This ensures that the variance estimate is not driven by one or two outlier cells (Figure \@ref(fig:hvgvioplothsc)).
+
+```{r hvgvioplothsc, fig.cap="Violin plots of normalized log-expression values for the top 10 genes with the largest biological components in the HSC dataset. Each point represents the log-expression value in a single cell."}
+fontsize <- theme(axis.text=element_text(size=12), axis.title=element_text(size=16))
+plotExpression(sce, features=rownames(hvg.out)[1:10]) + fontsize
+```
+
+There are many other strategies for defining HVGs, based on a variety of metrics:
+
+- the coefficient of variation [@brennecke2013accounting;@kolod2015singlecell;@kim2015characterizing]
+- the dispersion parameter in the negative binomial distribution [@mccarthy2012differential]
+- a proportion of total variability [@vallejos2015basics]
+
+Some of these methods are available in `r Biocpkg("scran")` -- for example, see `DM` or `technicalCV2` for calculations based on the coefficient of variation.
+Here, we use the variance of the log-expression values because the log-transformation protects against genes with strong expression in only one or two cells.
+This ensures that the set of top HVGs is not dominated by genes with (mostly uninteresting) outlier expression patterns.
+
+## Trend fitting when spike-ins are unavailable
+
+If spike-in RNA has not been added in appropriate quantities (or at all), an alternative approach is to fit the trend to the variance estimates of the endogenous genes.
+This is done using the `use.spikes=FALSE` setting in `trendVar`, as shown below.
+
+```{r}
+var.fit.nospike <- trendVar(sce, parametric=TRUE, use.spikes=FALSE, span=0.2)
+var.out.nospike <- decomposeVar(sce, var.fit.nospike)
+```
+
+The simplest interpretation of the results assumes that the majority of genes are not variably expressed.
+This means that the technical component dominates the total variance for most genes, such that the fitted trend can be treated as an estimate of the technical component.
+In Figure 11, the trend passes through or close to most of the spike-in variances, indicating that our assumption is valid.
+
+```{r hvgplot416b2, fig.cap="Variance of normalized log-expression values for each gene in the 416B dataset, plotted against the mean log-expression. The blue line represents the mean-dependent trend fitted to the variances of the endogenous genes (black), with spike-in transcripts shown in red."}
+plot(var.out.nospike$mean, var.out.nospike$total, pch=16, cex=0.6, 
+    xlab="Mean log-expression", ylab="Variance of log-expression")
+curve(var.fit.nospike$trend(x), col="dodgerblue", lwd=2, add=TRUE)
+points(var.out.nospike$mean[cur.spike], var.out.nospike$total[cur.spike], col="red", pch=16)
+```
+
+If our assumption does not hold, the output of decomposeVar is more difficult to interpret. 
+The fitted value of the trend can no longer be generally interpreted as the technical component, as it contains some biological variation as well.
+Instead, recall that the biological component reported by `decomposeVar` represents the residual for each gene over the majority of genes with the same abundance.
+One could assume that the variabilities of most genes are driven by constitutive "house-keeping" processes, which are biological in origin but generally uninteresting.
+Any gene with an increase in its variance is _relatively_ highly variable and can be prioritized for further study.
+
+# Identifying correlated gene pairs with Spearman's rho
+
+Another use for scRNA-seq data is to identify correlations between the expression profiles of different genes.
+This is quantified by computing Spearman's rho, which accommodates non-linear relationships in the expression values.
+Non-zero correlations between pairs of genes provide evidence for their co-regulation.
+However, the noise in the data requires some statistical analysis to determine whether a correlation is significantly non-zero.
+
+To demonstrate, we use the `correlatePairs` function to identify significant correlations between the various histocompatability antigens in the HSC data set.
+The significance of each correlation is determined using a permutation test.
+For each pair of genes, the null hypothesis is that the expression profiles of two genes are independent.
+Shuffling the profiles and recalculating the correlation yields a null distribution that is used to obtain a _p_-value for each observed correlation value [@phipson2010permutation].
+
+```{r}
+set.seed(100)
+var.cor <- correlatePairs(sce, subset.row=grep("^H2-", rownames(sce)))
+head(var.cor)
+```
+
+Correction for multiple testing across many gene pairs is performed by controlling the FDR at 5%.
+
+```{r}
+sig.cor <- var.cor$FDR <= 0.05
+summary(sig.cor)
+```
+
+We can also compute correlations between specific pairs of genes, or between all pairs between two distinct sets of genes.
+The example below computes the correlation between _Fos_ and _Jun_, which dimerize to form the AP-1 transcription factor.
+
+```{r}
+correlatePairs(sce, subset.row=cbind("Fos", "Jun"))
+```
+
+Examination of the expression profiles in Figure \@ref(fig:fosjuncorplot) confirms the presence of a modest correlation between these two genes.
+
+```{r fosjuncorplot, fig.cap="Expression of _Fos_ plotted against the expression of _Jun_ for all cells in the HSC data set."}
+plotExpression(sce, features="Fos", x="Jun")
+```
+
+The use of `correlatePairs` is primarily intended to identify correlated gene pairs for validation studies.
+Obviously, non-zero correlations do not provide evidence for a direct regulatory interaction, let alone specify causality.
+To construct regulatory networks involving many genes, we suggest using dedicated packages such as `r CRANpkg("WCGNA")`.
+
+__Comments from Aaron:__
+
+- We suggest only computing correlations between a subset of genes of interest, known either _a priori_ or empirically defined, e.g., as HVGs.
+Computing correlations across all genes will take too long; unnecessarily increase the severity of the multiple testing correction; 
+and may prioritize strong but uninteresting correlations, e.g., between tightly co-regulated house-keeping genes.
+- The `correlatePairs` function can also return gene-centric output by setting `per.gene=TRUE`.
+This calculates a combined _p_-value [@simes1986improved] for each gene that indicates whether it is significantly correlated to any other gene.
+From a statistical perspective, this is a more natural approach to correcting for multiple testing when genes, rather than pairs of genes, are of interest.
+- The `Limited` field indicates whether the _p_-value was lower-bounded by the number of permutations.
+If this is `TRUE` for any non-significant gene at the chosen FDR threshold, consider increasing the number of permutations to improve power.
+
+# Blocking on the cell cycle phase
+
+Cell cycle phase is usually uninteresting in studies focusing on other aspects of biology.
+However, the effects of cell cycle on the expression profile can mask other effects and interfere with the interpretation of the results.
+This cannot be avoided by simply removing cell cycle marker genes, as the cell cycle can affect a substantial number of other transcripts [@buettner2015computational].
+Rather, more sophisticated strategies are required, one of which is demonstrated below using data from a study of T Helper 2 (T~H~2) cells [@mahata2014singlecell].
+@buettner2015computational have already applied quality control and normalized the data, so we can use them directly as log-expression values (accessible as Supplementary Data 1 of https://dx.doi.org/10.1038/nbt.3102).
+
+```{r}
+incoming <- as.data.frame(read_excel("nbt.3102-S7.xlsx", sheet=1))
+rownames(incoming) <- incoming[,1]
+incoming <- incoming[,-1]
+incoming <- incoming[,!duplicated(colnames(incoming))] # Remove duplicated genes.
+sce <- SingleCellExperiment(list(logcounts=t(incoming)))
+```
+
+We empirically identify the cell cycle phase using the pair-based classifier in `cyclone`.
+The majority of cells in Figure \@ref(fig:phaseplotth2) seem to lie in G1 phase, with small numbers of cells in the other phases.
+
+```{r, echo=FALSE, results='hide', message=FALSE}
+```
+
+```{r phaseplotth2, message=FALSE, fig.cap="Cell cycle phase scores from applying the pair-based classifier on the T~H~2 dataset, where each point represents a cell."}
+library(org.Mm.eg.db)
+ensembl <- mapIds(org.Mm.eg.db, keys=rownames(sce), keytype="SYMBOL", column="ENSEMBL")
+
+set.seed(100)
+mm.pairs <- readRDS(system.file("exdata", "mouse_cycle_markers.rds", package="scran"))
+assignments <- cyclone(sce, mm.pairs, gene.names=ensembl, assay.type="logcounts")
+plot(assignments$score$G1, assignments$score$G2M, xlab="G1 score", ylab="G2/M score", pch=16)
+```
+
+We can block directly on the phase scores in downstream analyses.
+This is more graduated than using a strict assignment of each cell to a specific phase, as the magnitude of the score considers the uncertainty of the assignment.
+The phase covariates in the design matrix will absorb any phase-related effects on expression such that they will not affect estimation of the effects of other experimental factors.
+Users should also ensure that the phase score is not confounded with other factors of interest.
+For example, model fitting is not possible if all cells in one experimental condition are in one phase, and all cells in another condition are in a different phase.
+
+```{r}
+design <- model.matrix(~ G1 + G2M, assignments$score)
+fit.block <- trendVar(sce, design=design, parametric=TRUE, use.spikes=NA)
+sce.block <- denoisePCA(sce, technical=fit.block$trend, design=design) 
+```
+
+The result of blocking on `design` is visualized with some PCA plots in Figure \@ref(fig:pcaplotth2).
+Before removal, the distribution of cells along the first two principal components is strongly associated with their G1 and G2/M scores.
+This is no longer the case after removal, which suggests that the cell cycle effect has been mitigated.
+
+```{r pcaplotth2, fig.width=12, fig.asp=0.5, fig.cap="PCA plots before (left) and after (right) removal of the cell cycle effect in the T~H~2 dataset. Each cell is represented by a point with colour and size determined by the G1 and G2/M scores, respectively."}
+sce$G1score <- sce.block$G1score <- assignments$score$G1
+sce$G2Mscore <- sce.block$G2Mscore <- assignments$score$G2M
+
+# Without blocking on phase score.
+fit <- trendVar(sce, parametric=TRUE, use.spikes=NA) 
+sce <- denoisePCA(sce, technical=fit$trend)
+out <- plotReducedDim(sce, use_dimred="PCA", ncomponents=2, colour_by="G1score", 
+    size_by="G2Mscore") + fontsize + ggtitle("Before removal")
+
+# After blocking on the phase score.
+out2 <- plotReducedDim(sce.block, use_dimred="PCA", ncomponents=2, colour_by="G1score", 
+    size_by="G2Mscore") + fontsize + ggtitle("After removal")
+multiplot(out, out2, cols=2)
+```
+
+As an aside, this dataset contains cells at various stages of differentiation [@mahata2014singlecell].
+This is an ideal use case for diffusion maps which perform dimensionality reduction along a continuous process.
+In Figure \@ref(fig:diffusionth2), cells are arranged along a trajectory in the low-dimensional space.
+The first diffusion component is likely to correspond to T~H~2 differentiation, given that a key regulator _Gata3_ [@zhu2006gata3] changes in expression from left to right.
+
+```{r diffusionth2, fig.cap="A diffusion map for the T~H~2 dataset, where each cell is coloured by its expression of _Gata3_. A larger `sigma` is used compared to the default value to obtain a smoother plot."}
+plotDiffusionMap(sce.block, use_dimred="PCA", sigma=25,
+    colour_by="Gata3") + fontsize
+```
+
+```{r, echo=FALSE, results='hide'}
+saveRDS(file="th2_data.rds", sce)
+gc()
+```
+
+# Software availability
+
+All software packages used in this workflow are publicly available from the Comprehensive R Archive Network (https://cran.r-project.org) or the Bioconductor project (http://bioconductor.org).
+The specific version numbers of the packages used are shown below, along with the version of the R installation.
+
+```{r}
+sessionInfo()
+```
+
+```{r, eval=on.bioc, echo=FALSE, results='hide'}
+unlink(all.basenames)
+unlink("GSE61533_HTSEQ_count_results.xls")
+```
+
+# References
+
