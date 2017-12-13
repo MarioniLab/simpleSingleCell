@@ -342,7 +342,7 @@ libsize.drop2 <- isOutlier(sce$total_counts, nmads=3, type="lower",
 feature.drop2 <- isOutlier(sce$total_features, nmads=3, type="lower", 
     log=TRUE, batch=blocking)
 spike.drop2 <- isOutlier(sce$pct_counts_ERCC, nmads=3, type="higher", 
-    batch=locking)
+    batch=blocking)
 
 keep2 <- !(libsize.drop2 | feature.drop2 | spike.drop2)
 data.frame(ByLibSize=sum(libsize.drop2), ByFeature=sum(feature.drop2),
@@ -551,7 +551,7 @@ As a result, the bias in the spike-in counts will be opposite to that captured b
 
 To ensure normalization is performed correctly, we compute a separate set of size factors for the spike-in set.
 For each cell, the spike-in-specific size factor is defined as the total count across all transcripts in the spike-in set.
-This assumes that none of the spike-in transcripts are differentially expressed, which is reasonable given that the same amount and composition of spike-in RNA should have been added to each cell.
+This assumes that none of the spike-in transcripts are differentially expressed, which is reasonable given that the same amount and composition of spike-in RNA should have been added to each cell [@lun2017assessing].
 (See below for a more detailed discussion on spike-in normalization.)
 These size factors are stored in a separate field of the `SingleCellExperiment` object by setting `general.use=FALSE` in `computeSpikeFactors`.
 This ensures that they will only be used with the spike-in transcripts but not the endogenous genes.
