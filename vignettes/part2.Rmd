@@ -12,7 +12,7 @@ author:
   - *CRUK
   - *EMBL
   - Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
-date: 27 October 2017
+date: 13 December 2017
 vignette: >
   %\VignetteIndexEntry{A worfklow for low-level analyses of single-cell RNA-seq data
   %\VignetteEngine{knitr::rmarkdown}
@@ -57,13 +57,13 @@ for (x in seq_along(all.urls)) {
 
 # Overview
 
-In this article, we examine a heterogeneous dataset from a study of cell types in the mouse brain [@zeisel2015brain].
+In this workflow, we examine a heterogeneous dataset from a study of cell types in the mouse brain [@zeisel2015brain].
 This contains approximately 3000 cells of varying types such as oligodendrocytes, microglia and neurons.
-Individual cells were isolated using the Fluidigm C1 microfluidics system and library preparation was performed on each cell using a UMI-based protocol.
+Individual cells were isolated using the Fluidigm C1 microfluidics system [@pollen2014lowcoverage] and library preparation was performed on each cell using a UMI-based protocol.
 After sequencing, expression was quantified by counting the number of UMIs mapped to each gene.
 Count data for all endogenous genes, mitochondrial genes and spike-in transcripts were obtained from http://linnarssonlab.org/cortex.
 
-# Count loading 
+# Setting up the data 
 
 The count data are distributed across several files, so some work is necessary to consolidate them into a single matrix.
 We define a simple utility function for loading data in from each file. 
@@ -86,7 +86,7 @@ readFormat <- function(infile) {
 }
 ```
 
-Using this function, we read in the counts for the endogenous genes, ERCC spike-ins and mitochondrial genes.
+Using this function, we read in the counts for the endogenous genes, ERCC spike-in transcripts and mitochondrial genes.
 
 ```{r}
 endo.data <- readFormat("expression_mRNA_17-Aug-2014.txt")
@@ -153,7 +153,7 @@ gc()
 # Quality control on the cells 
 
 The original authors of the study have already removed low-quality cells prior to data publication.
-Nonetheless, we compute some quality control metrics with `r Biocpkg("scater")` to check whether the remaining cells are satisfactory.
+Nonetheless, we compute some quality control metrics with `r Biocpkg("scater")` [@mccarthy2016scater] to check whether the remaining cells are satisfactory.
 
 ```{r}
 library(scater)
@@ -188,7 +188,7 @@ spike.drop <- isOutlier(sce$pct_counts_Spike, nmads=3, type="higher")
 ```
 
 Removal of low-quality cells is then performed by combining the filters for all of the metrics.
-The vast majority of cells are retained, which suggests that the original quality control procedures were generally adequate.
+The majority of cells are retained, which suggests that the original quality control procedures were generally adequate.
 
 ```{r}
 sce <- sce[,!(libsize.drop | feature.drop | spike.drop)]
@@ -198,7 +198,7 @@ data.frame(ByLibSize=sum(libsize.drop), ByFeature=sum(feature.drop),
 
 We could improve our cell filtering procedure further by setting `batch` in `isOutlier` to one or more known factors, e.g., mouse/plate of origin.
 As previously mentioned, this would avoid inflation of the MAD and improve power to remove low-quality cells.
-However, for simplicity, we will not do this as quality control has already been performed by the original authors.
+However, for simplicity, we will not do this as sufficient quality control has already been performed.
 
 ```{r echo=FALSE, results='hide'}
 gc()
@@ -206,7 +206,7 @@ gc()
 
 # Cell cycle classification
 
-Application of `cyclone` to the brain dataset suggests that most of the cells are in G1 phase (Figure \@ref(fig:phaseplotbrain)).
+Application of `cyclone` [@scialdone2015computational] to the brain dataset suggests that most of the cells are in G1 phase (Figure \@ref(fig:phaseplotbrain)).
 This requires the use of the Ensembl identifiers to match up with the pre-defined classifier.
 
 ```{r phaseplotbrain, message=FALSE, fig.cap="Cell cycle phase scores from applying the pair-based classifier on the brain dataset, where each point represents a cell."}
@@ -218,7 +218,7 @@ plot(assignments$score$G1, assignments$score$G2M, xlab="G1 score", ylab="G2/M sc
 ```
 
 However, the intepretation of this result requires some caution due to differences between the training and test datasets.
-The classifier was trained on C1 SMARTer data [@scialdone2015computational] and accounts for the biases in that protocol. 
+The classifier was trained on C1 SMARTer data and accounts for the biases in that protocol. 
 The brain dataset uses UMI counts, which has a different set of biases, e.g., 3'-end coverage only, no length bias, no amplification noise.
 Furthermore, many neuronal cell types are expected to lie in the G0 resting phase, which is distinct from the other phases of the cell cycle [@coller2006new].
 `cyclone` will generally assign such cells to the closest known phase in the training set, which would be G1.
@@ -230,10 +230,10 @@ gc()
 # Examining gene-level metrics
 
 Figure \@ref(fig:topgenebrain) shows the most highly expressed genes across the cell population in the brain data set.
-This is mostly occupied by spike-in transcripts, suggesting that too much spike-in RNA may be have been used.
+This is mostly occupied by spike-in transcripts, reflecting the use of spike-in concentrations that span the entire range of expression.
 There are also a number of constitutively expressed genes, as expected.
 
-```{r topgenebrain, fig.asp=1.5, fig.wide=TRUE, fig.cap="Percentage of total counts assigned to the top 50 most highly-abundant features in the brain dataset. For each feature, each bar represents the percentage assigned to that feature for a single cell, while the circle represents the average across all cells. Bars are coloured by the total number of expressed features in each cell, while circles are coloured according to whether the feature is labelled as a control feature."}
+```{r topgenebrain, fig.asp=1.2, fig.wide=TRUE, fig.cap="Percentage of total counts assigned to the top 50 most highly-abundant features in the brain dataset. For each feature, each bar represents the percentage assigned to that feature for a single cell, while the circle represents the average across all cells. Bars are coloured by the total number of expressed features in each cell, while circles are coloured according to whether the feature is labelled as a control feature."}
 fontsize <- theme(axis.text=element_text(size=12), axis.title=element_text(size=16))
 plotQC(sce, type = "highest-expression", n=50) + fontsize
 ```
@@ -264,8 +264,8 @@ gc()
 
 # Normalization of cell-specific biases
 
-For endogenous genes, normalization is performed using the deconvolution method in the `computeSumFactors` function.
-Here, we cluster similar cells together and normalize the cells in each cluster using the deconvolution method.
+For endogenous genes, normalization is performed using the `computeSumFactors` function as previously described.
+Here, we cluster similar cells together and normalize the cells in each cluster using the deconvolution method [@lun2016pooling].
 This improves normalization accuracy by reducing the number of DE genes between cells in the same cluster.
 Scaling is then performed to ensure that size factors of cells in different clusters are comparable.
 
@@ -313,6 +313,9 @@ gc()
 
 __Comments from Aaron:__
 
+- `calcAverage` returns a library size-adjusted average count, which is proportional to the average of the values used internally by `computeSumFactors`.
+While not entirely independent [@bourgon2010independent], this is a better filter statistic than the average count without adjustment for library size.
+The latter would enrich for genes that are upregulated in cells with large library sizes, resulting in inflated size factor estimates for those cells.
 - Only a rough clustering is required to avoid pooling together very different cell types in `computeSumFactors`.
 The function is robust to a moderate level of differential expression between cells in the same cluster.
 - `quickCluster` uses distances based on Spearman's rank correlation for clustering.
@@ -325,7 +328,7 @@ This uses a graph-based clustering algorithm - see `?buildSNNGraph` for more det
 We model the technical noise by fitting a mean-variance trend to the spike-in transcripts, as previously described.
 In theory, we should block on the plate of origin for each cell.
 However, only 20-40 cells are available on each plate, and the population is also highly heterogeneous.
-This means that we cannot assume that the distribution of cell types on each plate is the same.
+This means that we cannot assume that the distribution of sampled cell types on each plate is the same.
 Thus, to avoid regressing out potential biology, we will not block on any factors in this analysis.
 
 ```{r}
@@ -346,7 +349,7 @@ points(var.out$mean[isSpike(sce)], var.out$total[isSpike(sce)], col="red", pch=1
 curve(var.fit$trend(x), col="dodgerblue", add=TRUE, lwd=2)
 ```
 
-We check the distribution of expression values for the genes with the largest biological components to ensure that they are not driven by outliers (Figure \@(fig:hvgvioplotbrain)).
+We check the distribution of expression values for the genes with the largest biological components to ensure that they are not driven by outliers (Figure \@ref(fig:hvgvioplotbrain)).
 Some tweaking of the `plotExpression` parameters is necessary to visualize a large number of cells.
 
 ```{r hvgvioplotbrain, fig.cap="Violin plots of normalized log-expression values for the top 10 HVGs in the brain dataset. For each gene, each point represents the log-expression value for an individual cell."}
@@ -355,7 +358,7 @@ plotExpression(sce, rownames(var.out)[chosen.genes],
     alpha=0.05, jitter="jitter") + fontsize
 ```
 
-Finally, we denoise the expression values using our PCA-based approach, yielding a set of coordinates for each cell where the technical noise has been removed.
+Finally, we use PCA to denoise the expression values, yielding a set of coordinates for each cell where the technical noise has been removed.
 Setting `approximate=TRUE` in `denoisePCA` will perform an approximate singular value decomposition, using methods from the `r CRANpkg("irlba")` package.
 This is much faster than the exact algorithm on large data sets without much loss of accuracy.
 
@@ -371,7 +374,7 @@ gc()
 # Data exploration with dimensionality reduction
 
 We perform dimensionality reduction on the denoised PCs to check if there is any substructure. 
-Cells separate into clear clusters in the _t_-SNE plot (Figure \@ref(fig:tsneplotbrain)), corresponding to distinct subpopulations.
+Cells separate into clear clusters in the _t_-SNE plot [@van2008visualizing] in Figure \@ref(fig:tsneplotbrain), corresponding to distinct subpopulations.
 This is consistent with the presence of multiple cell types in the diverse brain population.
 
 ```{r tsneplotbrain, fig.cap="_t_-SNE plots constructed from the denoised PCs of the brain dataset. Each point represents a cell and is coloured according to its expression of _Neurod6_ (left) or _Mog_ (right).", fig.width=12, fig.asp=0.5}
@@ -427,7 +430,7 @@ For each pair, the observed total weight is compared to what is expected under a
 Most clusters contain more internal links than expected (Figure \@ref(fig:heatmodbrain)), while links between clusters are fewer than expected.
 This indicates that we successfully clustered cells into highly-connected communities.
 
-```{r heatmodbrain, fig.cap="Heatmap of the log-ratio of the total weight between nodes in the same cluster or in different clusters, relative to the total weight expected under a null model of random links."}
+```{r heatmodbrain, fig.cap="Heatmap of the log~10~-ratio of the total weight between nodes in the same cluster or in different clusters, relative to the total weight expected under a null model of random links."}
 uclust <- sort(unique(my.clusters))
 nclust <- length(uclust)
 mod.mat <- matrix(0, nclust, nclust)

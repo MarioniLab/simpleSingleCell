@@ -12,7 +12,7 @@ author:
   - *CRUK
   - *EMBL
   - Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
-date: 27 October 2017
+date: 13 December 2017
 vignette: >
   %\VignetteIndexEntry{A worfklow for low-level analyses of single-cell RNA-seq data
   %\VignetteEngine{knitr::rmarkdown}
@@ -50,13 +50,33 @@ In addition, scRNA-seq data can be used to study cell-to-cell heterogeneity, e.g
 This is simply not possible with bulk data, meaning that custom methods are required to perform these analyses. 
 
 This article describes a set of computational workflows for basic analysis of scRNA-seq data, using software packages from the open-source Bioconductor project [@huber2015orchestrating].
-Starting from a count matrix, each workflow contains the steps required for quality control to remove problematic cells; normalization of cell-specific biases, with and without spike-ins; cell cycle phase classification from gene expression data; data exploration to identify putative subpopulations; and finally, HVG and marker gene identification to prioritize interesting genes.
-The application of these steps will be demonstrated on several public scRNA-seq datasets involving immortalized myeloid progenitors, brain cells, haematopoietic stem cells, T-helper cells and mouse embryonic stem cells, generated with a range of experimental protocols and platforms [@lun2017assessing;@wilson2015combined;@zeisel2015brain;@islam2011characterization;@buettner2015computational].
+The workflows start from a count matrix and describe the steps required for quality control to remove problematic cells; normalization of cell-specific biases, with and without spike-ins; cell cycle phase classification from gene expression data; data exploration to identify putative subpopulations; and finally, HVG and marker gene identification to prioritize interesting genes.
+The application of these procedures will be demonstrated on several public scRNA-seq datasets involving immortalized myeloid progenitors, brain cells, haematopoietic stem cells, T-helper cells and mouse embryonic stem cells, generated with a range of experimental protocols and platforms [@lun2017assessing;@wilson2015combined;@zeisel2015brain;@islam2011characterization;@buettner2015computational].
 The aim is to provide a variety of modular usage examples that can be applied to construct custom analysis pipelines.
 
 ```{r, results='asis', eval=on.bioc, echo=FALSE}
 cat("***Note:*** *to cite this article, please refer to http://f1000research.com/articles/5-2122/v2 for instructions.*")
 ```
+
+# Links to individual workflows 
+
+## Analyzing read count data
+
+[This workflow](https://bioconductor.org/help/workflows/simpleSingleCell/part1/) will introduce most of the concepts for scRNA-seq data analysis, 
+using a small dataset of 192 cells from an immortalized myeloid progenitor cell line [@lun2017assessing] generated using the Smart-seq2 protocol [@picelli2014fulllength].
+It will start from loading of the data and finish at the characterization of cell clusters.
+
+## Analyzing UMI count data
+
+[This workflow](https://bioconductor.org/help/workflows/simpleSingleCell/part2/) will adapt many of the previous concepts to analysis of UMI count data,
+using a large dataset of 3005 cells from the brain [@zeisel2015brain] generated from the Fluidigm system [@pollen2014lowcoverage].
+It will focus on the modifications required to handle lower UMI counts and larger numbers of cells.
+
+## Miscellaneous analyses
+
+[This workflow](https://bioconductor.org/help/workflows/simpleSingleCell/part3/) will describe some analyses that were not covered in the previous workflows, 
+using a variety of relevant datasets [@wilson2015combined;@islam2011characterization; @buettner2015computational] generated using a range of technologies.
+It includes alternative parameter settings and options that are not usually used as default but may be helpful in some circumstances.
 
 # Obtaining a count matrix
 
@@ -74,13 +94,6 @@ Reads with the same UMI mapping to the same gene represent a single underlying t
 - Alignment-free methods such as _kallisto_ [@bray2016near] or _Salmon_ [@patro2015accurate] may also be useful, due to their speed and ability to perform transcript quantification.
 This can be run using the functions `runKallisto` and `runSalmon` in the `r Biocpkg("scater")` package.
 
-# Links to individual workflows 
-
-**Part 1** will introduce most of the concepts for scRNA-seq data analysis, using a small read count dataset of 192 cells from an immortalized myeloid progenitor cell line.
-
-**Part 2** will apply the concepts to a larger UMI dataset containing over 3000 brain cells, with specific modifications to accommodate lower counts and more cells.
-
-**Part 3** will describe some miscellaneous alternative procedures that were not previously covered, using a variety of relevant datasets.
 
 # Author information
 

@@ -60,7 +60,7 @@ unzip(all.basenames[1])
 
 # Overview
 
-In this article, we use a relatively simple dataset [@lun2017assessing] to introduce most of the concepts of scRNA-seq data analysis.
+In this workflow, we use a relatively simple dataset [@lun2017assessing] to introduce most of the concepts of scRNA-seq data analysis.
 This dataset contains two plates of 416B cells (an immortalized mouse myeloid progenitor cell line), processed using the Smart-seq2 protocol [@picelli2014fulllength].
 A constant amount of spike-in RNA from the External RNA Controls Consortium (ERCC) was also added to each cell's lysate prior to library preparation.
 High-throughput sequencing was performed and the expression of each gene was quantified by counting the total number of reads mapped to its exonic regions.
@@ -164,7 +164,7 @@ table(colData(sce)$Oncogene, colData(sce)$Plate)
 Feature-counting tools typically report genes in terms of standard identifiers from Ensembl or Entrez.
 These identifiers are used as they are unambiguous and highly stable.
 However, they are difficult to interpret compared to the gene symbols which are more commonly used in the literature.
-Given the Ensembl identifiers, we can easily obtain the gene symbols using annotation packages like `r Biocpkg("org.Mm.eg.db")`.
+Given the Ensembl identifiers, we obtain the corresponding gene symbols using annotation packages like `r Biocpkg("org.Mm.eg.db")`.
 
 ```{r}
 library(org.Mm.eg.db)
@@ -249,7 +249,7 @@ It is also valuable to examine how the QC metrics behave with respect to each ot
 Generally, they will be in rough agreement, i.e., cells with low total counts will also have low numbers of expressed features and high ERCC/mitochondrial proportions.
 Clear discrepancies may correspond to technical differences between batches of cells (see below) or genuine biological differences in RNA content.
 
-```{r qcbiplot416b, fig.wide=TRUE, fig.asp=0.5, fig.cap="Behaviour of each QC metric compared to the total number of expressed features. Each point represents a cell in the 416B dataset."}
+```{r qcbiplot416b, fig.width=10, fig.asp=0.5, fig.cap="Behaviour of each QC metric compared to the total number of expressed features. Each point represents a cell in the 416B dataset."}
 par(mfrow=c(1,3))
 plot(sce$total_features, sce$total_counts/1e6, xlab="Number of expressed genes",
     ylab="Library size (millions)")
@@ -337,15 +337,19 @@ We can also include known biological factors in `batch`, if those factors could 
 
 ```{r}
 blocking <- paste0(sce$Plate, sce$Oncogene)
-libsize.drop2 <- isOutlier(sce$total_counts, nmads=3, type="lower", log=TRUE, batch=blocking)
-feature.drop2 <- isOutlier(sce$total_features, nmads=3, type="lower", log=TRUE, batch=blocking)
-spike.drop2 <- isOutlier(sce$pct_counts_ERCC, nmads=3, type="higher", batch=blocking)
+libsize.drop2 <- isOutlier(sce$total_counts, nmads=3, type="lower", 
+    log=TRUE, batch=blocking)
+feature.drop2 <- isOutlier(sce$total_features, nmads=3, type="lower", 
+    log=TRUE, batch=blocking)
+spike.drop2 <- isOutlier(sce$pct_counts_ERCC, nmads=3, type="higher", 
+    batch=locking)
+
 keep2 <- !(libsize.drop2 | feature.drop2 | spike.drop2)
 data.frame(ByLibSize=sum(libsize.drop2), ByFeature=sum(feature.drop2),
     BySpike=sum(spike.drop2), Remaining=sum(keep2))
 ```
 
-The use of this blocking approach in `isOutlier` results in a small increase in the number of discarded cells.
+The use of this blocking approach results in a small increase in the number of discarded cells.
 This is expected given that the variability within each level of `batch` is lower, resulting in more power to detect outliers.
 We then subset the `SingleCellExperiment` object to retain only the putative high-quality cells.
 
@@ -368,7 +372,8 @@ We use the Ensembl identifiers for each gene in our data set to match up with th
 ```{r}
 set.seed(100)
 library(scran)
-mm.pairs <- readRDS(system.file("exdata", "mouse_cycle_markers.rds", package="scran"))
+mm.pairs <- readRDS(system.file("exdata", "mouse_cycle_markers.rds", 
+    package="scran"))
 assignments <- cyclone(sce, mm.pairs, gene.names=rowData(sce)$ENSEMBL)
 ```
 
@@ -378,7 +383,7 @@ We focus on the G1 and G2/M scores as these are the most informative for classif
 
 ```{r phaseplot416b, message=FALSE, fig.cap="Cell cycle phase scores from applying the pair-based classifier on the 416B dataset. Each point represents a cell, plotted according to its scores for G1 and G2/M phases."}
 plot(assignments$score$G1, assignments$score$G2M, 
-     xlab="G1 score", ylab="G2/M score", pch=16)
+    xlab="G1 score", ylab="G2/M score", pch=16)
 ```
 
 Cells are classified as being in G1 phase if the G1 score is above 0.5 and greater than the G2/M score; 
@@ -418,7 +423,7 @@ This should generally be dominated by constitutively expressed transcripts, such
 The presence of other classes of features may be cause for concern if they are not consistent with expected biology.
 For example, a top set containing many spike-in transcripts suggests that too much spike-in RNA was added during library preparation, while the absence of ribosomal proteins and/or the presence of their pseudogenes are indicative of suboptimal alignment.
 
-```{r topgene416b, fig.asp=1.5, fig.wide=TRUE, fig.cap="Percentage of total counts assigned to the top 50 most highly-abundant features in the 416B dataset. For each feature, each bar represents the percentage assigned to that feature for a single cell, while the circle represents the average across all cells. Bars are coloured by the total number of expressed features in each cell, while circles are coloured according to whether the feature is labelled as a control feature."}
+```{r topgene416b, fig.asp=1.2, fig.wide=TRUE, fig.cap="Percentage of total counts assigned to the top 50 most highly-abundant features in the 416B dataset. For each feature, each bar represents the percentage assigned to that feature for a single cell, while the circle represents the average across all cells. Bars are coloured by the total number of expressed features in each cell, while circles are coloured according to whether the feature is labelled as a control feature."}
 fontsize <- theme(axis.text=element_text(size=12), axis.title=element_text(size=16))
 plotQC(sce, type = "highest-expression", n=50) + fontsize
 ```
@@ -447,7 +452,7 @@ hist(log10(ave.counts), breaks=100, main="", col="grey80",
 ```
 
 A minimum threshold can be applied to this value to filter out genes that are lowly expressed.
-The example below demonstrates how we could remove genes with average counts less than 1.
+The example below demonstrates how we _could_ remove genes with average counts less than 1.
 The number of `TRUE` values in `demo.keep` corresponds to the number of retained rows/genes after filtering.
 
 ```{r}
@@ -467,7 +472,7 @@ smoothScatter(log10(ave.counts), num.cells, ylab="Number of cells",
     xlab=expression(Log[10]~"average count"))
 ```
 
-As mentioned above, these filters will be applied at each step (automatically, in most cases, within the relevant function) rather than applied globally by subsetting `sce`.
+As mentioned above, we will apply these filters at each step rather than applying them globally by subsetting `sce`.
 This ensures that the most appropriate filter is used in each application.
 Nonetheless, we remove genes that are not expressed in any cell to reduce computational work in downstream steps. 
 Such genes provide no information and would be removed by any filtering strategy.
@@ -502,7 +507,7 @@ The size factors are well-correlated with the library sizes for all cells (Figur
 This suggests that most of the systematic differences between cells are driven by differences in capture efficiency or sequencing depth.
 Any DE between cells would yield a non-linear trend between the total count and size factor, and/or increased scatter around the trend.
 We observe some evidence of this after oncogene induction, where the size factors after induction are systematically lower.
-This is consistent with composition biases introduced by upregulation of genes after induction.
+This is consistent with composition biases [@robinson2010scaling] introduced by upregulation of genes after induction.
 
 ```{r normplot416b, fig.cap="Size factors from deconvolution, plotted against library sizes for all cells in the 416B dataset. Axes are shown on a log-scale. Wild-type cells are shown in black and oncogene-induced cells are shown in red."}
 plot(sce$total_counts/1e6, sizeFactors(sce), log="xy",
@@ -662,7 +667,7 @@ For data sets containing multiple batches, an alternative strategy is to perform
 This accommodates differences in the mean-variance trends between batches, especially if a different amount of spike-in RNA was added to the cells in each batch.
 We demonstrate this approach by treating each plate in the 416B dataset as a different batch (Figure \@(fig:hvgplotbatch416b)).
 
-```{r hvgplotbatch416b, fig.wide=TRUE, fig.asp=0.5, fig.cap="Variance of normalized log-expression values for each gene in each plate of the 416B dataset, plotted against the mean log-expression. The blue line represents the mean-dependent trend fitted to the variances of the spike-in transcripts (red)."}
+```{r hvgplotbatch416b, fig.width=10, fig.asp=0.5, fig.cap="Variance of normalized log-expression values for each gene in each plate of the 416B dataset, plotted against the mean log-expression. The blue line represents the mean-dependent trend fitted to the variances of the spike-in transcripts (red)."}
 collected <- list()
 par(mfrow=c(1,2))
 for (plate in levels(sce$Plate)) {
@@ -760,7 +765,8 @@ Cells with similar expression profiles should be located close together in the p
 In this case, we observe a clear separation of cells based on the oncogene induction status, consistent with the expected effects on the transcriptome.
 
 ```{r pcaplot416b, fig.cap="Pairwise PCA plots of the first three PCs in the 416B data set, constructed from normalized log-expression values of genes with positive biological components. Each point represents a cell, coloured according to the oncogene induction status. Bars represent the coordinates of the cells on each axis.", fig.width=9}
-plotReducedDim(sce, use_dimred="PCA", ncomponents=3, colour_by="Oncogene") + fontsize
+plotReducedDim(sce, use_dimred="PCA", ncomponents=3, 
+    colour_by="Oncogene") + fontsize
 ```
 
 Another widely used approach is the _t_-stochastic neighbour embedding (_t_-SNE) method [@van2008visualizing].
@@ -827,7 +833,7 @@ table(my.clusters, sce$Plate)
 table(my.clusters, sce$Oncogene)
 ```
 
-We visualize the cluster assignments for all cells on the _t_-SNE plot in Figure \@(fig:tsnecluster416b).
+We visualize the cluster assignments for all cells on the _t_-SNE plot in Figure \@ref(fig:tsnecluster416b).
 Adjacent cells are generally assigned to the same cluster, indicating that the clustering procedure was applied correctly.
 
 ```{r tsnecluster416b, fig.cap="_t_-SNE plot of the denoised PCs of the 416B data set. Each point represents a cell and is coloured according to the cluster identity to which it was assigned."}
@@ -836,12 +842,10 @@ plotTSNE(sce, use_dimred="PCA", colour_by="cluster",
     perplexity=20, rand_seed=200) + fontsize
 ```
 
-We check the separatedness of the clusters using the silhouette width (Figure \@(fig:silhouette416b)).
+We check the separatedness of the clusters using the silhouette width (Figure \@ref(fig:silhouette416b)).
 Cells with large positive silhouette widths are closer to other cells in the _same_ cluster than to cells in _different_ clusters.
 Conversely, cells with negative widths are closer to other clusters than to other cells in the cluster to which it was assigned.
 Each cluster would ideally contain many cells with large positive widths, indicating that it is well-separated from other clusters.
-This can be used to gauge the optimal parameter values (e.g., cut height, number of clusters) that maximize the separation between clusters.
-For example, we could vary the cut height in `cutreeDynamic` to maximize the average silhouette width across all cells.
 
 ```{r silhouette416b, fig.cap="Barplot of silhouette widths for cells in each cluster. Each cluster is assigned a colour and cells with positive widths are coloured according to the colour of its assigned cluster. Any cell with a negative width is coloured according to the colour of the cluster that it is closest to. The average width for all cells in each cluster is shown, along with the average width for all cells in the data set."}
 library(cluster)
@@ -852,6 +856,11 @@ sil.cols <- sil.cols[order(-sil[,1], sil[,3])]
 plot(sil, main = paste(length(unique(my.clusters)), "clusters"), 
     border=sil.cols, col=sil.cols, do.col.sort=FALSE) 
 ```
+
+Most cells in in Figure \@ref(fig:silhouette416b) have small positive widths, representing weak separation between clusters in the 416B dataset.
+This may be symptomatic of over-clustering where clusters that are clearly defined on oncogene induction status are further split into subsets that are less well separated.
+To address this, the silhouette width can be used to gauge the optimal parameter values (e.g., cut height, number of clusters) that maximize the separation between clusters.
+For example, we could vary the cut height or splitting depth in `cutreeDynamic` to maximize the average silhouette width across all cells.
 
 ```{r echo=FALSE, results='hide'}
 gc()
@@ -864,8 +873,8 @@ This is more robust to noise and normalization errors, but is also less sensitiv
 - Both Ward's criterion and complete linkage yield spherical, compact clusters.
 In particular, complete linkage favours the formation of clusters with the same diameter.
 This may be desirable in some cases but is less appropriate when subpopulations differ in their variance.
-Thus, we typically use Ward's criterion for hierarchical clustering, at least in the first pass.
-Of course, it is simple (and recommended) to apply other approaches, provided that some assessment is performed, e.g., using the silhouette width.
+Thus, we typically use Ward's criterion for our initial clustering. 
+Of course, it is simple (and recommended) to try other approaches provided that some assessment is performed, e.g., using the silhouette width.
 
 ## Detecting marker genes between clusters
 
@@ -898,10 +907,10 @@ options(digits=old.digits)
 ```
 
 We save the list of candidate marker genes for further examination.
-The `overlapExprs` function may also be useful here, to prioritize candidates where there is clear separation between the distributions of expression values of different clusters.
 
 ```{r}
-write.table(marker.set, file="416B_marker_1.tsv", sep="\t", quote=FALSE, col.names=NA)
+write.table(marker.set, file="416B_marker_1.tsv", sep="\t", 
+            quote=FALSE, col.names=NA)
 ```
 
 We visualize the expression profiles of the top candidates to verify that the DE signature is robust (Figure \@ref(fig:heatmapmarker416b)). 
@@ -910,7 +919,7 @@ A cursory examination of the DE genes suggests that cluster 1 contains oncogene-
 This is consistent with senescence as a tumour suppression mechanism.
 A more comprehensive investigation of the function of these markers can be performed with gene set enrichment analyses, e.g., using `kegga` or `goana` from `r Biocpkg("limma")`.
 
-```{r heatmapmarker416b, fig.wide=TRUE, fig.cap="Heatmap of mean-centred and normalized log-expression values for the top set of markers for cluster 1 in the 416B dataset. Column colours represent the cluster to which each cell is assigned, the plate of origin or the oncogene induction status of each cell, as indicated by the legend."}
+```{r heatmapmarker416b, fig.width=10, fig.asp=0.8, fig.cap="Heatmap of mean-centred and normalized log-expression values for the top set of markers for cluster 1 in the 416B dataset. Column colours represent the cluster to which each cell is assigned, the plate of origin or the oncogene induction status of each cell, as indicated by the legend."}
 top.markers <- marker.set$Gene[marker.set$Top <= 10]
 top.exprs <- logcounts(sce)[top.markers,,drop=FALSE]
 heat.vals <- top.exprs - rowMeans(top.exprs)
@@ -961,6 +970,8 @@ However, this is sensitive to overclustering, as unique marker genes will no lon
 This is because the clusters have been empirically identified from the data.
 `r Biocpkg("limma")` does not account for the uncertainty of clustering, which means that the _p_-values are much lower than they should be. 
 This is not a concern in other analyses where the groups are pre-defined.
+- The `overlapExprs` function may also be useful here, to prioritize candidates where there is clear separation between the distributions of expression values of different clusters.
+This differs from `findMarkers`, which is primarily concerned with the log-fold changes in average expression between clusters.
 
 # Concluding remarks
 
@@ -988,6 +999,10 @@ The specific version numbers of the packages used are shown below, along with th
 
 ```{r}
 sessionInfo()
+```
+
+```{r, eval=on.bioc, echo=FALSE, results='hide'}
+unlink(all.basenames)
 ```
 
 # References
