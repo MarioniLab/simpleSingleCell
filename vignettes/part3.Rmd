@@ -287,7 +287,7 @@ sce <- normalize(sce)
 ## Detecting highly variable genes
 
 We fit a mean-variance trend to the spike-in transcripts to quantify the technical component of the variance, as previously described.
-The biological component for each gene is defined as the difference between its total variance and the fitted value of the trend (Figure \@(fig:hvgplothsc)).
+The biological component for each gene is defined as the difference between its total variance and the fitted value of the trend (Figure \@ref(fig:hvgplothsc)).
 
 ```{r hvgplothsc, fig.cap="Variance of normalized log-expression values for each gene in the HSC dataset, plotted against the mean log-expression. The blue line represents the mean-dependent trend fitted to the variances of the spike-in transcripts (red)."}
 var.fit <- trendVar(sce, parametric=TRUE, span=0.2)
@@ -362,6 +362,13 @@ The fitted value of the trend can no longer be generally interpreted as the tech
 Instead, recall that the biological component reported by `decomposeVar` represents the residual for each gene over the majority of genes with the same abundance.
 One could assume that the variabilities of most genes are driven by constitutive "house-keeping" processes, which are biological in origin but generally uninteresting.
 Any gene with an increase in its variance is _relatively_ highly variable and can be prioritized for further study.
+
+Testing:
+
+```{r}
+sce2 <- readRDS("416B_data.rds")
+sce2
+```
 
 # Identifying correlated gene pairs with Spearman's rho
 

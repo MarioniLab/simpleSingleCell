@@ -456,7 +456,7 @@ pheatmap(ratio, cluster_rows=FALSE, cluster_cols=FALSE,
     color=colorRampPalette(c("white", "blue"))(100))
 ```
 
-We visualize the cluster assignments for all cells on the _t_-SNE plot in Figure \@(fig:tsneclusterbrain).
+We visualize the cluster assignments for all cells on the _t_-SNE plot in Figure \@ref(fig:tsneclusterbrain).
 Adjacent cells are generally assigned to the same cluster, indicating that the clustering procedure was applied correctly.
 We could also use graph-based visualizations such as force-directed layouts (e.g., `layout_with_fr` from `r CRANpkg("igraph")`).
 These are appealing as they only need information that is already in the graph, without needing to refer back to the expression matrices or PC coordinates.
