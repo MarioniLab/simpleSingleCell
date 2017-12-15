@@ -409,9 +409,11 @@ gc()
 **Comments from Aaron:**
 
 - We run `normalize` within the loop to ensure that the average abundances of the spike-in transcripts are comparable to the endogenous genes.
-This is because the size factors may no longer be centred at unity after subsetting, especially if the quantities of spike-in RNA differ between batches.
-If one batch contained less spike-in RNA, normalization with globally-centred size factors would push up the average abundance for spike-in transcripts in that batch.
-This means that the trend would be shifted along the x-axis and would not accurately capture the technical component for each gene.
+This adjusts the size factors across cells in each batch so that the mean is equal to 1, for both the spike-in and gene-based sets of size factors. 
+Log-normalized expression values are then recalculated using these centred size factors.
+This procedure avoids problems due to differences in the quantity of spike-in RNA between batches.
+In such cases, if the globally-centred size factors were used, there would be a systematic difference in the scaling of spike-in transcripts compared to endogenous genes.
+The fitted trend would then be shifted along the x-axis and fail to accurately capture the technical component for each gene.
 
 # Identifying correlated gene pairs with Spearman's rho
 
