@@ -815,8 +815,9 @@ plot(sil, main = paste(length(unique(my.clusters)), "clusters"),
 
 Most cells in in Figure \@ref(fig:silhouette416b) have small positive widths, representing weak separation between clusters in the 416B dataset.
 This may be symptomatic of over-clustering where clusters that are clearly defined on oncogene induction status are further split into subsets that are less well separated.
-To address this, the silhouette width can be used to gauge the optimal parameter values (e.g., cut height, number of clusters) that maximize the separation between clusters.
+The silhouette width can be used to gauge the optimal parameter values (e.g., cut height, number of clusters) that maximize the separation between clusters.
 For example, we could vary the cut height or splitting depth in `cutreeDynamic` to maximize the average silhouette width across all cells.
+Nonetheless, we will proceed with the current clustering scheme in `my.clusters`, which provides reasonable partitions for further characterization of heterogeneity.
 
 ```{r echo=FALSE, results='hide'}
 gc()
@@ -866,13 +867,13 @@ We save the list of candidate marker genes for further examination.
 
 ```{r}
 write.table(marker.set, file="416B_marker_1.tsv", sep="\t", 
-            quote=FALSE, col.names=NA)
+    quote=FALSE, row.names=FALSE)
 ```
 
 We visualize the expression profiles of the top candidates to verify that the DE signature is robust (Figure \@ref(fig:heatmapmarker416b)). 
 Most of the top markers have strong and consistent up- or downregulation in cells of cluster 1 compared to some or all of the other clusters.
-A cursory examination of the DE genes suggests that cluster 1 contains oncogene-induced cells with no expression of cell cycle genes.
-This is consistent with senescence as a tumour suppression mechanism.
+A cursory examination of the heatmap indicates that cluster 1 contains oncogene-induced cells with strong downregulation of DNA replication and cell cycle genes.
+This is consistent with the potential induction of senescence as an anti-tumorigenic response [@wajapeyee2010senescence].
 A more comprehensive investigation of the function of these markers can be performed with gene set enrichment analyses, e.g., using `kegga` or `goana` from `r Biocpkg("limma")`.
 
 ```{r heatmapmarker416b, fig.width=10, fig.asp=0.8, fig.cap="Heatmap of mean-centred and normalized log-expression values for the top set of markers for cluster 1 in the 416B dataset. Column colours represent the cluster to which each cell is assigned, the plate of origin or the oncogene induction status of each cell, as indicated by the legend."}

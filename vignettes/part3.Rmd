@@ -439,7 +439,7 @@ summary(sig.cor)
 ```
 
 We can also compute correlations between specific pairs of genes, or between all pairs between two distinct sets of genes.
-The example below computes the correlation between _Fos_ and _Jun_, which dimerize to form the AP-1 transcription factor.
+The example below computes the correlation between _Fos_ and _Jun_, which dimerize to form the AP-1 transcription factor [@angel1991role].
 
 ```{r}
 correlatePairs(sce.hsc, subset.row=cbind("Fos", "Jun"))
