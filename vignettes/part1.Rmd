@@ -220,7 +220,7 @@ The same amount of spike-in RNA to each cell, so an enrichment in spike-in count
 High proportions are indicative of poor-quality cells [@islam2014quantitative;@ilicic2016classification], possibly because of loss of cytoplasmic RNA from perforated cells.
 The reasoning is that mitochondria are larger than individual transcript molecules and less likely to escape through tears in the cell membrane.
 
-For each cell, we calculate these quality control metrics using the `calculateQCMetrics` function from the `r Biocpkg("scater")` package [@mccarthy2016scater].
+For each cell, we calculate these quality control metrics using the `calculateQCMetrics` function from the `r Biocpkg("scater")` package [@mccarthy2017scater].
 These are stored in the row- and column-wise metadata of the `SingleCellExperiment` for future reference.
 
 ```{r}
@@ -418,7 +418,7 @@ Its lack of expression relative to other genes will still yield informative pair
 
 ## Inspecting the most highly expressed genes
 
-We also look at the identities of the most highly expressed genes (Figure \@ref(fig:topgene416b)).
+We examine the identities of the most highly expressed genes (Figure \@ref(fig:topgene416b)).
 This should generally be dominated by constitutively expressed transcripts, such as those for ribosomal or mitochondrial proteins.
 The presence of other classes of features may be cause for concern if they are not consistent with expected biology.
 For example, a top set containing many spike-in transcripts suggests that too much spike-in RNA was added during library preparation, while the absence of ribosomal proteins and/or the presence of their pseudogenes are indicative of suboptimal alignment.
@@ -655,53 +655,6 @@ These are intuitively meaningless as it is impossible for a gene to have total v
 Nonetheless, such values occur due to imprecise estimation of the total variance, especially for low numbers of cells.
 - `decomposeVar` also yields _p_-values that can be used to define HVGs at a specific threshold for the false discovery rate (FDR).
 We will discuss this in more detail later, as formal detection of HVGs is not necessary for feature selection during data exploration.
-
-## Blocking on uninteresting factors of variation
-
-As previously mentioned, the use of `design` in `trendVar` will ensure that systematic differences between plates do not inflate the variance.
-However, this implicitly assumes that the trend is the same between plates, given that a single trend is fitted to the spike-in transcripts. 
-This may not always be the case, e.g., when different amounts of spike-in RNA are added between batches.
-The use of a single trend would subsequently be inappropriate, resulting in inaccurate estimates of the technical component for each gene.
-
-For data sets containing multiple batches, an alternative strategy is to perform trend fitting and variance decomposition separately for each batch.
-This accommodates differences in the mean-variance trends between batches, especially if a different amount of spike-in RNA was added to the cells in each batch.
-We demonstrate this approach by treating each plate in the 416B dataset as a different batch (Figure \@ref(fig:hvgplotbatch416b)).
-This yields plate-specific estimates of the biological and technical components for each gene.
-
-```{r hvgplotbatch416b, fig.width=10, fig.asp=0.5, fig.cap="Variance of normalized log-expression values for each gene in each plate of the 416B dataset, plotted against the mean log-expression. The blue line represents the mean-dependent trend fitted to the variances of the spike-in transcripts (red)."}
-collected <- list()
-par(mfrow=c(1,2))
-for (plate in levels(sce$Plate)) {
-    cur.sce <- sce[,sce$Plate==plate]
-    cur.sce <- normalize(cur.sce) 
-
-    # Estimating the technical/biological components.
-    cur.fit <- trendVar(cur.sce, parametric=TRUE, span=0.4)
-    cur.out <- decomposeVar(cur.sce, cur.fit)
-    collected[[plate]] <- cur.out 
-
-    # Making a plot for diagnostic purposes.
-    plot(cur.out$mean, cur.out$total, pch=16, cex=0.6, xlab="Mean log-expression", 
-        ylab="Variance of log-expression", main=plate)
-    curve(cur.fit$trend(x), col="dodgerblue", lwd=2, add=TRUE)
-    cur.spike <- isSpike(cur.sce)
-    points(cur.out$mean[cur.spike], cur.out$total[cur.spike], col="red", pch=16)
-}
-```             
-
-Statistics are combined across multiple batches using the `combineVar` function.
-These values can be used in downstream functions in place of the corresponding values from `var.out`.
-
-```{r}
-comb.out <- do.call(combineVar, collected)
-head(comb.out)
-```
-
-
-
-```{r, echo=FALSE, results="hide"}
-gc()
-```
 
 # Denoising expression values using PCA
 

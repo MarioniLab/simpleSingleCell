@@ -153,7 +153,7 @@ gc()
 # Quality control on the cells 
 
 The original authors of the study have already removed low-quality cells prior to data publication.
-Nonetheless, we compute some quality control metrics with `r Biocpkg("scater")` [@mccarthy2016scater] to check whether the remaining cells are satisfactory.
+Nonetheless, we compute some quality control metrics with `r Biocpkg("scater")` [@mccarthy2017scater] to check whether the remaining cells are satisfactory.
 
 ```{r}
 library(scater)
