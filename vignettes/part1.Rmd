@@ -332,7 +332,7 @@ multiplot(
 
 Systematic differences in the QC metrics can be handled to some extent using the `batch` argument in the `isOutlier` function.
 Setting `batch` to the plate of origin will identify outliers within each level of `batch`, using plate-specific median and MAD estimates.
-This is obviously useful for batch effects caused by known differences in experimental processing, e.g., sequencing at different depth or had different amounts of spike-in added.
+This is obviously useful for accommodating known differences in experimental processing, e.g., sequencing at different depth or different amounts of added spike-in RNA. 
 We can also include known biological factors in `batch`, if those factors could result in systematically fewer expressed genes or lower RNA content.
 
 ```{r}
@@ -656,6 +656,32 @@ Nonetheless, such values occur due to imprecise estimation of the total variance
 - `decomposeVar` also yields _p_-values that can be used to define HVGs at a specific threshold for the false discovery rate (FDR).
 We will discuss this in more detail later, as formal detection of HVGs is not necessary for feature selection during data exploration.
 
+# Removing the batch effect
+
+As previously mentioned, the data were collected on two plates.
+Small uncontrollable differences in processing between plates can result in a batch effect, i.e., systematic differences in expression between cells on different plates.
+Such differences are not interesting and can be removed by applying the `removeBatchEffect()` function from the `r Biocpkg("limma")` package [@ritchie2015limma].
+This removes the effect of the plate of origin while accounting for the (interesting) effect of oncogene induction.
+
+```{r}
+library(limma)
+assay(sce, "corrected") <- removeBatchEffect(logcounts(sce), 
+    design=model.matrix(~sce$Oncogene), batch=sce$Plate)
+assayNames(sce)
+```
+
+Manual batch correction is necessary for downstream procedures that are not model-based, e.g., clustering and most forms of dimensionality reduction.
+However, if an analysis method can accept a design matrix, blocking on nuisance factors in the design matrix is preferable to using `removeBatchEffect()`.
+This is because the latter does not account for the loss of residual degrees of freedom, nor the uncertainty of estimation of the blocking factor terms.
+
+**Comments from Aaron:**
+
+- `removeBatchEffect()` performs a linear regression and sets the coefficients corresponding to the blocking factors to zero.
+This is effective provided that the population composition within each batch is known (and supplied as `design=`) or identical across batches.
+Such an assumption is reasonable for this dataset, involving a homogeneous cell line population on both plates.
+However, in most scRNA-seq applications, the factors of variation are not identical across batches and not known in advance.
+This motivates the use of more sophisticated batch correction methods such as `mnnCorrect()`.
+
 # Denoising expression values using PCA
 
 Once the technical noise is modelled, we can use principal components analysis (PCA) to remove random technical noise.
@@ -666,10 +692,10 @@ Each axis is a principal component (PC), where any early PC will explain more of
 We assume that biological processes involving co-regulated groups of genes will account for the most variance in the data.
 If this is the case, this process should be represented by one or more of the earlier PCs.
 In contrast, random technical noise affects each gene independently and will be represented by later PCs.
-The `denoisePCA` function removes later PCs until the total discarded variance is equal to the sum of technical components for all genes used in the PCA.
+The `denoisePCA()` function removes later PCs until the total discarded variance is equal to the sum of technical components for all genes used in the PCA.
 
 ```{r}
-sce <- denoisePCA(sce, technical=var.fit$trend, design=design) 
+sce <- denoisePCA(sce, technical=var.fit$trend)
 dim(reducedDim(sce, "PCA")) 
 ```
 
@@ -679,7 +705,7 @@ This improves resolution of the underlying biology during downstream procedures 
 
 __Comments from Aaron:__
 
-- `denoisePCA` will internally filter to only genes that have positive biological components in `denoisePCA`.
+- `denoisePCA` will only use genes that have positive biological components, i.e., variances greater than the fitted trend.
 This guarantees that the total technical variance to be discarded will not be greater than the total variance in the data.
 - No filtering is performed on abundance here, which ensures that PCs corresponding to rare subpopulations can still be detected. 
 Discreteness is less of an issue as low-abundance genes also have lower variance, thus reducing their contribution to the PCA.
@@ -687,26 +713,13 @@ Discreteness is less of an issue as low-abundance genes also have lower variance
 This is useful for denoising prior to downstream procedures that require gene-wise expression values.
 
 ```{r}
-sce2 <- denoisePCA(sce, technical=var.fit$trend, design=design, value="lowrank") 
+sce2 <- denoisePCA(sce, technical=var.fit$trend, value="lowrank") 
 assayNames(sce2)
 ```
 
 ```{r, echo=FALSE, results="hide"}
 rm(sce2)
 gc()
-```
-
-- When `design` is specified, `denoisePCA` will automatically regress out uninteresting factors of variation and perform PCA on the residuals.
-This ensures that those factors do not drive separation between clusters or in low-dimensional space.
-Users can do this manually with the `removeBatchEffect` function from the `r Biocpkg("limma")` package [@ritchie2015limma], as shown below.
-However, if an analysis method can accept a design matrix, blocking on nuisance factors in the design matrix is preferable to using `removeBatchEffect`.
-This is because the latter does not account for the loss of residual degrees of freedom, nor the uncertainty of estimation of the blocking factor terms.
-
-```{r}
-library(limma)
-adj.exprs <- logcounts(sce)
-adj.exprs <- removeBatchEffect(adj.exprs, batch=sce$Plate)
-norm_exprs(sce) <- adj.exprs 
 ```
 
 ```{r, echo=FALSE, results='hide', message=FALSE}
