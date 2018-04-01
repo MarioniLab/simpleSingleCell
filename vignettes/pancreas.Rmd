@@ -53,7 +53,7 @@ Batch effects are problematic as they can be major drivers of heterogeneity in t
 
 Computational correction of these effects is critical for eliminating batch-to-batch variation, allowing data across multiple batches to be combined for valid downstream analysis.
 However, existing methods such as `removeBatchEffect()` [@ritchie2015limma] assume that the composition of cell populations are either known or the same across batches.
-This workflow describes the application of an alternative strategy for batch correction based on the detection of mutual nearest neighbours [@haghverdi2018correcting].
+This workflow describes the application of an alternative strategy for batch correction based on the detection of mutual nearest neighbours (MNNs) [@haghverdi2018correcting].
 The `mnnCorreect()` approach does not rely on pre-defined or equal population compositions across batches, only requiring that a subset of the population be shared between batches.
 We demonstrate its use on three human pancreas scRNA-seq datasets from different groups and using different protocols.
 
@@ -167,14 +167,16 @@ sce.gse81076 <- normalize(sce.gse81076)
 
 We identify highly variable genes (HVGs) using `trendVar()` and `decomposeVar()`.
 Note that we set `block=` to ensure that uninteresting differences between plates or donors do not inflate the variance.
+The small apparent discrepancy in the fitted trend is caused by the fact that the trend is fitted robustly to the block-wise variances of the spike-ins, 
+while the variances shown are averaged across blocks and not robust to outliers.
 
-```{r, fig.cap="Variance of normalized log-expression values for each gene in the GSE81076 dataset, plotted against the mean log-expression. The blue line represents the mean-dependent trend fitted to the variances of the spike-in transcripts (red). The small apparent discrepancy in the fit is caused by the fact that the trend is fitted robustly to the block-wise variances of the spike-ins, while the variances shown are averaged across blocks and not robust to outliers."}
+```{r, fig.cap="Variance of normalized log-expression values for each gene in the GSE81076 dataset, plotted against the mean log-expression. The blue line represents the mean-dependent trend fitted to the variances of the spike-in transcripts (red)."}
 block <- paste0(sce.gse81076$Plate, "_", sce.gse81076$Donor)
 fit <- trendVar(sce.gse81076, block=block, parametric=TRUE) 
 dec <- decomposeVar(sce.gse81076, fit)
 plot(dec$mean, dec$total, xlab="Mean log-expression", 
 	ylab="Variance of log-expression", pch=16)
-is.spike <- isSpike(sce.gse81076)
+OBis.spike <- isSpike(sce.gse81076)
 points(dec$mean[is.spike], dec$total[is.spike], col="red", pch=16)
 curve(fit$trend(x), col="dodgerblue", add=TRUE)
 ```
@@ -183,8 +185,8 @@ We order genes by decreasing biological component, revealing some usual suspects
 We will be using this information later when performing feature selection prior to running `mnnCorrect()`.
 
 ```{r}
-dec <- cbind(Symbol=rowData(sce.gse81076)$Symbol, dec)
-dec[head(order(dec$bio, decreasing=TRUE)),]
+dec.gse81076 <- cbind(dec, Symbol=rowData(sce.gse81076)$Symbol)
+dec.gse81076[head(order(dec.gse81076$bio, decreasing=TRUE)),]
 ```
 
 ```{r, echo=FALSE, results="hide"}
@@ -282,7 +284,7 @@ sce.gse85241 <- normalize(sce.gse85241)
 We identify highly variable genes (HVGs) using `trendVar()` and `decomposeVar()`.
 Again, we set `block=` to ensure that uninteresting differences between plates or donors do not inflate the variance.
 
-```{r, fig.cap="Variance of normalized log-expression values for each gene in the GSE85241 dataset, plotted against the mean log-expression. The blue line represents the mean-dependent trend fitted to the variances of the spike-in transcripts (red). The small apparent discrepancy in the fit is caused by the fact that the trend is fitted robustly to the block-wise variances of the spike-ins, while the variances shown are averaged across blocks and not robust to outliers."}
+```{r, fig.cap="Variance of normalized log-expression values for each gene in the GSE85241 dataset, plotted against the mean log-expression. The blue line represents the mean-dependent trend fitted to the variances of the spike-in transcripts (red)."}
 block <- paste0(sce.gse85241$Plate, "_", sce.gse85241$Donor)
 fit <- trendVar(sce.gse85241, block=block, parametric=TRUE) 
 dec <- decomposeVar(sce.gse85241, fit)
@@ -293,11 +295,11 @@ points(dec$mean[is.spike], dec$total[is.spike], col="red", pch=16)
 curve(fit$trend(x), col="dodgerblue", add=TRUE)
 ```
 
-We order genes by decreasing biological component, revealing some usual suspects such as insulin and glucagon.
+We order genes by decreasing biological component, as described above.
 
 ```{r}
-dec <- cbind(Symbol=rowData(sce.gse85241)$Symbol, dec)
-dec[head(order(dec$bio, decreasing=TRUE)),]
+dec.gse85241 <- cbind(dec, Symbol=rowData(sce.gse85241)$Symbol)
+dec.gse85241[head(order(dec.gse85241$bio, decreasing=TRUE)),]
 ```
 
 ```{r, echo=FALSE, results="hide"}
@@ -435,18 +437,137 @@ for (x in unique(sce.e5601$Donor)) {
 }
 ```
 
-We combine statistics across donors to obtain a single consolidated set of results.
-We then order genes by decreasing biological component, revealing some usual suspects such as insulin and glucagon.
+We combine statistics across donors to consolidate them into a single set of results for this study.
+We then order genes by decreasing biological component.
 
 ```{r}
-dec <- do.call(combineVar, collected)
-dec <- cbind(Symbol=rowData(sce.e5601)$Symbol, dec)
-dec[head(order(dec$bio, decreasing=TRUE)),]
+dec.e5601 <- do.call(combineVar, collected)
+dec.e5601 <- cbind(dec.e5601, Symbol=rowData(sce.e5601)$Symbol)
+dec.e5601[head(order(dec.e5601$bio, decreasing=TRUE)),]
 ```
 
 ```{r, echo=FALSE, results="hide"}
 rm(e5601.df)
 gc()
+```
+
+# Feature selection across batches
+
+To obtain a single set of features for batch selection, we take the top 1000 genes with the largest biological components from each batch.
+The intersection of this set across batches is defined as our feature set for MNN correction.
+
+```{r}
+top.e5601 <- rownames(dec.e5601)[head(order(dec.e5601$bio, decreasing=TRUE), 1000)]
+top.gse85241 <- rownames(dec.gse85241)[head(order(dec.gse85241$bio, decreasing=TRUE), 1000)]
+top.gse81076 <- rownames(dec.gse81076)[head(order(dec.gse81076$bio, decreasing=TRUE), 1000)]
+chosen <- Reduce(intersect, list(top.e5601, top.gse85241, top.gse81076))
+
+# Adding some gene symbols for interpretation.
+symb <- mapIds(org.Hs.eg.db, keys=chosen, keytype="ENSEMBL", column="SYMBOL")
+DataFrame(ID=chosen, Symbol=symb)
+```
+
+The use of an intersection is a rather conservative strategy as it requires the same gene to be highly variable in all batches.
+This may not be possible for marker genes of cell types that are not present in all batches.
+An alternative approach is to use `combineVar()` to compute the average biological component across batches for each gene.
+The feature set can then be defined as the top $X$ genes with the largest biological components.
+
+```{r}
+# Identifying genes that are annotated in all batches.
+in.all <- Reduce(intersect, list(rownames(dec.e5601), 
+    rownames(dec.gse85241), rownames(dec.gse81076)))
+
+# Setting weighted=FALSE so each batch contributes equally.
+combined <- combineVar(dec.e5601[in.all,], dec.gse85241[in.all,],
+    dec.gse81076[in.all,], weighted=FALSE)
+chosen2 <- rownames(combined)[head(order(combined$bio, decreasing=TRUE), 1000)]
+```
+
+Despite its conservativeness, we will use the intersection here to focus on the obvious biological differences between pancreas cell types.
+This reduces the number of genes that drive the weaker uninteresting differences between donors _within each batch_.
+These will not be corrected by applying `mnnCorrect()` to the batches, and will complicate the interpretation of the plots below.
+
+**Comments from Aaron:**
+
+- It is possible to apply `mnnCorrect()` _within_ each batch to correct for differences between donors and/or plates, prior to correcting for differences _between_ batches.
+For simplicity, we will not do this here, relying only on the feature selection to mitigate donor/plate effects.
+
+# Performing MNN-based correction
+
+Consider a cell $a$ in batch $A$, and identify the cells in batch $B$ that are nearest neighbours to $a$ in the expression space defined by the selected features.
+Repeat this for a cell $b$ in batch $B$, identifying its nearest neighbours in $A$.
+Mutual nearest neighbours are pairs of cells from different batches that belong in each other's set of nearest neighbours.
+The reasoning is that MNN pairs represent cells from the same biological state prior to the application of a batch effect - see @haghverdi2017correcting for full theoretical details.
+Thus, the difference between cells in MNN pairs can be used as an estimate of the batch effect, the subtraction of which can yield batch-corrected values.
+
+We apply the `mnnCorrect()` function to the three batches to remove the batch effect, using the genes in `chosen`.
+This involves correcting their expression values so that all cells are comparable in the coordinate system of the first batch.
+The function returns a set of matrices containing corrected expression values, and reports the MNN pairs that were identified in each successive batch.
+The latter can provide useful information for trouble-shooting, e.g., to check whether cells independently assigned to the same cell type are correctly identified as MNN pairs.
+
+```{r}
+original <- list(logcounts(sce.e5601)[chosen,],
+                 logcounts(sce.gse81076)[chosen,],
+                 logcounts(sce.gse85241)[chosen,])
+corrected <- do.call(mnnCorrect, c(original, 
+                     list(k=20, sigma=0.1)))
+corrected$pairs
+```
+
+**Comments from Aaron:**
+
+- The `k=` parameter specifies the number of nearest neighbours to consider when defining MNN pairs.
+This should be interpreted as the minimum frequency of each cell type or state in each batch.
+Larger values will improve the precision of the correction by increasing the number of MNN pairs, 
+at the cost of reducing accuracy by allowing MNN pairs to form between cells of different type.
+- The `sigma=` parameter specifies how much information is shared between MNN pairs when computing the batch effect.
+Larger values will share more information, approaching a global correction for all cells in the same batch.
+Smaller values allow the correction to vary across cell types, which may be more accurate but comes at the cost of precision.
+The default `sigma=1` is conservative and favours undercorrection, so lower values may be more suitable in many cases.
+- The order of the supplied batches does matter, as the first batch is treated as the reference coordinate system.
+We suggest setting the largest and/or most heterogeneous batch as the first.
+This ensures that sufficient MNN pairs will be identified between the first and other batches for stable correction.
+
+# Examining the effect of correction
+
+We create a new `SingleCellExperiment` object containing these corrected counts for each cell, along with information regarding the batch of origin.
+
+```{r}
+omat <- do.call(cbind, original)
+mat <- do.call(cbind, corrected$corrected)
+colnames(mat) <- NULL
+sce <- SingleCellExperiment(list(original=omat, corrected=mat))
+colData(sce)$Batch <- rep(c("e5601", "gse81076", "gse85241"),
+                          lapply(corrected$corrected, ncol))
+sce
+```
+
+We examine the batch correction with some _t_-SNE plots.
+Figure~\@ref(fig:tsne-batch) demonstrates how the cells separate by batch of origin in the uncorrected data.
+After correction, more intermingling between batches is observed, consistent with the removal of batch effects.
+Note that the E-MTAB-5601 dataset still displays some separation, which is probably due to the fact that the other batches are UMI datasets.
+
+```{r tsne-batch, fig.width=10, fig.height=6, fig.cap="t-SNE plots of the pancreas datasets, before and after MNN correction. Each point represents a cell and is coloured by the batch of origin."}
+osce <- runTSNE(sce, exprs_values="original", rand_seed=100)
+ot <- plotTSNE(osce, colour_by="Batch") + ggtitle("Original")
+csce <- runTSNE(sce, exprs_values="corrected", rand_seed=100, check_duplicates=FALSE)
+ct <- plotTSNE(csce, colour_by="Batch") + ggtitle("Corrected")
+multiplot(ot, ct, cols=2)
+```
+
+We colour by the expression of marker genes for known pancreas cell types to determine whether the correction is biologically sensible.
+Cells in the same visual cluster express the same marker genes (Figure \@ref(fig:tsne-markers)), indicating that the correction maintains separation of cell types.
+
+```{r tsne-markers, fig.width=10, fig.height=10, fig.cap="t-SNE plots after MNN correction, where each point represents a cell and is coloured by its corrected expression of key marker genes for known cell types in the pancreas."}
+ct.gcg <- plotTSNE(csce, by_exprs_values="corrected", 
+    colour_by="ENSG00000115263") + ggtitle("Alpha cells (GCG)")
+ct.ins <- plotTSNE(csce, by_exprs_values="corrected", 
+    colour_by="ENSG00000254647") + ggtitle("Beta cells (INS)")
+ct.sst <- plotTSNE(csce, by_exprs_values="corrected", 
+    colour_by="ENSG00000157005") + ggtitle("Delta cells (SST)")
+ct.ppy <- plotTSNE(csce, by_exprs_values="corrected", 
+    colour_by="ENSG00000108849") + ggtitle("PP cells (PPY)")
+multiplot(ct.gcg, ct.ins, ct.sst, ct.ppy, cols=2)
 ```
 
 
