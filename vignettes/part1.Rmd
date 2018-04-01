@@ -39,7 +39,6 @@ for (x in seq_along(all.urls)) {
         download.file(all.urls[x], all.basenames[x], mode=all.modes[x])
     }
 }
-unzip(all.basenames[1])
 ```
 
 # Overview
@@ -61,10 +60,14 @@ In each matrix, each row represents an endogenous gene or a spike-in transcript,
 Subsequently, the count in each entry of the matrix represents the number of reads mapped to a particular gene/transcript in a particular cell.
 
 ```{r}
+unzip("E-MTAB-5522.processed.1.zip")
+
+# Reading in the count tables for each of the two plates.
 plate1 <- read.delim("counts_Calero_20160113.tsv", 
     header=TRUE, row.names=1, check.names=FALSE)
 plate2 <- read.delim("counts_Calero_20160325.tsv", 
     header=TRUE, row.names=1, check.names=FALSE)
+
 gene.lengths <- plate1$Length # First column is the gene length.
 plate1 <- as.matrix(plate1[,-1]) # Discarding gene length (as it is not a cell).
 plate2 <- as.matrix(plate2[,-1])
@@ -506,9 +509,11 @@ __Comments from Aaron:__
 - While the deconvolution approach is robust to the high frequency of zeroes in scRNA-seq data, it will eventually fail if too many counts are zero.
 This manifests as negative size factors, which are obviously nonsensical.
 To avoid this, the `computeSumFactors` function will automatically remove low-abundance genes prior to the calculation of size factors.
-Genes with an average count below a specified threshold (`min.mean`) are ignored.
-For read count data, the default value of 1 is usually satisfactory.
-For UMI data, counts are lower so a threshold of 0.1 is recommended. 
+Genes with a library size-adjusted average count below a specified threshold (`min.mean`) are ignored.
+  - For read count data, the default value of 1 is usually satisfactory.
+    For UMI data, counts are lower so a threshold of 0.1 is recommended. 
+  - While the library size-adjusted average is not entirely independent of the bias [@bourgon2010independent], this is a better filter statistic than the sample mean count.
+    The latter would enrich for genes that are upregulated in cells with large library sizes, resulting in inflated size factor estimates for those cells.
 - Cell-based QC should always be performed prior to normalization, to remove cells with very low numbers of expressed genes.
 If this is not done, the `computeSumFactors` function may yield negative size factors for low-quality cells.
 - The `sizes` argument can be used to specify the number of pool sizes to use to compute the size factors.
@@ -886,7 +891,7 @@ A more comprehensive investigation of the function of these markers can be perfo
 top.markers <- rownames(marker.set)[marker.set$Top <= 10]
 plotHeatmap(sce, features=top.markers, columns=order(sce$cluster), 
     colour_columns_by=c("cluster", "Plate", "Oncogene"),
-    cluster_cols=FALSE) 
+    cluster_cols=FALSE, zlim=c(-5, 5)) 
 ```
 
 Many of the markers in Figure \@ref(fig:heatmapmarker416b) are not uniquely up- or downregulated in the chosen cluster.
