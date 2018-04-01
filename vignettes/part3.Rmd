@@ -26,37 +26,26 @@ bibliography: ref.bib
 library(BiocStyle)
 library(knitr)
 opts_chunk$set(error=FALSE, message=FALSE, warning=FALSE)
-
-# Setting single-core unless explicitly specified otherwise.
-library(BiocParallel)
-register(SerialParam())
-
-# Deciding whether we want to re-download everything or not.
-on.bioc <- TRUE
-
-# Further arguments for local execution.
 opts_chunk$set(fig.asp=1)
-if (!on.bioc) {
-    opts_chunk$set(dpi=300, dev="png", dev.args=list(pointsize=15))
-    options(bitmapType="cairo", width=100)
-}
-
-# Loading extra libraries.
-library(destiny)
 ```
 
-```{r, eval=on.bioc, echo=FALSE, results='hide'}
+```{r, echo=FALSE, results='hide'}
 all.urls <- c("https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE61533&format=file&file=GSE61533%5FHTSEQ%5Fcount%5Fresults%2Exls%2Egz", 
 "https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE29087&format=file&file=GSE29087%5FL139%5Fexpression%5Ftab%2Etxt%2Egz",
 "http://www.ebi.ac.uk/teichmann-srv/espresso/static/counttable_es.csv", 
 "http://www.nature.com/nbt/journal/v33/n2/extref/nbt.3102-S7.xlsx")
+
 all.basenames <- basename(all.urls)
 all.basenames[1] <- "GSE61533_HTSEQ_count_results.xls.gz"
 all.basenames[2] <- "GSE29087_L139_expression_tab.txt.gz"
+
 all.modes <- rep("w", length(all.urls))
 all.modes[!grepl("(txt|csv)$", all.basenames)] <- "wb"
+
 for (x in seq_along(all.urls)) { 
-    download.file(all.urls[x], all.basenames[x], mode=all.modes[x])
+    if (!file.exists(all.basenames[x])) {
+        download.file(all.urls[x], all.basenames[x], mode=all.modes[x])
+    }
 }
 ```
 
@@ -94,8 +83,8 @@ isSpike(sce.allen, "ERCC") <- grep("ERCC", rownames(sce.allen))
 
 # Computing the QC metrics and running PCA.
 library(scater)
-sce.allen <- calculateQCMetrics(sce.allen, feature_controls=list(ERCC=isSpike(sce.allen)))
-sce.allen <- runPCA(sce.allen, pca_data_input="coldata", detect_outliers=TRUE)
+sce.allen <- calculateQCMetrics(sce.allen)
+sce.allen <- runPCA(sce.allen, use_coldata=TRUE, detect_outliers=TRUE)
 table(sce.allen$outlier)
 ```
 
@@ -135,7 +124,8 @@ We also specify the rows corresponding to spike-in transcripts.
 library(SingleCellExperiment)
 counts <- read.table("GSE29087_L139_expression_tab.txt.gz", 
     colClasses=c(list("character", NULL, NULL, NULL, NULL, NULL, NULL), 
-        rep("integer", 96)), skip=6, sep='\t', row.names=1)
+    rep("integer", 96)), skip=6, sep='\t', row.names=1)
+
 is.spike <- grep("SPIKE", rownames(counts)) 
 sce.islam <- SingleCellExperiment(list(counts=as.matrix(counts)))
 isSpike(sce.islam, "spike") <- is.spike
@@ -148,7 +138,7 @@ The negative control wells do not contain any cells and are useful for quality c
 
 ```{r}
 library(scater)
-sce.islam <- calculateQCMetrics(sce.islam, feature_controls=list(spike=is.spike))
+sce.islam <- calculateQCMetrics(sce.islam)
 sce.islam$grouping <- rep(c("mESC", "MEF", "Neg"), c(48, 44, 4))
 
 libsize.drop <- isOutlier(sce.islam$total_counts, nmads=3, type="lower", 
@@ -249,7 +239,7 @@ For each cell, we calculate quality control metrics using the `calculateQCMetric
 We filter out HSCs that are outliers for any metric, under the assumption that these represent low-quality libraries. 
 
 ```{r}
-sce.hsc <- calculateQCMetrics(sce.hsc, feature_controls=list(ERCC=is.spike))
+sce.hsc <- calculateQCMetrics(sce.hsc)
 libsize.drop <- isOutlier(sce.hsc$total_counts, nmads=3, type="lower", log=TRUE)
 feature.drop <- isOutlier(sce.hsc$total_features, nmads=3, type="lower", log=TRUE)
 spike.drop <- isOutlier(sce.hsc$pct_counts_ERCC, nmads=3, type="higher")
@@ -284,7 +274,7 @@ We fit a mean-variance trend to the spike-in transcripts to quantify the technic
 The biological component for each gene is defined as the difference between its total variance and the fitted value of the trend (Figure \@ref(fig:hvgplothsc)).
 
 ```{r hvgplothsc, fig.cap="Variance of normalized log-expression values for each gene in the HSC dataset, plotted against the mean log-expression. The blue line represents the mean-dependent trend fitted to the variances of the spike-in transcripts (red)."}
-var.fit <- trendVar(sce.hsc, parametric=TRUE, span=0.3)
+var.fit <- trendVar(sce.hsc, parametric=TRUE, loess.args=list(span=0.3))
 var.out <- decomposeVar(sce.hsc, var.fit)
 plot(var.out$mean, var.out$total, pch=16, cex=0.6, xlab="Mean log-expression", 
     ylab="Variance of log-expression")
@@ -338,7 +328,8 @@ If spike-in RNA has not been added in appropriate quantities (or at all), an alt
 This is done using the `use.spikes=FALSE` setting in `trendVar`, as shown below for the HSC dataset.
 
 ```{r}
-var.fit.nospike <- trendVar(sce.hsc, parametric=TRUE, use.spikes=FALSE, span=0.2)
+var.fit.nospike <- trendVar(sce.hsc, parametric=TRUE, 
+    use.spikes=FALSE, loess.args=list(span=0.2))
 var.out.nospike <- decomposeVar(sce.hsc, var.fit.nospike)
 ```
 
@@ -380,7 +371,8 @@ for (plate in levels(sce.416B$Plate)) {
     cur.sce <- normalize(cur.sce) 
 
     # Estimating the technical/biological components.
-    cur.fit <- trendVar(cur.sce, parametric=TRUE, span=0.4)
+    cur.fit <- trendVar(cur.sce, parametric=TRUE, 
+        loess.args=list(span=0.4))
     cur.out <- decomposeVar(cur.sce, cur.fit)
     collected[[plate]] <- cur.out 
 
@@ -509,7 +501,16 @@ For example, model fitting is not possible if all cells in one experimental cond
 ```{r}
 design <- model.matrix(~ G1 + G2M, assignments$score)
 fit.block <- trendVar(sce.th2, design=design, parametric=TRUE, use.spikes=NA)
-sce.th2.block <- denoisePCA(sce.th2, technical=fit.block$trend, design=design) 
+dec.block <- decomposeVar(sce.th2, fit.block)
+
+library(limma)
+sce.th2.block <- sce.th2
+assay(sce.th2.block, "corrected") <- removeBatchEffect(
+    logcounts(sce.th2), covariates=design[,-1])
+
+sce.th2.block <- denoisePCA(sce.th2.block, technical=dec.block, 
+    assay.type="corrected")
+dim(reducedDim(sce.th2.block, "PCA"))
 ```
 
 The result of blocking on `design` is visualized with some PCA plots in Figure \@ref(fig:pcaplotth2).
@@ -539,8 +540,8 @@ In Figure \@ref(fig:diffusionth2), cells are arranged along a trajectory in the 
 The first diffusion component is likely to correspond to T~H~2 differentiation, given that a key regulator _Gata3_ [@zhu2006gata3] changes in expression from left to right.
 
 ```{r diffusionth2, fig.cap="A diffusion map for the T~H~2 dataset, where each cell is coloured by its expression of _Gata3_. A larger `sigma` is used compared to the default value to obtain a smoother plot."}
-plotDiffusionMap(sce.th2.block, use_dimred="PCA", sigma=25,
-    colour_by="Gata3") + fontsize
+plotDiffusionMap(sce.th2.block, colour_by="Gata3",
+    run_args=list(use_dimred="PCA", sigma=25)) + fontsize
 ```
 
 # Concluding remarks 
@@ -550,11 +551,6 @@ The specific version numbers of the packages used are shown below, along with th
 
 ```{r}
 sessionInfo()
-```
-
-```{r, eval=on.bioc, echo=FALSE, results='hide'}
-unlink(all.basenames)
-unlink("GSE61533_HTSEQ_count_results.xls")
 ```
 
 # References
