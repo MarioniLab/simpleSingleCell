@@ -3,7 +3,7 @@ title: "Correcting batch effects using the mutual nearest neighbour method"
 author: 
 - name: Aaron T. L. Lun
   affiliation: &CRUK Cancer Research UK Cambridge Institute, Li Ka Shing Centre, Robinson Way, Cambridge CB2 0RE, United Kingdom
-date: 10 December 2017
+date: 1 April 2018
 vignette: >
   %\VignetteIndexEntry{Correcting batch effects using the mutual nearest neighbour method}
   %\VignetteEngine{knitr::rmarkdown}
@@ -378,7 +378,7 @@ sce.e5601
 ### Quality control and normalization
 
 We compute QC metrics for each cell and identify cells with low library sizes, low numbers of expressed genes, or high ERCC content.
-We also remove cells with near-zero spike-in counts, which precludes spike-in normalization and modelling of technical noise.
+We also identify cells with near-zero spike-in counts, which are not compatible with spike-in normalization and modelling of technical noise.
 
 ```{r}
 sce.e5601 <- calculateQCMetrics(sce.e5601, compact=TRUE)
@@ -502,15 +502,20 @@ Thus, the difference between cells in MNN pairs can be used as an estimate of th
 
 We apply the `mnnCorrect()` function to the three batches to remove the batch effect, using the genes in `chosen`.
 This involves correcting their expression values so that all cells are comparable in the coordinate system of the first batch.
-The function returns a set of matrices containing corrected expression values, and reports the MNN pairs that were identified in each successive batch.
-The latter can provide useful information for trouble-shooting, e.g., to check whether cells independently assigned to the same cell type are correctly identified as MNN pairs.
+The function returns a set of matrices containing corrected expression values, which we can use in downstream analyses.
 
 ```{r}
 original <- list(logcounts(sce.e5601)[chosen,],
                  logcounts(sce.gse81076)[chosen,],
                  logcounts(sce.gse85241)[chosen,])
-corrected <- do.call(mnnCorrect, c(original, 
-                     list(k=20, sigma=0.1)))
+corrected <- do.call(mnnCorrect, c(original, list(k=20, sigma=0.1)))
+str(corrected$corrected)
+```
+
+The function also reports the MNN pairs that were identified in each successive batch.
+This may be useful for trouble-shooting, e.g., to check whether cells independently assigned to the same cell type are correctly identified as MNN pairs.
+
+```{r}
 corrected$pairs
 ```
 
@@ -570,6 +575,36 @@ ct.ppy <- plotTSNE(csce, by_exprs_values="corrected",
 multiplot(ct.gcg, ct.ins, ct.sst, ct.ppy, cols=2)
 ```
 
+# Using the corrected values in downstream analyses
+
+MNN correction places all cells from all batches within the same coordinate system.
+This means that the corrected values can be freely used to define distances between cells for dimensionality reduction or clustering.
+However, the correction does _not_ preserve the mean-variance relationship.
+As such, we do not recommend using the corrected values for studying heterogeneity.
+
+MNN-corrected values are generally not suitable for differential expression (DE) analyses, for several reasons:
+
+- The default parameters of `mnnCorrect()` do not return corrected values on the log-scale, but rather a cosine-normalized log-scale.
+This makes it difficult to interpret the effect size of DE analyses based on the corrected values.
+- It is usually inappropriate to perform DE analyses on batch-corrected values, due to the failure to model the uncertainty of the correction.
+This usually results in loss of type I error control, i.e., more false positives than expected.
+
+In scRNA-seq studies, most DE analyses will be performed between clusters or along trajectories.
+We recommend using the corrected values for clustering or trajectory reconstruction, and switching back to the original log-expression values (or counts) for the DE analysis.
+The batch of origin can then be modelled as a blocking factor, which is possible with most packages for DE analysis such as `r Biocpkg("edgeR")` or `r Biocpkg("limma")`.
+
+Finally, the MNN-corrected values can be used for further correction with `mnnCorrect()`.
+This is useful in nested experimental designs involving multiple batches within each of multiple studies, much like the pancreas datasets described above. 
+In such cases, it is reasonable to first perform the correction across batches _within the same study_ (where there should be more similar cell types, and thus more MNN pairs).
+The batch-corrected values for each study can then be supplied to `mnnCorrect()` to remove batch effects between studies. 
+
+**Comments from Aaron:**
+
+- The most direct method of blocking on batch is to use an additive model with the batch of origin and the cluster/trajectory as separate factors.
+However, this assumes that the batch effect is constant for all clusters and/or along the trajectory.
+This assumption can be eliminated with an interaction model allowing for cluster-specific batch effects.
+- Users should set `cos.norm.in=FALSE` and `cos.norm.out=FALSE` when supplying `mnnCorrect()` with MNN-corrected values.
+This ensures that the cosine normalization is only applied once, during the first round of MNN correction.
 
 # References
 
