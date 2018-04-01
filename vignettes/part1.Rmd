@@ -12,7 +12,7 @@ author:
   - *CRUK
   - *EMBL
   - Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
-date: 10 December 2017
+date: 1 April 2018
 vignette: >
   %\VignetteIndexEntry{A worfklow for low-level analyses of single-cell RNA-seq data
   %\VignetteEngine{knitr::rmarkdown}
@@ -31,29 +31,23 @@ opts_chunk$set(error=FALSE, message=FALSE, warning=FALSE)
 library(BiocParallel)
 register(SerialParam())
 
-# Deciding whether we want to re-download everything or not.
-on.bioc <- TRUE
-
-# Further arguments for local execution.
+# Further arguments for knitr.
 opts_chunk$set(fig.asp=1)
-if (!on.bioc) {
-    opts_chunk$set(dpi=300, dev="png", dev.args=list(pointsize=15))
-    options(bitmapType="cairo", width=100)
-}
 ```
 
 ```{r, message=FALSE, echo=FALSE, results='hide'}
 library(Rtsne)
-library(mvoutlier)
 ```
 
-```{r, eval=on.bioc, echo=FALSE, results='hide'}
+```{r, echo=FALSE, results='hide'}
 all.urls <- c("https://www.ebi.ac.uk/arrayexpress/files/E-MTAB-5522/E-MTAB-5522.processed.1.zip",
               "https://www.ebi.ac.uk/arrayexpress/files/E-MTAB-5522/E-MTAB-5522.sdrf.txt")
 all.basenames <- basename(all.urls)
 all.modes <- c("wb", "w")
 for (x in seq_along(all.urls)) { 
-    download.file(all.urls[x], all.basenames[x], mode=all.modes[x])
+    if (!file.exists(all.basenames[x])) {
+        download.file(all.urls[x], all.basenames[x], mode=all.modes[x])
+    }
 }
 unzip(all.basenames[1])
 ```
@@ -225,8 +219,8 @@ These are stored in the row- and column-wise metadata of the `SingleCellExperime
 
 ```{r}
 library(scater)
-sce <- calculateQCMetrics(sce, feature_controls=list(ERCC=isSpike(sce),
-    Mt=which(rowData(sce)$CHR=="chrM")))
+mito <- which(rowData(sce)$CHR=="chrM")
+sce <- calculateQCMetrics(sce, feature_controls=list(Mt=mito))
 head(colnames(colData(sce)), 10)
 ```
 
@@ -314,17 +308,17 @@ The use of the MAD mitigates this problem by accounting for biological variabili
 A heterogeneous population should have higher variability in the metrics among high-quality cells, increasing the MAD and reducing the chance of incorrectly removing particular cell types (at the cost of reducing power to remove low-quality cells).
 Nonetheless, filtering based on outliers may not be appropriate in extreme cases where one cell type is very different from the others.
 
-We can explore the effect of known biological factors on the QC metrics using the `plotPhenoData` function.
+We can explore the effect of known biological factors on the QC metrics using the `plotColData()` function.
 Figure \@ref(fig:qcplotbatch416b) demonstrates that induction of the CBFB-MYH11 oncogene results in some modest changes to the QC metric distributions.
 This suggests that we could improve our QC step by considering the condition of the cell during outlier identification. 
 Analyzing all conditions together would unnecessarily inflate the MAD and compromise the removal of low-quality cells. 
 
 ```{r qcplotbatch416b, fig.wide=TRUE, fig.cap="Distribution of each QC metric for control and oncogene-induced cells in the 416B data set."}
 multiplot(
-    plotPhenoData(sce, aes_string(y="total_counts", x="Oncogene")),
-    plotPhenoData(sce, aes_string(y="total_features", x="Oncogene")),
-    plotPhenoData(sce, aes_string(y="pct_counts_ERCC", x="Oncogene")),
-    plotPhenoData(sce, aes_string(y="pct_counts_Mt", x="Oncogene")),
+    plotColData(sce, y="total_counts", x="Oncogene"),
+    plotColData(sce, y="total_features", x="Oncogene"),
+    plotColData(sce, y="pct_counts_ERCC", x="Oncogene"),
+    plotColData(sce, y="pct_counts_Mt", x="Oncogene"),
     cols=2)
 ```
 
@@ -589,14 +583,14 @@ To distinguish between these two possibiltiies, we need to model the technical c
 We do so using the set of spike-in transcripts, which were added in the same quantity to each cell.
 Thus, the spike-in transcripts should exhibit no biological variability, i.e., any variance in their counts should be technical in origin.
 
-We use the `trendVar` function to fit a mean-dependent trend to the variances of the log-expression values for the spike-in transcripts.
-We set `design` to block on the plate of origin for each cell, to ensure that technical differences between plates do not inflate the variances.
+We use the `trendVar()` function to fit a mean-dependent trend to the variances of the log-expression values for the spike-in transcripts.
+We set `block=` to block on the plate of origin for each cell, to ensure that technical differences between plates do not inflate the variances.
 Given the mean abundance of a gene, the fitted value of the trend is then used as an estimate of the technical component for that gene.
 The biological component of the variance is finally calculated by subtracting the technical component from the total variance of each gene with the `decomposeVar` function.
 
 ```{r}
-design <- model.matrix(~sce$Plate)
-var.fit <- trendVar(sce, parametric=TRUE, design=design, span=0.3)
+var.fit <- trendVar(sce, parametric=TRUE, block=sce$Plate,
+    loess.args=list(span=0.3))
 var.out <- decomposeVar(sce, var.fit)
 head(var.out)
 ```
@@ -695,7 +689,8 @@ In contrast, random technical noise affects each gene independently and will be 
 The `denoisePCA()` function removes later PCs until the total discarded variance is equal to the sum of technical components for all genes used in the PCA.
 
 ```{r}
-sce <- denoisePCA(sce, technical=var.fit$trend)
+sce <- denoisePCA(sce, technical=var.fit$trend, 
+    assay.type="corrected")
 dim(reducedDim(sce, "PCA")) 
 ```
 
@@ -713,17 +708,13 @@ Discreteness is less of an issue as low-abundance genes also have lower variance
 This is useful for denoising prior to downstream procedures that require gene-wise expression values.
 
 ```{r}
-sce2 <- denoisePCA(sce, technical=var.fit$trend, value="lowrank") 
+sce2 <- denoisePCA(sce, technical=var.fit$trend, 
+    assay.type="corrected", value="lowrank") 
 assayNames(sce2)
 ```
 
 ```{r, echo=FALSE, results="hide"}
 rm(sce2)
-gc()
-```
-
-```{r, echo=FALSE, results='hide', message=FALSE}
-rm(adj.exprs)
 gc()
 ```
 
@@ -854,7 +845,7 @@ The aim is to test for DE in each cluster compared to the others while blocking 
 The top DE genes are likely to be good candidate markers as they can effectively distinguish between cells in different clusters.
 
 ```{r}
-markers <- findMarkers(sce, my.clusters, design=design)
+markers <- findMarkers(sce, my.clusters, block=sce$Plate)
 ```
 
 For each cluster, the DE results of the relevant comparisons are consolidated into a single output table.
