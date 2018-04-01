@@ -724,24 +724,36 @@ We visualize the relationships between cells by constructing pairwise PCA plots 
 Cells with similar expression profiles should be located close together in the plot, while dissimilar cells should be far apart.
 In this case, we observe a clear separation of cells based on the oncogene induction status, consistent with the expected effects on the transcriptome.
 
-```{r pcaplot416b, fig.cap="Pairwise PCA plots of the first three PCs in the 416B data set, constructed from normalized log-expression values of genes with positive biological components. Each point represents a cell, coloured according to the oncogene induction status. Bars represent the coordinates of the cells on each axis.", fig.width=9}
+```{r pcaplot416b, fig.cap="Pairwise PCA plots of the first three PCs in the 416B data set, constructed from normalized log-expression values of genes with positive biological components. Each point represents a cell, coloured according to oncogene induction status.", fig.width=9}
 plotReducedDim(sce, use_dimred="PCA", ncomponents=3, 
     colour_by="Oncogene") + fontsize
 ```
 
-Another widely used approach is the _t_-stochastic neighbour embedding (_t_-SNE) method [@van2008visualizing].
+By comparison, we observe no clear separation of cells by batch (Figure \@ref(pcaplot416b-batch)).
+This indicates that our batch correction step using `removeBatchEffect()` was successful.
+
+```{r pcaplot416b-batch, fig.cap="Pairwise PCA plots of the first three PCs in the 416B data set, constructed from normalized log-expression values of genes with positive biological components. Each point represents a cell, coloured according to the plate of origin.", fig.width=9}
+plotReducedDim(sce, use_dimred="PCA", ncomponents=3, 
+    colour_by="Plate") + fontsize
+```
+
+Another widely used approach for dimensionality reduction is the _t_-stochastic neighbour embedding (_t_-SNE) method [@van2008visualizing].
 _t_-SNE tends to work better than PCA for separating cells in more diverse populations.
 This is because the former can directly capture non-linear relationships in high-dimensional space, whereas the latter must represent them on linear axes.
 However, this improvement comes at the cost of more computational effort and requires the user to consider parameters such as the random seed and perplexity (see comments).
 We demonstrate the generation of _t_-SNE plots in Figure \@ref(fig:tsneplot416b), using the low-rank approximation of the data to take advantage of the denoising step.
 
 ```{r tsneplot416b, fig.cap="_t_-SNE plots constructed from the denoised PCs in the 416B data set, using a range of perplexity values. Each point represents a cell, coloured according to its oncogene induction status. Bars represent the coordinates of the cells on each axis.", fig.width=15, fig.asp=0.5}
-out5 <- plotTSNE(sce, use_dimred="PCA", perplexity=5, colour_by="Oncogene", 
-    rand_seed=100) + fontsize + ggtitle("Perplexity = 5")
-out10 <- plotTSNE(sce, use_dimred="PCA", perplexity=10, colour_by="Oncogene",
-    rand_seed=100) + fontsize + ggtitle("Perplexity = 10")
-out20 <- plotTSNE(sce, use_dimred="PCA", perplexity=20, colour_by="Oncogene",
-    rand_seed=100) + fontsize + ggtitle("Perplexity = 20")
+run_args <- list(rand_seed=100, use_dimred="PCA")
+out5 <- plotTSNE(sce, run_args=c(run_args, perplexity=5),
+    colour_by="Oncogene") + fontsize + ggtitle("Perplexity = 5")
+
+out10 <- plotTSNE(sce, run_args=c(run_args, perplexity=10),
+    colour_by="Oncogene") + fontsize + ggtitle("Perplexity = 10")
+
+out20 <- plotTSNE(sce, run_args=c(run_args, perplexity=20),
+    colour_by="Oncogene") + fontsize + ggtitle("Perplexity = 20")
+
 multiplot(out5, out10, out20, cols=3)
 ```
 
