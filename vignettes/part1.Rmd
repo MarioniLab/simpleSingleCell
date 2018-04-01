@@ -26,17 +26,7 @@ bibliography: ref.bib
 library(BiocStyle)
 library(knitr)
 opts_chunk$set(error=FALSE, message=FALSE, warning=FALSE)
-
-# Setting single-core unless explicitly specified otherwise.
-library(BiocParallel)
-register(SerialParam())
-
-# Further arguments for knitr.
 opts_chunk$set(fig.asp=1)
-```
-
-```{r, message=FALSE, echo=FALSE, results='hide'}
-library(Rtsne)
 ```
 
 ```{r, echo=FALSE, results='hide'}
@@ -436,11 +426,11 @@ Thus, we (or the relevant function) will filter at each step as needed, rather t
 
 Several metrics can be used to define low-abundance genes.
 The most obvious is the average count for each gene, computed across all cells in the data set.
-We calculate this using the `calcAverage` function, which also performs some adjustment for library size differences between cells 
+We calculate this using the `calcAverage()` function, which also performs some adjustment for library size differences between cells. 
 We typically observe a peak of moderately expressed genes following a plateau of lowly expressed genes (Figure \@ref(fig:abhist416b)).
 
 ```{r abhist416b, fig.cap="Histogram of log-average counts for all genes in the 416B dataset."}
-ave.counts <- calcAverage(sce)
+ave.counts <- calcAverage(sce, use_size_factors=FALSE)
 hist(log10(ave.counts), breaks=100, main="", col="grey80", 
     xlab=expression(Log[10]~"average count"))
 ```
@@ -720,16 +710,16 @@ gc()
 
 # Data exploration with dimensionality reduction 
 
-We visualize the relationships between cells by constructing pairwise PCA plots for the first three components (Figure \@ref(fig:pcaplot416b)).
+We visualize the relationships between cells by constructing pairwise PCA plots for the first three components (Figure \@ref(fig:pcaplot416b-onco)).
 Cells with similar expression profiles should be located close together in the plot, while dissimilar cells should be far apart.
 In this case, we observe a clear separation of cells based on the oncogene induction status, consistent with the expected effects on the transcriptome.
 
-```{r pcaplot416b, fig.cap="Pairwise PCA plots of the first three PCs in the 416B data set, constructed from normalized log-expression values of genes with positive biological components. Each point represents a cell, coloured according to oncogene induction status.", fig.width=9}
+```{r pcaplot416b-onco, fig.cap="Pairwise PCA plots of the first three PCs in the 416B data set, constructed from normalized log-expression values of genes with positive biological components. Each point represents a cell, coloured according to oncogene induction status.", fig.width=9}
 plotReducedDim(sce, use_dimred="PCA", ncomponents=3, 
     colour_by="Oncogene") + fontsize
 ```
 
-By comparison, we observe no clear separation of cells by batch (Figure \@ref(pcaplot416b-batch)).
+By comparison, we observe no clear separation of cells by batch (Figure \@ref(fig:pcaplot416b-batch)).
 This indicates that our batch correction step using `removeBatchEffect()` was successful.
 
 ```{r pcaplot416b-batch, fig.cap="Pairwise PCA plots of the first three PCs in the 416B data set, constructed from normalized log-expression values of genes with positive biological components. Each point represents a cell, coloured according to the plate of origin.", fig.width=9}
@@ -810,8 +800,8 @@ Adjacent cells are generally assigned to the same cluster, indicating that the c
 
 ```{r tsnecluster416b, fig.cap="_t_-SNE plot of the denoised PCs of the 416B data set. Each point represents a cell and is coloured according to the cluster identity to which it was assigned."}
 sce$cluster <- factor(my.clusters)
-plotTSNE(sce, use_dimred="PCA", colour_by="cluster", 
-    perplexity=20, rand_seed=200) + fontsize
+plotTSNE(sce, run_args=list(use_dimred="PCA", perplexity=20, 
+    rand_seed=200), colour_by="cluster") + fontsize
 ```
 
 We check the separatedness of the clusters using the silhouette width (Figure \@ref(fig:silhouette416b)).
@@ -893,27 +883,10 @@ This is consistent with the potential induction of senescence as an anti-tumorig
 A more comprehensive investigation of the function of these markers can be performed with gene set enrichment analyses, e.g., using `kegga` or `goana` from `r Biocpkg("limma")`.
 
 ```{r heatmapmarker416b, fig.width=10, fig.asp=0.8, fig.cap="Heatmap of mean-centred and normalized log-expression values for the top set of markers for cluster 1 in the 416B dataset. Column colours represent the cluster to which each cell is assigned, the plate of origin or the oncogene induction status of each cell, as indicated by the legend."}
-top.markers <- marker.set$Gene[marker.set$Top <= 10]
-top.exprs <- logcounts(sce)[top.markers,,drop=FALSE]
-heat.vals <- top.exprs - rowMeans(top.exprs)
-colnames(heat.vals) <- paste0("Cell", seq_len(ncol(heat.vals)))
-
-# Winsorizing to preserve dynamic range of colours.
-max.val <- 5
-heat.vals[] <- pmax(pmin(max.val, heat.vals), -max.val)
-col.breaks <- seq(-max.val, max.val, length.out=101) # Force symmetry around zero
-
-# Defining cluster colours.
-unique.clusters <- sort(unique(my.clusters))
-chosen.cols <- clust.col[seq_along(unique.clusters)]
-
-library(pheatmap)
-pheatmap(heat.vals, cluster_cols=my.tree, breaks=col.breaks, 
-    annotation_col=data.frame(Cluster=factor(my.clusters), Plate=factor(sce$Plate),
-        Oncogene=sce$Oncogene, row.names=colnames(heat.vals)),
-    annotation_colors=list(Cluster=setNames(chosen.cols, unique.clusters),
-        Plate=setNames(c("grey50", "grey80"), levels(sce$Plate)),
-        Oncogene=setNames(c("red", "black"), levels(sce$Oncogene))))
+top.markers <- rownames(marker.set)[marker.set$Top <= 10]
+plotHeatmap(sce, features=top.markers, columns=order(sce$cluster), 
+    colour_columns_by=c("cluster", "Plate", "Oncogene"),
+    cluster_cols=FALSE) 
 ```
 
 Many of the markers in Figure \@ref(fig:heatmapmarker416b) are not uniquely up- or downregulated in the chosen cluster.
@@ -972,10 +945,6 @@ The specific version numbers of the packages used are shown below, along with th
 
 ```{r}
 sessionInfo()
-```
-
-```{r, eval=on.bioc, echo=FALSE, results='hide'}
-unlink(all.basenames)
 ```
 
 # References
