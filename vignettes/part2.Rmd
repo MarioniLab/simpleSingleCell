@@ -143,7 +143,7 @@ Nonetheless, we compute some quality control metrics with `r Biocpkg("scater")` 
 
 ```{r}
 library(scater)
-sce <- calculateQCMetrics(sce, feature_controls=list(Spike=is.spike, Mt=is.mito)) 
+sce <- calculateQCMetrics(sce, feature_controls=list(Mt=is.mito)) 
 ```
 
 We examine the distribution of the QC metrics across all cells (Figure \@ref(fig:libplotbrain)).
@@ -311,7 +311,7 @@ This means that we cannot assume that the distribution of sampled cell types on 
 Thus, to avoid regressing out potential biology, we will not block on any factors in this analysis.
 
 ```{r}
-var.fit <- trendVar(sce, parametric=TRUE, span=0.4)
+var.fit <- trendVar(sce, parametric=TRUE, loess.args=list(span=0.4))
 var.out <- decomposeVar(sce, var.fit)
 ```
 
@@ -489,7 +489,7 @@ differing from closely related cells in cluster 9 by virtue of high *Synpr* expr
 ```{r heatmapmarkerbrain, fig.wide=TRUE, fig.cap="Heatmap of mean-centred and normalized log-expression values for the top set of markers for cluster 1 in the brain dataset. Column colours represent the cluster to which each cell is assigned, as indicated by the legend."}
 top.markers <- rownames(marker.set)[marker.set$Top <= 10]
 plotHeatmap(sce, features=top.markers, columns=order(my.clusters),
-    colour_columns_by="cluster", cluster_cols=FALSE, zlim=5)
+    colour_columns_by="cluster", cluster_cols=FALSE, zlim=c(-5, 5))
 ```
 
 # Concluding remarks
