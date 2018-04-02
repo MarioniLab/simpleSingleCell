@@ -510,10 +510,10 @@ __Comments from Aaron:__
 This manifests as negative size factors, which are obviously nonsensical.
 To avoid this, the `computeSumFactors` function will automatically remove low-abundance genes prior to the calculation of size factors.
 Genes with a library size-adjusted average count below a specified threshold (`min.mean`) are ignored.
-  - For read count data, the default value of 1 is usually satisfactory.
-    For UMI data, counts are lower so a threshold of 0.1 is recommended. 
-  - While the library size-adjusted average is not entirely independent of the bias [@bourgon2010independent], this is a better filter statistic than the sample mean count.
-    The latter would enrich for genes that are upregulated in cells with large library sizes, resulting in inflated size factor estimates for those cells.
+    - For read count data, the default value of 1 is usually satisfactory.
+      For UMI data, counts are lower so a threshold of 0.1 is recommended. 
+    - While the library size-adjusted average is not entirely independent of the bias [@bourgon2010independent], this is a better filter statistic than the sample mean count.
+      The latter would enrich for genes that are upregulated in cells with large library sizes, resulting in inflated size factor estimates for those cells.
 - Cell-based QC should always be performed prior to normalization, to remove cells with very low numbers of expressed genes.
 If this is not done, the `computeSumFactors` function may yield negative size factors for low-quality cells.
 - The `sizes` argument can be used to specify the number of pool sizes to use to compute the size factors.
