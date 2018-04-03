@@ -93,7 +93,7 @@ stopifnot(identical(endo.data$metadata$cell_id, spike.data$metadata$cell_id)) # 
 stopifnot(all(endo.data$metadata$cell_id==mito.data$metadata$cell_id)) # should now be the same.
 ```
 
-In this particular data set, some genes are represented by multiple rows corresponding to alternative genomic locations.
+In this particular dataset, some genes are represented by multiple rows corresponding to alternative genomic locations.
 We sum the counts for all rows corresponding to a single gene for ease of interpretation.
 
 ```{r}
@@ -215,7 +215,7 @@ gc()
 
 # Examining gene-level metrics
 
-Figure \@ref(fig:topgenebrain) shows the most highly expressed genes across the cell population in the brain data set.
+Figure \@ref(fig:topgenebrain) shows the most highly expressed genes across the cell population in the brain dataset.
 This is mostly occupied by spike-in transcripts, reflecting the use of spike-in concentrations that span the entire range of expression.
 There are also a number of constitutively expressed genes, as expected.
 
@@ -299,7 +299,7 @@ __Comments from Aaron:__
 The function is robust to a moderate level of differential expression between cells in the same cluster.
 - `quickCluster` uses distances based on Spearman's rank correlation for clustering.
 This ensures that scaling biases in the counts do not affect clustering, but yields very coarse clusters and is not recommended for biological interpretation.
-- For large data sets, using `method="igraph"` in `quickCluster` will speed up clustering. 
+- For large datasets, using `method="igraph"` in `quickCluster` will speed up clustering. 
 This uses a graph-based clustering algorithm - see `?buildSNNGraph` for more details.
 
 # Modelling and removing technical noise
@@ -321,7 +321,7 @@ This is due to the use of UMIs, which reduces the noise caused by variable PCR a
 Furthermore, the spike-in trend is consistently lower than the variances of the endogenous genes.
 This reflects the heterogeneity in gene expression across cells of different types.
 
-```{r hvgplotbrain, fig.cap="Variance of normalized log-expression values against the mean for each gene, calculated across all cells in the brain data set after blocking on the sex effect. The blue line represents the mean-dependent trend in the technical variance of the spike-in transcripts (also highlighted as red points)."}
+```{r hvgplotbrain, fig.cap="Variance of normalized log-expression values against the mean for each gene, calculated across all cells in the brain dataset after blocking on the sex effect. The blue line represents the mean-dependent trend in the technical variance of the spike-in transcripts (also highlighted as red points)."}
 plot(var.out$mean, var.out$total, pch=16, cex=0.6, xlab="Mean log-expression", 
     ylab="Variance of log-expression")
 points(var.out$mean[isSpike(sce)], var.out$total[isSpike(sce)], col="red", pch=16)
@@ -339,7 +339,7 @@ plotExpression(sce, rownames(var.out)[chosen.genes],
 
 Finally, we use PCA to denoise the expression values, yielding a set of coordinates for each cell where the technical noise has been removed.
 Setting `approximate=TRUE` in `denoisePCA` will perform an approximate singular value decomposition, using methods from the `r CRANpkg("irlba")` package.
-This is much faster than the exact algorithm on large data sets without much loss of accuracy.
+This is much faster than the exact algorithm on large datasets without much loss of accuracy.
 
 ```{r}
 sce <- denoisePCA(sce, technical=var.fit$trend, approximate=TRUE)
@@ -423,7 +423,7 @@ Adjacent cells are generally assigned to the same cluster, indicating that the c
 We could also use graph-based visualizations such as force-directed layouts (e.g., `layout_with_fr` from `r CRANpkg("igraph")`).
 These are appealing as they only need information that is already in the graph, without needing to refer back to the expression matrices or PC coordinates.
 
-```{r tsneclusterbrain, message=FALSE, fig.cap="_t_-SNE plot of the denoised PCs of the brain data set. Each point represents a cell and is coloured according to the cluster identity to which it was assigned."}
+```{r tsneclusterbrain, message=FALSE, fig.cap="_t_-SNE plot of the denoised PCs of the brain dataset. Each point represents a cell and is coloured according to the cluster identity to which it was assigned."}
 sce$cluster <- factor(my.clusters)
 plotTSNE(sce, colour_by="cluster") + fontsize
 ```

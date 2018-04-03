@@ -220,7 +220,7 @@ head(colnames(colData(sce)), 10)
 The distributions of these metrics are shown in Figure \@ref(fig:qcplot416b).
 The aim is to remove putative low-quality cells that have low library sizes, low numbers of expressed features, and high spike-in (or mitochondrial) proportions.
 
-```{r qcplot416b, fig.wide=TRUE, fig.cap="Histograms of various QC metrics for all cells in the 416B data set. This includes the library sizes, number of expressed genes, and proportion of reads mapped to spike-in transcripts or mitochondrial genes."}
+```{r qcplot416b, fig.wide=TRUE, fig.cap="Histograms of various QC metrics for all cells in the 416B dataset. This includes the library sizes, number of expressed genes, and proportion of reads mapped to spike-in transcripts or mitochondrial genes."}
 par(mfrow=c(2,2), mar=c(5.1, 4.1, 0.1, 0.1))
 hist(sce$total_counts/1e6, xlab="Library size (millions)", main="", 
     breaks=20, col="grey80", ylab="Number of cells")
@@ -265,7 +265,7 @@ feature.drop <- isOutlier(sce$total_features, nmads=3, type="lower", log=TRUE)
 
 We identify outliers for the proportion-based metrics in a similar manner.
 Here, no transformation is required as we are identifying large outliers, for which the distinction should be fairly clear on the raw scale.
-(We do not use the mitochondrial proportions as we already have the spike-in proportions for this data set.
+(We do not use the mitochondrial proportions as we already have the spike-in proportions for this dataset.
 This avoids potential problems with genuine differences in mitochondrial content between cell types that may confound outlier identification.)
 
 ```{r}
@@ -306,7 +306,7 @@ Figure \@ref(fig:qcplotbatch416b) demonstrates that induction of the CBFB-MYH11 
 This suggests that we could improve our QC step by considering the condition of the cell during outlier identification. 
 Analyzing all conditions together would unnecessarily inflate the MAD and compromise the removal of low-quality cells. 
 
-```{r qcplotbatch416b, fig.wide=TRUE, fig.cap="Distribution of each QC metric for control and oncogene-induced cells in the 416B data set."}
+```{r qcplotbatch416b, fig.wide=TRUE, fig.cap="Distribution of each QC metric for control and oncogene-induced cells in the 416B dataset."}
 multiplot(
     plotColData(sce, y="total_counts", x="Oncogene"),
     plotColData(sce, y="total_features", x="Oncogene"),
@@ -354,7 +354,7 @@ Cells in a test dataset can then be classified into the appropriate phase, based
 
 This approach is implemented in the `cyclone` function from the `r Biocpkg("scran")` package.
 The package contains a pre-trained set of marker pairs for mouse data, which we can load in the the `readRDS` function.
-We use the Ensembl identifiers for each gene in our data set to match up with the names in the pre-trained set of gene pairs.
+We use the Ensembl identifiers for each gene in our dataset to match up with the names in the pre-trained set of gene pairs.
 
 ```{r}
 set.seed(100)
@@ -428,7 +428,7 @@ For hypothesis testing, the filter statistic should also be independent of the t
 Thus, we (or the relevant function) will filter at each step as needed, rather than applying a single filter for the entire analysis.
 
 Several metrics can be used to define low-abundance genes.
-The most obvious is the average count for each gene, computed across all cells in the data set.
+The most obvious is the average count for each gene, computed across all cells in the dataset.
 We calculate this using the `calcAverage()` function, which also performs some adjustment for library size differences between cells. 
 We typically observe a peak of moderately expressed genes following a plateau of lowly expressed genes (Figure \@ref(fig:abhist416b)).
 
@@ -453,7 +453,7 @@ This is closely related to the average count for most genes, as expression in ma
 Genes expressed in very few cells are often uninteresting as they are driven by amplification artifacts (though they may also also arise from rare populations).
 We could then remove genes that are expressed in fewer than _n_ cells.
 
-```{r nexprshist416b, fig.cap="The number of cells expressing each gene in the 416B data set, plotted against the log-average count. Intensity of colour corresponds to the number of genes at any given location."}
+```{r nexprshist416b, fig.cap="The number of cells expressing each gene in the 416B dataset, plotted against the log-average count. Intensity of colour corresponds to the number of genes at any given location."}
 num.cells <- nexprs(sce, byrow=TRUE)
 smoothScatter(log10(ave.counts), num.cells, ylab="Number of cells", 
     xlab=expression(Log[10]~"average count"))
@@ -520,7 +520,7 @@ If this is not done, the `computeSumFactors` function may yield negative size fa
 More `sizes` yields more precise estimates at the cost of some computational time and memory.
 In general, `sizes` should not be below 20 cells, to ensure that there are sufficient non-zero expression values in each pool.
 We also recommend that the total number of cells should be at least 100 for effective pooling.
-- For highly heterogeneous data sets, it is advisable to perform a rough clustering of the cells.
+- For highly heterogeneous datasets, it is advisable to perform a rough clustering of the cells.
 This can be done with the `quickCluster` function and the results passed to `computeSumFactors` via the `cluster` argument.
 Cells in each cluster are normalized separately, and the size factors are rescaled to be comparable across clusters.
 This avoids the need to assume that most genes are non-DE across the entire population - only a non-DE majority is required between pairs of clusters.
@@ -718,7 +718,7 @@ We visualize the relationships between cells by constructing pairwise PCA plots 
 Cells with similar expression profiles should be located close together in the plot, while dissimilar cells should be far apart.
 In this case, we observe a clear separation of cells based on the oncogene induction status, consistent with the expected effects on the transcriptome.
 
-```{r pcaplot416b-onco, fig.cap="Pairwise PCA plots of the first three PCs in the 416B data set, constructed from normalized log-expression values of genes with positive biological components. Each point represents a cell, coloured according to oncogene induction status.", fig.width=9}
+```{r pcaplot416b-onco, fig.cap="Pairwise PCA plots of the first three PCs in the 416B dataset, constructed from normalized log-expression values of genes with positive biological components. Each point represents a cell, coloured according to oncogene induction status.", fig.width=9}
 plotReducedDim(sce, use_dimred="PCA", ncomponents=3, 
     colour_by="Oncogene") + fontsize
 ```
@@ -726,7 +726,7 @@ plotReducedDim(sce, use_dimred="PCA", ncomponents=3,
 By comparison, we observe no clear separation of cells by batch (Figure \@ref(fig:pcaplot416b-batch)).
 This indicates that our batch correction step using `removeBatchEffect()` was successful.
 
-```{r pcaplot416b-batch, fig.cap="Pairwise PCA plots of the first three PCs in the 416B data set, constructed from normalized log-expression values of genes with positive biological components. Each point represents a cell, coloured according to the plate of origin.", fig.width=9}
+```{r pcaplot416b-batch, fig.cap="Pairwise PCA plots of the first three PCs in the 416B dataset, constructed from normalized log-expression values of genes with positive biological components. Each point represents a cell, coloured according to the plate of origin.", fig.width=9}
 plotReducedDim(sce, use_dimred="PCA", ncomponents=3, 
     colour_by="Plate") + fontsize
 ```
@@ -737,7 +737,7 @@ This is because the former can directly capture non-linear relationships in high
 However, this improvement comes at the cost of more computational effort and requires the user to consider parameters such as the random seed and perplexity (see comments).
 We demonstrate the generation of _t_-SNE plots in Figure \@ref(fig:tsneplot416b), using the low-rank approximation of the data to take advantage of the denoising step.
 
-```{r tsneplot416b, fig.cap="_t_-SNE plots constructed from the denoised PCs in the 416B data set, using a range of perplexity values. Each point represents a cell, coloured according to its oncogene induction status. Bars represent the coordinates of the cells on each axis.", fig.width=15, fig.asp=0.5}
+```{r tsneplot416b, fig.cap="_t_-SNE plots constructed from the denoised PCs in the 416B dataset, using a range of perplexity values. Each point represents a cell, coloured according to its oncogene induction status. Bars represent the coordinates of the cells on each axis.", fig.width=15, fig.asp=0.5}
 run_args <- list(rand_seed=100, use_dimred="PCA")
 out5 <- plotTSNE(sce, run_args=c(run_args, perplexity=5),
     colour_by="Oncogene") + fontsize + ggtitle("Perplexity = 5")
@@ -802,7 +802,7 @@ table(my.clusters, sce$Oncogene)
 We visualize the cluster assignments for all cells on the _t_-SNE plot in Figure \@ref(fig:tsnecluster416b).
 Adjacent cells are generally assigned to the same cluster, indicating that the clustering procedure was applied correctly.
 
-```{r tsnecluster416b, fig.cap="_t_-SNE plot of the denoised PCs of the 416B data set. Each point represents a cell and is coloured according to the cluster identity to which it was assigned."}
+```{r tsnecluster416b, fig.cap="_t_-SNE plot of the denoised PCs of the 416B dataset. Each point represents a cell and is coloured according to the cluster identity to which it was assigned."}
 sce$cluster <- factor(my.clusters)
 plotTSNE(sce, run_args=list(use_dimred="PCA", perplexity=20, 
     rand_seed=200), colour_by="cluster") + fontsize
@@ -813,7 +813,7 @@ Cells with large positive silhouette widths are closer to other cells in the _sa
 Conversely, cells with negative widths are closer to other clusters than to other cells in the cluster to which it was assigned.
 Each cluster would ideally contain many cells with large positive widths, indicating that it is well-separated from other clusters.
 
-```{r silhouette416b, fig.cap="Barplot of silhouette widths for cells in each cluster. Each cluster is assigned a colour and cells with positive widths are coloured according to the colour of its assigned cluster. Any cell with a negative width is coloured according to the colour of the cluster that it is closest to. The average width for all cells in each cluster is shown, along with the average width for all cells in the data set."}
+```{r silhouette416b, fig.cap="Barplot of silhouette widths for cells in each cluster. Each cluster is assigned a colour and cells with positive widths are coloured according to the colour of its assigned cluster. Any cell with a negative width is coloured according to the colour of the cluster that it is closest to. The average width for all cells in each cluster is shown, along with the average width for all cells in the dataset."}
 library(cluster)
 clust.col <- scater:::.get_palette("tableau10medium") # hidden scater colours
 sil <- silhouette(my.clusters, dist = my.dist)

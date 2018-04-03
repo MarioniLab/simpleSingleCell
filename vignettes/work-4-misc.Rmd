@@ -414,7 +414,7 @@ This is quantified by computing Spearman's rho, which accommodates non-linear re
 Non-zero correlations between pairs of genes provide evidence for their co-regulation.
 However, the noise in the data requires some statistical analysis to determine whether a correlation is significantly non-zero.
 
-To demonstrate, we use the `correlatePairs` function to identify significant correlations between the various histocompatability antigens in the HSC data set.
+To demonstrate, we use the `correlatePairs` function to identify significant correlations between the various histocompatability antigens in the HSC dataset.
 The significance of each correlation is determined using a permutation test.
 For each pair of genes, the null hypothesis is that the expression profiles of two genes are independent.
 Shuffling the profiles and recalculating the correlation yields a null distribution that is used to obtain a _p_-value for each observed correlation value [@phipson2010permutation].
@@ -441,7 +441,7 @@ correlatePairs(sce.hsc, subset.row=cbind("Fos", "Jun"))
 
 Examination of the expression profiles in Figure \@ref(fig:fosjuncorplot) confirms the presence of a modest correlation between these two genes.
 
-```{r fosjuncorplot, fig.cap="Expression of _Fos_ plotted against the expression of _Jun_ for all cells in the HSC data set."}
+```{r fosjuncorplot, fig.cap="Expression of _Fos_ plotted against the expression of _Jun_ for all cells in the HSC dataset."}
 plotExpression(sce.hsc, features="Fos", x="Jun")
 ```
 
