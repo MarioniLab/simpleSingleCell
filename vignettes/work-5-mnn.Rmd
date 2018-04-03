@@ -1,11 +1,11 @@
 ---
-title: "Correcting batch effects using the mutual nearest neighbour method"
+title: "Correcting batch effects in single-cell RNA-seq data"
 author: 
 - name: Aaron T. L. Lun
   affiliation: &CRUK Cancer Research UK Cambridge Institute, Li Ka Shing Centre, Robinson Way, Cambridge CB2 0RE, United Kingdom
 date: 1 April 2018
 vignette: >
-  %\VignetteIndexEntry{Correcting batch effects using the mutual nearest neighbour method}
+  %\VignetteIndexEntry{Correcting batch effects in single-cell RNA-seq data}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}    
 output: 

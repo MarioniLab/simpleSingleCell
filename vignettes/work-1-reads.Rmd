@@ -1,5 +1,5 @@
 ---
-title: "Analyzing single-cell RNA-seq data with Bioconductor (read counts)"
+title: "Analyzing single-cell RNA-seq data with read counts"
 author: 
 - name: Aaron T. L. Lun
   affiliation: &CRUK Cancer Research UK Cambridge Institute, Li Ka Shing Centre, Robinson Way, Cambridge CB2 0RE, United Kingdom
@@ -14,7 +14,7 @@ author:
   - Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
 date: 1 April 2018
 vignette: >
-  %\VignetteIndexEntry{A worfklow for low-level analyses of single-cell RNA-seq data
+  %\VignetteIndexEntry{Analyzing scRNA-seq data with read counts}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}    
 output: 
