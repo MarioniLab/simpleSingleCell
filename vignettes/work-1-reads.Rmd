@@ -701,24 +701,11 @@ Discreteness is less of an issue as low-abundance genes also have lower variance
 - It is also possible to obtain a low-rank approximation of the original expression matrix, capturing the variance equivalent to the retained PCs.
 This is useful for denoising prior to downstream procedures that require gene-wise expression values.
 
-    ```{r}
-    sce2 <- denoisePCA(sce, technical=var.fit$trend, 
-        assay.type="corrected", value="lowrank") 
-    assayNames(sce2)
-    ```
-
-- An alternative strategy for choosing the number of PCs is to use the `parallelPCA()` function, which performs Horn's parallel analysis [@horn1965rationale].
-This involves permuting the matrix and repeating the PCA to determine the variance explained by each PC under a random null.
-In this manner, "p-values" can be obtained for each PC [@buja1992remarks].
-PCs are discarded if they do not explain significantly more variance than expected under the null.
-Parallel analysis tends to yield better estimates of the rank than `denoisePCA()`, but is obviously much slower due to the need for multiple permutations.
-It also relies on random permutations, so setting the random seed is necessary for reproducible results.
-
-    ```{r}
-    set.seed(1000)
-    npcs <- parallelPCA(sce, assay.type="corrected", value="n")
-    as.integer(npcs)
-    ```
+```{r}
+sce2 <- denoisePCA(sce, technical=var.fit$trend, 
+    assay.type="corrected", value="lowrank") 
+assayNames(sce2)
+```
 
 ```{r, echo=FALSE, results="hide"}
 rm(sce2)
