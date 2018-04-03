@@ -47,7 +47,7 @@ Batch effects are problematic as they can be major drivers of heterogeneity in t
 
 Computational correction of these effects is critical for eliminating batch-to-batch variation, allowing data across multiple batches to be combined for valid downstream analysis.
 However, existing methods such as `removeBatchEffect()` [@ritchie2015limma] assume that the composition of cell populations are either known or the same across batches.
-This workflow describes the application of an alternative strategy for batch correction based on the detection of mutual nearest neighbours (MNNs) [@haghverdi2018correcting].
+This workflow describes the application of an alternative strategy for batch correction based on the detection of mutual nearest neighbours (MNNs) [@haghverdi2018batch].
 The `mnnCorreect()` approach does not rely on pre-defined or equal population compositions across batches, only requiring that a subset of the population be shared between batches.
 We demonstrate its use on three human pancreas scRNA-seq datasets from different groups and using different protocols.
 
@@ -499,7 +499,7 @@ For simplicity, we will not do this here, relying only on the feature selection 
 Consider a cell $a$ in batch $A$, and identify the cells in batch $B$ that are nearest neighbours to $a$ in the expression space defined by the selected features.
 Repeat this for a cell $b$ in batch $B$, identifying its nearest neighbours in $A$.
 Mutual nearest neighbours are pairs of cells from different batches that belong in each other's set of nearest neighbours.
-The reasoning is that MNN pairs represent cells from the same biological state prior to the application of a batch effect - see @haghverdi2017correcting for full theoretical details.
+The reasoning is that MNN pairs represent cells from the same biological state prior to the application of a batch effect - see @haghverdi2018batch for full theoretical details.
 Thus, the difference between cells in MNN pairs can be used as an estimate of the batch effect, the subtraction of which can yield batch-corrected values.
 
 We apply the `mnnCorrect()` function to the three batches to remove the batch effect, using the genes in `chosen`.

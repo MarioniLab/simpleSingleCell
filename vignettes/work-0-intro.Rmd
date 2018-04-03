@@ -82,7 +82,7 @@ It includes alternative parameter settings and options that are not usually used
 
 [This workflow](https://bioconductor.org/help/workflows/simpleSingleCell/work-5-mnn/) will demonstrate an application of the mutual nearest neighbours method for batch correction,
 using several datasets from human pancreas [@grun2016denovo; @muraro2016singlecell; @segerstolpe2016singlecell] generated with a range of technologies.
-It will focus on the generation of corrected expression values that can be used in downstream analyses.
+It is based on analyses performed in @haghverdi2018batch, and will focus on the generation of corrected expression values that can be used in downstream analyses.
 
 # Obtaining a count matrix
 
