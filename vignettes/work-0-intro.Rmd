@@ -12,7 +12,7 @@ author:
   - *CRUK
   - *EMBL
   - Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
-date: 13 December 2017
+date: 3 April 2018 
 vignette: >
   %\VignetteIndexEntry{A worfklow for low-level analyses of single-cell RNA-seq data
   %\VignetteEngine{knitr::rmarkdown}
@@ -62,21 +62,27 @@ cat("***Note:*** *to cite this article, please refer to http://f1000research.com
 
 ## Analyzing read count data
 
-[This workflow](https://bioconductor.org/help/workflows/simpleSingleCell/part1/) will introduce most of the concepts for scRNA-seq data analysis, 
+[This workflow](https://bioconductor.org/help/workflows/simpleSingleCell/work-1-reads/) will introduce most of the concepts for scRNA-seq data analysis, 
 using a small dataset of 192 cells from an immortalized myeloid progenitor cell line [@lun2017assessing] generated using the Smart-seq2 protocol [@picelli2014fulllength].
 It will start from loading of the data and finish at the characterization of cell clusters.
 
 ## Analyzing UMI count data
 
-[This workflow](https://bioconductor.org/help/workflows/simpleSingleCell/part2/) will adapt many of the previous concepts to analysis of UMI count data,
-using a large dataset of 3005 cells from the brain [@zeisel2015brain] generated from the Fluidigm system [@pollen2014lowcoverage].
+[This workflow](https://bioconductor.org/help/workflows/simpleSingleCell/work-2-umis/) will adapt many of the previous concepts to analysis of UMI count data,
+using a large dataset of 3005 cells from the mouse brain [@zeisel2015brain] generated from the Fluidigm system [@pollen2014lowcoverage].
 It will focus on the modifications required to handle lower UMI counts and larger numbers of cells.
 
 ## Miscellaneous analyses
 
-[This workflow](https://bioconductor.org/help/workflows/simpleSingleCell/part3/) will describe some analyses that were not covered in the previous workflows, 
-using a variety of relevant datasets [@wilson2015combined;@islam2011characterization; @buettner2015computational] generated using a range of technologies.
+[This workflow](https://bioconductor.org/help/workflows/simpleSingleCell/work-4-misc/) will describe some analyses that were not covered in the previous workflows, 
+using a variety of relevant datasets [@wilson2015combined; @islam2011characterization; @buettner2015computational] generated using a range of technologies.
 It includes alternative parameter settings and options that are not usually used as default but may be helpful in some circumstances.
+
+## Batch correction with mutual nearest neighbours
+
+[This workflow](https://bioconductor.org/help/workflows/simpleSingleCell/work-5-mnn/) will demonstrate an application of the mutual nearest neighbours method for batch correction,
+using several datasets from human pancreas [@grun2016denovo; @muraro2016singlecell; @segerstolpe2016singlecell] generated with a range of technologies.
+It will focus on the generation of corrected expression values that can be used in downstream analyses.
 
 # Obtaining a count matrix
 
