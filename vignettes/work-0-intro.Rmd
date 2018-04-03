@@ -14,7 +14,7 @@ author:
   - Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
 date: 3 April 2018 
 vignette: >
-  %\VignetteIndexEntry{Workflows for analyzing single-cell RNA-seq data with R/Bioconductor"}
+  %\VignetteIndexEntry{Workflows for analyzing single-cell RNA-seq data with R/Bioconductor}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}    
 output: 
