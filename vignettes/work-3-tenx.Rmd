@@ -107,7 +107,7 @@ legend("bottomleft", legend=c("Inflection", "Knee"),
 	col=c("darkgreen", "dodgerblue"), lty=2, cex=1.2)
 ```
 
-We use the `emptyDrops()` function to test whether the expression profile for each cell barcode is significantly different from the ambient pool [@lun2018detecting].
+We use the `emptyDrops()` function to test whether the expression profile for each cell barcode is significantly different from the ambient pool [@lun2018distinguishing].
 Any significant deviation indicates that the barcode corresponds to a cell-containing droplet.
 We call cells at a false discovery rate (FDR) of 1%, meaning that no more than 1% of our called barcodes should be empty droplets on average.
 
