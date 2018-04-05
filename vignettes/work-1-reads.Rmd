@@ -906,9 +906,6 @@ This confirms that the subpopulation genuinely exists and is not an artifact of 
 
 __Comments from Aaron:__
 
-- To avoid problems with discreteness when modelling the mean-variance relationship, `findMarkers` will automatically partition the data into low- and high-abundance genes.
-Empirical Bayes shrinkage is performed in each partition separately, prior to calculation of _p_-values using the shrunk variance estimates.
-This ensures that discreteness does not affect the inferences for high-abundance genes, without needing to entirely discard the low-abundance genes.
 - By setting `direction="up"`, `findMarkers` will only return genes that are upregulated in each cluster compared to the others.
 This is convenient in highly heterogeneous populations to focus on genes that can immediately identify each cluster.
 While lack of expression may also be informative, it is less useful for positive identification.
