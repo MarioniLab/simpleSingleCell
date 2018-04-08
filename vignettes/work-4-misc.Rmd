@@ -518,7 +518,7 @@ PCs are discarded if they do not explain significantly more variance than expect
 
 This is demonstrated using the batch-corrected expression values from the 416B dataset.
 To focus on relevant features, we only use genes with positive biological components from the variability analysis above.
-Paralel analysis also relies on random permutations, so setting the random seed is necessary for reproducible results.
+This procedure relies on random permutations, so setting the random seed is necessary for reproducible results.
 
 ```{r}
 set.seed(1000)
