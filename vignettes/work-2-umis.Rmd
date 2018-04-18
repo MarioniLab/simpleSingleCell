@@ -355,9 +355,10 @@ gc()
 We perform dimensionality reduction on the denoised PCs to check if there is any substructure. 
 Cells separate into clear clusters in the _t_-SNE plot [@van2008visualizing] in Figure \@ref(fig:tsneplotbrain), corresponding to distinct subpopulations.
 This is consistent with the presence of multiple cell types in the diverse brain population.
+We increase the perplexity to favour visualization of the overall structure at the expense of local scale.
 
 ```{r tsneplotbrain, fig.cap="_t_-SNE plots constructed from the denoised PCs of the brain dataset. Each point represents a cell and is coloured according to its expression of _Neurod6_ (left) or _Mog_ (right).", fig.width=12, fig.asp=0.5}
-sce <- runTSNE(sce, use_dimred="PCA", perplexity=10, rand_seed=100)
+sce <- runTSNE(sce, use_dimred="PCA", perplexity=50, rand_seed=1000)
 tsne1 <- plotTSNE(sce, colour_by="Neurod6") + fontsize
 tsne2 <- plotTSNE(sce, colour_by="Mog") + fontsize
 multiplot(tsne1, tsne2, cols=2)
@@ -420,16 +421,24 @@ pheatmap(ratio, cluster_rows=FALSE, cluster_cols=FALSE,
 
 We visualize the cluster assignments for all cells on the _t_-SNE plot in Figure \@ref(fig:tsneclusterbrain).
 Adjacent cells are generally assigned to the same cluster, indicating that the clustering procedure was applied correctly.
-We could also use graph-based visualizations such as force-directed layouts (e.g., `layout_with_fr` from `r CRANpkg("igraph")`).
-These are appealing as they only need information that is already in the graph, without needing to refer back to the expression matrices or PC coordinates.
 
-```{r tsneclusterbrain, message=FALSE, fig.cap="_t_-SNE plot of the denoised PCs of the brain dataset. Each point represents a cell and is coloured according to the cluster identity to which it was assigned."}
+```{r tsneclusterbrain, message=FALSE, fig.cap="_t_-SNE plot of the denoised PCs of the brain dataset. Each point represents a cell and is coloured according to its assigned cluster identity."}
 sce$cluster <- factor(my.clusters)
 plotTSNE(sce, colour_by="cluster") + fontsize
 ```
 
 ```{r echo=FALSE, results='hide'}
 gc()
+```
+
+An alternative approach is to use graph-based visualizations such as force-directed layouts (Figure \@ref(fig:fdlbrain)).
+These are appealing as they directly represent the relationships used during clustering.
+However, convergence tends to be slow for large graphs, so some tinkering with `niter=` may be required to ensure that the results are stable. 
+
+```{r fdlbrain, message=FALSE, fig.cap="Force-directed layout for the shared nearest-neighbour graph of the brain dataset. Each point represents a cell and is coloured according to its assigned cluster identity."}
+set.seed(2000)
+reducedDim(sce, "force") <- igraph::layout_with_fr(snn.gr, niter=5000)
+plotReducedDim(sce, colour_by="cluster", use_dimred="force")
 ```
 
 Very heterogeneous datasets may yield a few large clusters on the first round of clustering.
