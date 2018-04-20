@@ -227,11 +227,10 @@ plotQC(sce, type = "highest-expression", n=50) + fontsize
 Gene abundance is quantified by computing the average count across all cells (Figure \@ref(fig:abhistbrain)).
 As previously mentioned, the UMI count is generally lower than the read count.
 
-```{r abhistbrain, fig.cap="Histogram of log-average counts for all genes in the brain dataset. The filter threshold is represented by the blue line."}
+```{r abhistbrain, fig.cap="Histogram of log-average counts for all genes in the brain dataset."}
 ave.counts <- calcAverage(sce, use_size_factors=FALSE)
 hist(log10(ave.counts), breaks=100, main="", col="grey",
     xlab=expression(Log[10]~"average count"))
-abline(v=log10(0.1), col="blue", lwd=2, lty=2)
 ```
 
 We save the average counts into the `SingleCellExperiment` object for later use.
