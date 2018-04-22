@@ -217,19 +217,17 @@ sce <- calculateQCMetrics(sce, feature_controls=list(Mt=mito))
 head(colnames(colData(sce)), 10)
 ```
 
-The distributions of these metrics are shown in Figure \@ref(fig:qcplot416b).
+The distributions of these metrics are shown in Figure \@ref(fig:qcplot416b), stratified by oncogene induction status and plate of origin.
 The aim is to remove putative low-quality cells that have low library sizes, low numbers of expressed features, and high spike-in (or mitochondrial) proportions.
 
-```{r qcplot416b, fig.wide=TRUE, fig.cap="Histograms of various QC metrics for all cells in the 416B dataset. This includes the library sizes, number of expressed genes, and proportion of reads mapped to spike-in transcripts or mitochondrial genes."}
-par(mfrow=c(2,2), mar=c(5.1, 4.1, 0.1, 0.1))
-hist(sce$total_counts/1e6, xlab="Library size (millions)", main="", 
-    breaks=20, col="grey80", ylab="Number of cells")
-hist(sce$total_features, xlab="Number of expressed genes", main="", 
-    breaks=20, col="grey80", ylab="Number of cells")
-hist(sce$pct_counts_ERCC, xlab="ERCC proportion (%)", 
-    ylab="Number of cells", breaks=20, main="", col="grey80")
-hist(sce$pct_counts_Mt, xlab="Mitochondrial proportion (%)", 
-    ylab="Number of cells", breaks=20, main="", col="grey80")
+```{r qcplot416b, fig.wide=TRUE, fig.cap="Distributions of various QC metrics for all cells in the 416B dataset. This includes the library sizes, number of expressed genes, and proportion of reads mapped to spike-in transcripts or mitochondrial genes."}
+sce$PlateOnco <- paste0(sce$Oncogene, ".", sce$Plate)
+multiplot(
+    plotColData(sce, y="total_counts", x="PlateOnco"),
+    plotColData(sce, y="total_features", x="PlateOnco"),
+    plotColData(sce, y="pct_counts_ERCC", x="PlateOnco"),
+    plotColData(sce, y="pct_counts_Mt", x="PlateOnco"),
+    cols=2)
 ```
 
 It is also valuable to examine how the QC metrics behave with respect to each other (Figure \@ref(fig:qcbiplot416b)).
@@ -259,17 +257,26 @@ A log-transformation improves resolution at small values, especially when the MA
 We also remove cells where the log-transformed number of expressed genes is 3 MADs below the median value.
 
 ```{r}
-libsize.drop <- isOutlier(sce$total_counts, nmads=3, type="lower", log=TRUE)
-feature.drop <- isOutlier(sce$total_features, nmads=3, type="lower", log=TRUE)
+libsize.drop <- isOutlier(sce$total_counts, nmads=3, type="lower", 
+    log=TRUE, batch=sce$PlateOnco)
+feature.drop <- isOutlier(sce$total_features, nmads=3, type="lower", 
+    log=TRUE, batch=sce$PlateOnco)
 ```
+
+The `batch=` argument ensures that outliers are identified _within_ each level of the specified plate/oncogene factor.
+This allows `isOutlier()` to accommodate systematic differences in the QC metrics across plates (Figure \@ref(fig:qcplot416b)),
+which can arise due to technical differences in processing (e.g., differences in sequencing depth) rather than any changes in quality.
+The same reasoning applies to the oncogene induction status, where induced cells may have naturally fewer expressed genes for biological reasons.
+Failing to account for these systematic differences would inflate the MAD estimate and compromise the removal of low-quality cells.
 
 We identify outliers for the proportion-based metrics in a similar manner.
 Here, no transformation is required as we are identifying large outliers, for which the distinction should be fairly clear on the raw scale.
-(We do not use the mitochondrial proportions as we already have the spike-in proportions for this dataset.
-This avoids potential problems with genuine differences in mitochondrial content between cell types that may confound outlier identification.)
+We do not need to use the mitochondrial proportions as we already have the spike-in proportions (which serve a similar purpose) for this dataset.
+This avoids potential issues arising from genuine differences in mitochondrial content between cell types that may confound outlier identification.
 
 ```{r}
-spike.drop <- isOutlier(sce$pct_counts_ERCC, nmads=3, type="higher")
+spike.drop <- isOutlier(sce$pct_counts_ERCC, nmads=3, type="higher",
+    batch=sce$PlateOnco)
 ```
 
 Subsetting by column will retain only the high-quality cells that pass each filter described above.
@@ -282,68 +289,19 @@ data.frame(ByLibSize=sum(libsize.drop), ByFeature=sum(feature.drop),
     BySpike=sum(spike.drop), Remaining=sum(keep))
 ```
 
-At this point, we could apply `keep` to subset `sce` to only retain high-quality cells.
-However, the above approach ignores prior information about the cells, which can be incorporated to improve the filtering procedure.
-We describe why this is important and how it can be achieved in the following sections.
-
-## Assumptions of outlier identification 
-
-We have already mentioned the assumption that most cells are of high quality.
-This is usually reasonable, and can be experimentally supported in some situations by visually checking that the cells are intact (e.g., on the microwell plate or in the microfluidics system).
-Another assumption is that the QC metrics are independent on the biological state of each cell.
-This ensures that any outlier values for these metrics are driven by technical factors rather than biological processes.
-Thus, removing cells based on the metrics will not misrepresent the biology in downstream analyses.
-
-The second assumption is most likely to be violated in highly heterogeneous cell populations.
-For example, some cell types may naturally have less RNA or express fewer genes than other cell types.
-Such cell types are more likely to be considered outliers and removed, even if they are of high quality.
-The use of the MAD mitigates this problem by accounting for biological variability in the QC metrics.
-A heterogeneous population should have higher variability in the metrics among high-quality cells, increasing the MAD and reducing the chance of incorrectly removing particular cell types (at the cost of reducing power to remove low-quality cells).
-Nonetheless, filtering based on outliers may not be appropriate in extreme cases where one cell type is very different from the others.
-
-We can explore the effect of known biological factors on the QC metrics using the `plotColData()` function.
-Figure \@ref(fig:qcplotbatch416b) demonstrates that induction of the CBFB-MYH11 oncogene results in some modest changes to the QC metric distributions.
-This suggests that we could improve our QC step by considering the condition of the cell during outlier identification. 
-Analyzing all conditions together would unnecessarily inflate the MAD and compromise the removal of low-quality cells. 
-
-```{r qcplotbatch416b, fig.wide=TRUE, fig.cap="Distribution of each QC metric for control and oncogene-induced cells in the 416B dataset."}
-multiplot(
-    plotColData(sce, y="total_counts", x="Oncogene"),
-    plotColData(sce, y="total_features", x="Oncogene"),
-    plotColData(sce, y="pct_counts_ERCC", x="Oncogene"),
-    plotColData(sce, y="pct_counts_Mt", x="Oncogene"),
-    cols=2)
-```
-
-## Blocking on known conditions
-
-Systematic differences in the QC metrics can be handled to some extent using the `batch` argument in the `isOutlier` function.
-Setting `batch` to the plate of origin will identify outliers within each level of `batch`, using plate-specific median and MAD estimates.
-This is obviously useful for accommodating known differences in experimental processing, e.g., sequencing at different depth or different amounts of added spike-in RNA. 
-We can also include known biological factors in `batch`, if those factors could result in systematically fewer expressed genes or lower RNA content.
-
-```{r}
-blocking <- paste0(sce$Plate, sce$Oncogene)
-libsize.drop2 <- isOutlier(sce$total_counts, nmads=3, type="lower", 
-    log=TRUE, batch=blocking)
-feature.drop2 <- isOutlier(sce$total_features, nmads=3, type="lower", 
-    log=TRUE, batch=blocking)
-spike.drop2 <- isOutlier(sce$pct_counts_ERCC, nmads=3, type="higher", 
-    batch=blocking)
-
-keep2 <- !(libsize.drop2 | feature.drop2 | spike.drop2)
-data.frame(ByLibSize=sum(libsize.drop2), ByFeature=sum(feature.drop2),
-    BySpike=sum(spike.drop2), Remaining=sum(keep2))
-```
-
-The use of this blocking approach results in a small increase in the number of discarded cells.
-This is expected given that the variability within each level of `batch` is lower, resulting in more power to detect outliers.
 We then subset the `SingleCellExperiment` object to retain only the putative high-quality cells.
+We also save the original object to file for later use.
 
 ```{r}
-sce <- sce[,keep2]
+sce$PassQC <- keep
+saveRDS(sce, file="416B_preQC.rds")
+sce <- sce[,keep]
 dim(sce)
 ```
+
+**Comments from Aaron:**
+
+- See [this section](http://bioconductor.org/packages/devel/workflows/vignettes/simpleSingleCell/inst/doc/work-4-misc.html#assumptions-of-outlier-identification) for a more detailed discussion of the assumptions underlying the outlier-based detection of low-quality cells.
 
 # Classification of cell cycle phase 
 

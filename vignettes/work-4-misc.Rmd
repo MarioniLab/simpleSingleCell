@@ -55,16 +55,40 @@ The previous workflows focused on analyzing single-cell RNA-seq data with "stand
 However, a number of alternative parameter settings and strategies can be used at some steps of the workflow.
 This workflow describes a few of these alternative settings as well as the rationale behind choosing them instead of the defaults.
 
-# Alternative approaches to quality control
+# Quality control on cells
 
-## Using fixed thresholds
+## Assumptions of outlier identification 
+
+An outlier-based definition for low-quality cells assumes that most cells are of high quality.
+This is usually reasonable and can be experimentally supported in some situations by visually checking that the cells are intact, e.g., on the microwell plate.
+Another assumption is that the QC metrics are independent on the biological state of each cell.
+This ensures that any outlier values for these metrics are driven by technical factors rather than biological processes.
+Thus, removing cells based on the metrics will not misrepresent the biology in downstream analyses.
+
+The second assumption is most likely to be violated in highly heterogeneous cell populations.
+For example, some cell types may naturally have less RNA or express fewer genes than other cell types.
+Such cell types are more likely to be considered outliers and removed, even if they are of high quality.
+The use of the MAD mitigates this problem by accounting for biological variability in the QC metrics.
+A heterogeneous population should have higher variability in the metrics among high-quality cells, increasing the MAD and reducing the chance of incorrectly removing particular cell types (at the cost of reducing power to remove low-quality cells).
+Nonetheless, filtering based on outliers may not be appropriate in extreme cases where one cell type is very different from the others.
+
+Systematic differences in the QC metrics can be handled to some extent using the `batch=` argument in the `isOutlier()` function.
+For example, setting `batch` to the plate of origin will identify outliers within each level of `batch`, using plate-specific median and MAD estimates.
+This is obviously useful for accommodating known differences in experimental processing, e.g., sequencing at different depth or different amounts of added spike-in RNA. 
+We can also include biological factors in `batch`, if those factors could result in systematically fewer expressed genes or lower RNA content.
+However, this is not applicable in experiments where the factors are not known in advance.
+
+## Alternative approaches to quality control
+
+### Using fixed thresholds
 
 One alternative strategy is to set pre-defined thresholds on each QC metric.
 For example, we might remove all cells with library sizes below 100000 and numbers of expressed genes below 4000.
-This generally requires substantial experience to determine appropriate thresholds for each experimental protocol and biological system.
+This generally requires considerable experience to determine appropriate thresholds for each experimental protocol and biological system.
+For example, thresholds for read count-based data are simply not applicable for UMI-based data, and vice versa.
 Indeed, even with the same protocol and system, the appropriate threshold can vary from run to run due to the vagaries of RNA capture and sequencing.
 
-## Using PCA-based outliers
+### Using PCA-based outliers
 
 Another strategy is to perform a principal components analysis (PCA) based on the quality metrics for each cell, e.g., the total number of reads, the total number of features and the proportion of mitochondrial or spike-in reads.
 Outliers on a PCA plot may be indicative of low-quality cells that have aberrant technical properties compared to the (presumed) majority of high-quality cells.
