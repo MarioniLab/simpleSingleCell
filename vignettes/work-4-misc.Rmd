@@ -78,6 +78,60 @@ This is obviously useful for accommodating known differences in experimental pro
 We can also include biological factors in `batch`, if those factors could result in systematically fewer expressed genes or lower RNA content.
 However, this is not applicable in experiments where the factors are not known in advance.
 
+## Checking for discarded cell types
+
+We can diagnose loss of distinct cell types during QC by looking for differences in gene expression between the discarded and retained cells (Figure \@ref(fig:discardplot416b)).
+If the discarded pool is enriched for a certain cell type, we should observe increased expression of the corresponding marker genes.
+No systematic upregulation of genes is apparent in the discarded pool in Figure \@ref(fig:discardplot416b), 
+indicating that the QC step did not inadvertently filter out a cell type in the 416B dataset.
+
+```{r discardplot416b, fig.cap="Average counts across all discarded and retained cells in the 416B dataset. Each point represents a gene, with spike-in and mitochondrial transcripts in red and blue respectively."}
+library(SingleCellExperiment)
+sce.full.416b <- readRDS("416B_preQC.rds")
+
+library(scater)
+suppressWarnings({
+    lost <- calcAverage(counts(sce.full.416b)[,!sce.full.416b$PassQC])
+    kept <- calcAverage(counts(sce.full.416b)[,sce.full.416b$PassQC])
+})
+logfc <- log2((lost+1)/(kept+1))
+head(sort(logfc, decreasing=TRUE), 20)
+
+plot(lost, kept, xlab="Average count (discarded)", 
+    ylab="Average count (retained)", log="xy", pch=16)
+is.spike <- isSpike(sce.full.416b)
+points(lost[is.spike], kept[is.spike], col="red", pch=16)
+is.mito <- rowData(sce.full.416b)$is_feature_control_Mt
+points(lost[is.mito], kept[is.mito], col="dodgerblue", pch=16)
+```
+
+By comparison, a more stringent filter in the PBMC dataset would remove the previously identified platelet population 
+(see the [previous workflow](http://bioconductor.org/packages/devel/workflows/vignettes/simpleSingleCell/inst/doc/work-3-tenx.html#marker-gene-detection)).
+This manifests in Figure \@ref(fig:discardplotpbmc) as a shift to the bottom-right for a number of genes, including _PF4_ and _PPBP_.
+
+```{r discardplotpbmc, fig.cap="Average counts across all discarded and retained cells in the PBMC dataset. Each point represents a gene, with platelet-related genes highlighted in orange."}
+sce.pbmc <- readRDS("pbmc_data.rds")
+wrong.keep <- sce.pbmc$total_counts >= 1000
+suppressWarnings({
+    lost <- calcAverage(counts(sce.pbmc)[,!wrong.keep])
+    kept <- calcAverage(counts(sce.pbmc)[,wrong.keep])
+})
+logfc <- log2((lost+1)/(kept+1))
+head(sort(logfc, decreasing=TRUE), 20)
+
+plot(lost, kept, xlab="Average count (discarded)", 
+    ylab="Average count (retained)", log="xy", pch=16)
+platelet <- c("PF4", "PPBP", "SDPR")
+points(lost[platelet], kept[platelet], col="orange", pch=16)
+```
+
+If cell types are being incorrectly discarded, the solution is to relax the QC filters.
+This can be achieved by either increasing `nmads=` in `isOutlier()` or by dropping the filter altogether.
+However, keep in mind that low-quality cells will often increase the apparent heterogeneity, usually because of increased sampling noise at low sequencing coverage.
+This can interfere with variance modelling and PCA, e.g., where the first few PCs separate cells according to quality rather than any biology.
+At worst, low-quality cells can form their own cluster, which requires additional care during interpretation of the results. 
+These considerations motivate the use of a more strict filter (at least on the first pass) in our workflows.
+
 ## Alternative approaches to quality control
 
 ### Using fixed thresholds
@@ -100,7 +154,6 @@ library(scRNAseq)
 data(allen)
 
 # Setting up the data.
-library(SingleCellExperiment)
 sce.allen <- as(allen, "SingleCellExperiment")
 assayNames(sce.allen) <- "counts"
 isSpike(sce.allen, "ERCC") <- grep("ERCC", rownames(sce.allen))
