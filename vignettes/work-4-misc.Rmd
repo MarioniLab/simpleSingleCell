@@ -44,7 +44,7 @@ all.modes[!grepl("(txt|csv)$", all.basenames)] <- "wb"
 
 for (x in seq_along(all.urls)) { 
     if (!file.exists(all.basenames[x])) {
-        download.file(all.urls[x], all.basenames[x], mode=all.modes[x])
+        download.file(all.urls[x], all.basenames[x], mode=all.modes[x], cacheOK=FALSE)
     }
 }
 ```
@@ -296,8 +296,8 @@ In this case, some work is required to retrieve the data from the Gzip-compresse
 ```{r}
 library(R.utils)
 gunzip("GSE61533_HTSEQ_count_results.xls.gz", remove=FALSE, overwrite=TRUE)
-library(readxl)
-all.counts <- as.data.frame(read_excel('GSE61533_HTSEQ_count_results.xls', sheet=1))
+library(gdata)
+all.counts <- read.xls('GSE61533_HTSEQ_count_results.xls', sheet=1, header=TRUE)
 rownames(all.counts) <- all.counts$ID
 all.counts <- as.matrix(all.counts[,-1])
 ```
@@ -616,6 +616,7 @@ Rather, more sophisticated strategies are required, one of which is demonstrated
 @buettner2015computational have already applied quality control and normalized the data, so we can use them directly as log-expression values (accessible as Supplementary Data 1 of https://dx.doi.org/10.1038/nbt.3102).
 
 ```{r}
+library(readxl)
 incoming <- as.data.frame(read_excel("nbt.3102-S7.xlsx", sheet=1))
 rownames(incoming) <- incoming[,1]
 incoming <- incoming[,-1]
