@@ -3,7 +3,7 @@ title: Analyzing single-cell RNA sequencing data from droplet-based protocols
 author: 
 - name: Aaron T. L. Lun
   affiliation: Cancer Research UK Cambridge Institute, Li Ka Shing Centre, Robinson Way, Cambridge CB2 0RE, United Kingdom
-date: 5 April 2018
+date: "`r Sys.Date()`"
 vignette: >
   %\VignetteIndexEntry{Analyzing droplet-based scRNA-seq data}
   %\VignetteEngine{knitr::rmarkdown}

@@ -12,7 +12,7 @@ author:
   - *CRUK
   - *EMBL
   - Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
-date: 27 October 2017
+date: "`r Sys.Date()`"
 vignette: >
   %\VignetteIndexEntry{Further strategies for analyzing scRNA-seq data}
   %\VignetteEngine{knitr::rmarkdown}
@@ -44,7 +44,7 @@ all.modes[!grepl("(txt|csv)$", all.basenames)] <- "wb"
 
 for (x in seq_along(all.urls)) { 
     if (!file.exists(all.basenames[x])) {
-        download.file(all.urls[x], all.basenames[x], mode=all.modes[x])
+        download.file(all.urls[x], all.basenames[x], mode=all.modes[x], cacheOK=FALSE)
     }
 }
 ```
@@ -298,8 +298,8 @@ In this case, some work is required to retrieve the data from the Gzip-compresse
 ```{r}
 library(R.utils)
 gunzip("GSE61533_HTSEQ_count_results.xls.gz", remove=FALSE, overwrite=TRUE)
-library(readxl)
-all.counts <- as.data.frame(read_excel('GSE61533_HTSEQ_count_results.xls', sheet=1))
+library(gdata)
+all.counts <- read.xls('GSE61533_HTSEQ_count_results.xls', sheet=1, header=TRUE)
 rownames(all.counts) <- all.counts$ID
 all.counts <- as.matrix(all.counts[,-1])
 ```
@@ -468,38 +468,35 @@ The use of a single trend would subsequently be inappropriate, resulting in inac
 
 For datasets containing multiple batches, an alternative strategy is to perform trend fitting and variance decomposition separately for each batch.
 This accommodates differences in the mean-variance trends between batches, especially if a different amount of spike-in RNA was added to the cells in each batch.
-We demonstrate this approach by treating each plate in the 416B dataset as a different batch (Figure \@ref(fig:hvgplotbatch416b)).
+We demonstrate this approach by treating each plate in the 416B dataset as a different batch, using the `multiBlockVar()` function.
 This yields plate-specific estimates of the biological and technical components for each gene.
 
-```{r hvgplotbatch416b, fig.width=10, fig.asp=0.5, fig.cap="Variance of normalized log-expression values for each gene in each plate of the 416B dataset, plotted against the mean log-expression. The blue line represents the mean-dependent trend fitted to the variances of the spike-in transcripts (red)."}
-collected <- list()
-par(mfrow=c(1,2))
-for (plate in levels(sce.416B$Plate)) {
-    cur.sce <- sce.416B[,sce.416B$Plate==plate]
-    cur.sce <- normalize(cur.sce) 
-
-    # Estimating the technical/biological components.
-    cur.fit <- trendVar(cur.sce, parametric=TRUE, 
-        loess.args=list(span=0.4))
-    cur.out <- decomposeVar(cur.sce, cur.fit)
-    collected[[plate]] <- cur.out 
-
-    # Making a plot for diagnostic purposes.
-    plot(cur.out$mean, cur.out$total, pch=16, cex=0.6, xlab="Mean log-expression", 
-        ylab="Variance of log-expression", main=plate)
-    curve(cur.fit$trend(x), col="dodgerblue", lwd=2, add=TRUE)
-    cur.spike <- isSpike(cur.sce)
-    points(cur.out$mean[cur.spike], cur.out$total[cur.spike], col="red", pch=16)
-}
+```{r}
+sce.416B.2 <- normalize(sce.416B, size_factor_grouping=sce.416B$Plate)
+comb.out <- multiBlockVar(sce.416B.2, block=sce.416B.2$Plate,
+    trend.args=list(parametric=TRUE, loess.args=list(span=0.4)))
 ```
 
-Statistics are combined across multiple batches using the `combineVar` function.
+Statistics are combined across multiple batches using the `combineVar()` function within `multiBlockVar()`.
 This function computes a weighted average across batches for the means and variances, and applies Fisher's method for combining the _p_-values.
 These results can be used in downstream functions such as `denoisePCA`, or for detecting highly variable genes (see below).
 
 ```{r}
-comb.out <- do.call(combineVar, collected)
-head(comb.out)
+head(comb.out[,1:6])
+```
+
+We visualize the quality of the batch-specific trend fits by extracting the relevant statistics from `comb.out` (Figure \@ref(fig:hvgplotbatch416b)).
+
+```{r hvgplotbatch416b, fig.width=10, fig.asp=0.5, fig.cap="Variance of normalized log-expression values for each gene in each plate of the 416B dataset, plotted against the mean log-expression. The blue line represents the mean-dependent trend fitted to the variances of the spike-in transcripts (red)."}
+par(mfrow=c(1,2))
+is.spike <- isSpike(sce.416B.2)
+for (plate in levels(sce.416B.2$Plate)) {
+    cur.out <- comb.out$per.block[[plate]]
+    plot(cur.out$mean, cur.out$total, pch=16, cex=0.6, xlab="Mean log-expression", 
+        ylab="Variance of log-expression", main=plate)
+    curve(metadata(cur.out)$trend(x), col="dodgerblue", lwd=2, add=TRUE)
+    points(cur.out$mean[is.spike], cur.out$total[is.spike], col="red", pch=16)
+}
 ```
 
 By fitting separate trends, we avoid the need to assume that a single trend is present across batches.
@@ -512,11 +509,12 @@ gc()
 
 **Comments from Aaron:**
 
-- We run `normalize` within the loop to ensure that the average abundances of the spike-in transcripts are comparable to the endogenous genes.
+- We run `normalize()` with `size_factor_grouping=` to centre the size factors within each level of the blocking factor.
 This adjusts the size factors across cells in each batch so that the mean is equal to 1, for both the spike-in and gene-based sets of size factors. 
 Log-normalized expression values are then recalculated using these centred size factors.
-This procedure avoids problems due to differences in the quantity of spike-in RNA between batches.
-In such cases, if the globally-centred size factors were used, there would be a systematic difference in the scaling of spike-in transcripts compared to endogenous genes.
+This procedure ensures that the average abundances of the spike-in transcripts are comparable to the endogenous genes,
+avoiding problems due to differences in the quantity of spike-in RNA between batches.
+Otherwise, if the globally-centred size factors were used, there would be a systematic difference in the scaling of spike-in transcripts compared to endogenous genes.
 The fitted trend would then be shifted along the x-axis and fail to accurately capture the technical component for each gene.
 
 ### Using the `design=` argument
@@ -620,6 +618,7 @@ Rather, more sophisticated strategies are required, one of which is demonstrated
 @buettner2015computational have already applied quality control and normalized the data, so we can use them directly as log-expression values (accessible as Supplementary Data 1 of https://dx.doi.org/10.1038/nbt.3102).
 
 ```{r}
+library(readxl)
 incoming <- as.data.frame(read_excel("nbt.3102-S7.xlsx", sheet=1))
 rownames(incoming) <- incoming[,1]
 incoming <- incoming[,-1]

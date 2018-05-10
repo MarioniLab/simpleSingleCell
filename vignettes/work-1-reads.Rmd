@@ -12,7 +12,7 @@ author:
   - *CRUK
   - *EMBL
   - Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
-date: 1 April 2018
+date: "`r Sys.Date()`"
 vignette: >
   %\VignetteIndexEntry{Analyzing scRNA-seq read count data}
   %\VignetteEngine{knitr::rmarkdown}

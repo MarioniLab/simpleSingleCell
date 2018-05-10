@@ -12,7 +12,7 @@ author:
   - *CRUK
   - *EMBL
   - Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
-date: 3 April 2018 
+date: "`r Sys.Date()`"
 vignette: >
   %\VignetteIndexEntry{Workflows for analyzing single-cell RNA-seq data with R/Bioconductor}
   %\VignetteEngine{knitr::rmarkdown}
@@ -30,6 +30,14 @@ opts_chunk$set(error=FALSE, message=FALSE, warning=FALSE)
 # Deciding whether we want to re-download everything or not.
 on.bioc <- TRUE
 ```
+
+# Workflow version information
+
+**R version**: `r R.version.string`
+
+**Bioconductor version**: `r BiocInstaller::biocVersion()`
+
+**Package**: `r packageVersion("simpleSingleCell")`
 
 # Introduction
 

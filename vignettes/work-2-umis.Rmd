@@ -12,7 +12,7 @@ author:
   - *CRUK
   - *EMBL
   - Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
-date: 13 December 2017
+date: "`r Sys.Date()`"
 vignette: >
   %\VignetteIndexEntry{Analyzing scRNA-seq UMI count data}
   %\VignetteEngine{knitr::rmarkdown}

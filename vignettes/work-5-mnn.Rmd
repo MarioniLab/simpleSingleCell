@@ -2,8 +2,10 @@
 title: Correcting batch effects in single-cell RNA-seq data
 author: 
 - name: Aaron T. L. Lun
-  affiliation: &CRUK Cancer Research UK Cambridge Institute, Li Ka Shing Centre, Robinson Way, Cambridge CB2 0RE, United Kingdom
-date: 1 April 2018
+  affiliation: Cancer Research UK Cambridge Institute, Li Ka Shing Centre, Robinson Way, Cambridge CB2 0RE, United Kingdom
+- name: Michael D. Morgan
+  affiliation: Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
+date: "`r Sys.Date()`"
 vignette: >
   %\VignetteIndexEntry{Correcting batch effects in scRNA-seq data}
   %\VignetteEngine{knitr::rmarkdown}
