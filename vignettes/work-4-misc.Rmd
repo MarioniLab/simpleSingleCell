@@ -90,10 +90,8 @@ library(SingleCellExperiment)
 sce.full.416b <- readRDS("416B_preQC.rds")
 
 library(scater)
-suppressWarnings({
-    lost <- calcAverage(counts(sce.full.416b)[,!sce.full.416b$PassQC])
-    kept <- calcAverage(counts(sce.full.416b)[,sce.full.416b$PassQC])
-})
+lost <- calcAverage(counts(sce.full.416b)[,!sce.full.416b$PassQC])
+kept <- calcAverage(counts(sce.full.416b)[,sce.full.416b$PassQC])
 logfc <- log2((lost+1)/(kept+1))
 head(sort(logfc, decreasing=TRUE), 20)
 
@@ -109,13 +107,12 @@ By comparison, a more stringent filter in the PBMC dataset would remove the prev
 (see the [previous workflow](http://bioconductor.org/packages/devel/workflows/vignettes/simpleSingleCell/inst/doc/work-3-tenx.html#marker-gene-detection)).
 This manifests in Figure \@ref(fig:discardplotpbmc) as a shift to the bottom-right for a number of genes, including _PF4_ and _PPBP_.
 
-```{r discardplotpbmc, fig.cap="Average counts across all discarded and retained cells in the PBMC dataset. Each point represents a gene, with platelet-related genes highlighted in orange."}
+```{r discardplotpbmc, fig.cap="Average counts across all discarded and retained cells in the PBMC dataset, after using a more stringent filter on the total UMI count. Each point represents a gene, with platelet-related genes highlighted in orange."}
 sce.pbmc <- readRDS("pbmc_data.rds")
 wrong.keep <- sce.pbmc$total_counts >= 1000
-suppressWarnings({
-    lost <- calcAverage(counts(sce.pbmc)[,!wrong.keep])
-    kept <- calcAverage(counts(sce.pbmc)[,wrong.keep])
-})
+
+lost <- calcAverage(counts(sce.pbmc)[,!wrong.keep])
+kept <- calcAverage(counts(sce.pbmc)[,wrong.keep])
 logfc <- log2((lost+1)/(kept+1))
 head(sort(logfc, decreasing=TRUE), 20)
 
@@ -138,7 +135,8 @@ These considerations motivate the use of a more strict filter (at least on the f
 
 One alternative strategy is to set pre-defined thresholds on each QC metric.
 For example, we might remove all cells with library sizes below 100000 and numbers of expressed genes below 4000.
-This generally requires considerable experience to determine appropriate thresholds for each experimental protocol and biological system.
+This avoids any assumptions associated with the use of outliers to identify low-quality cells.
+However, it generally requires considerable experience to determine appropriate thresholds for each experimental protocol and biological system.
 For example, thresholds for read count-based data are simply not applicable for UMI-based data, and vice versa.
 Indeed, even with the same protocol and system, the appropriate threshold can vary from run to run due to the vagaries of RNA capture and sequencing.
 
@@ -170,8 +168,12 @@ This is because they are able to detect subtle patterns across many quality metr
 However, this comes at some cost to interpretability, as the reason for removing a given cell may not always be obvious.
 Users interested in the more sophisticated approaches are referred to the `r Biocpkg("scater")` and `r Biocpkg("cellity")` packages.
 
-For completeness, we note that outliers can also be identified from PCA on the gene expression profiles, rather than QC metrics.
+### Using the gene expression profiles
+
+For completeness, we note that outliers can also be identified from the gene expression profiles, rather than QC metrics.
 We consider this to be a risky strategy as it can remove high-quality cells in rare populations.
+Even if subpopulations are explicitly captured with a mixture model, removal of outlier cells will simply reinforce the existing model.
+This may be misleading if it understates the biological heterogeneity in each population.
 
 # Normalizing based on spike-in coverage
 
