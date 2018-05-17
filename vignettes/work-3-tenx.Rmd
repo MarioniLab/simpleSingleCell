@@ -9,7 +9,8 @@ vignette: >
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}    
 output: 
-    BiocStyle::html_document
+  BiocStyle::html_document:
+    titlecaps: false
 bibliography: ref.bib
 ---
 
@@ -24,10 +25,13 @@ opts_chunk$set(fig.asp=1)
 
 Droplet-based scRNA-seq protocols capture cells in droplets for massively multiplexed library prepation [@klein2015droplet; macosko2015highly].
 This greatly increases the throughput of scRNA-seq studies, allowing tens of thousands of individual cells to be profiled in a routine experiment.
-Here, we describe a brief analysis of the peripheral blood mononuclear cell (PBMC) dataset from 10X Genomics [@zheng2017massively].
-This again involves some differences from the previous workflows to reflect some unique aspects of droplet-based data.
+However, it (again) involves some differences from the previous workflows to reflect some unique aspects of droplet-based data.
 
-```{r, echo=FALSE, results="hide"}
+Here, we describe a brief analysis of the peripheral blood mononuclear cell (PBMC) dataset from 10X Genomics [@zheng2017massively].
+The data are publicly available from the [10X Genomics website](https://support.10xgenomics.com/single-cell-gene-expression/datasets/2.1.0/pbmc4k), 
+from which we download the raw gene/barcode count matrices, i.e., before cell calling from the _CellRanger_ pipeline.
+
+```{r}
 all.urls <- "http://cf.10xgenomics.com/samples/cell-exp/2.1.0/pbmc4k/pbmc4k_raw_gene_bc_matrices.tar.gz"
 all.basenames <- basename(all.urls)
 all.modes <- c("wb")
@@ -36,6 +40,7 @@ for (x in seq_along(all.urls)) {
         download.file(all.urls[x], all.basenames[x], mode=all.modes[x])
     }
 }
+untar("pbmc4k_raw_gene_bc_matrices.tar.gz", exdir="pbmc4k")
 ```
 
 # Setting up the data
@@ -46,8 +51,6 @@ We load in the raw count matrix using the `read10xCounts()` function from the `r
 This will create a `SingleCellExperiment` object where each column corresponds to a cell barcode.
 
 ```{r}
-untar("pbmc4k_raw_gene_bc_matrices.tar.gz", exdir="pbmc4k")
-
 library(DropletUtils)
 fname <- "pbmc4k/raw_gene_bc_matrices/GRCh38"
 sce <- read10xCounts(fname, col.names=TRUE)
