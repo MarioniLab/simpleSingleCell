@@ -18,7 +18,8 @@ vignette: >
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}    
 output: 
-    BiocStyle::html_document
+  BiocStyle::html_document:
+    titlecaps: false
 bibliography: ref.bib
 ---
 
@@ -29,7 +30,18 @@ opts_chunk$set(error=FALSE, message=FALSE, warning=FALSE)
 opts_chunk$set(fig.asp=1)
 ```
 
-```{r, echo=FALSE, results='hide'}
+# Overview
+
+In this workflow, we use a relatively simple dataset [@lun2017assessing] to introduce most of the concepts of scRNA-seq data analysis.
+This dataset contains two plates of 416B cells (an immortalized mouse myeloid progenitor cell line), processed using the Smart-seq2 protocol [@picelli2014fulllength].
+A constant amount of spike-in RNA from the External RNA Controls Consortium (ERCC) was also added to each cell's lysate prior to library preparation.
+High-throughput sequencing was performed and the expression of each gene was quantified by counting the total number of reads mapped to its exonic regions.
+Similarly, the quantity of each spike-in transcript was measured by counting the number of reads mapped to the spike-in reference sequences.
+
+Counts for all genes/transcripts in each cell are available from ArrayExpress using the accession number [E-MTAB-5522](https://www.ebi.ac.uk/arrayexpress/experiments/E-MTAB-5522).
+We download both the count tables (in the "processed files") as well as the metadata file using the `download.file` function.
+
+```{r}
 all.urls <- c("https://www.ebi.ac.uk/arrayexpress/files/E-MTAB-5522/E-MTAB-5522.processed.1.zip",
               "https://www.ebi.ac.uk/arrayexpress/files/E-MTAB-5522/E-MTAB-5522.sdrf.txt")
 all.basenames <- basename(all.urls)
@@ -39,16 +51,8 @@ for (x in seq_along(all.urls)) {
         download.file(all.urls[x], all.basenames[x], mode=all.modes[x])
     }
 }
+unzip("E-MTAB-5522.processed.1.zip")
 ```
-
-# Overview
-
-In this workflow, we use a relatively simple dataset [@lun2017assessing] to introduce most of the concepts of scRNA-seq data analysis.
-This dataset contains two plates of 416B cells (an immortalized mouse myeloid progenitor cell line), processed using the Smart-seq2 protocol [@picelli2014fulllength].
-A constant amount of spike-in RNA from the External RNA Controls Consortium (ERCC) was also added to each cell's lysate prior to library preparation.
-High-throughput sequencing was performed and the expression of each gene was quantified by counting the total number of reads mapped to its exonic regions.
-Similarly, the quantity of each spike-in transcript was measured by counting the number of reads mapped to the spike-in reference sequences.
-Counts for all genes/transcripts in each cell were obtained from ArrayExpress using the accession number [E-MTAB-5522](https://www.ebi.ac.uk/arrayexpress/experiments/E-MTAB-5522).
 
 # Setting up the data
 
@@ -60,9 +64,6 @@ In each matrix, each row represents an endogenous gene or a spike-in transcript,
 Subsequently, the count in each entry of the matrix represents the number of reads mapped to a particular gene/transcript in a particular cell.
 
 ```{r}
-unzip("E-MTAB-5522.processed.1.zip")
-
-# Reading in the count tables for each of the two plates.
 plate1 <- read.delim("counts_Calero_20160113.tsv", 
     header=TRUE, row.names=1, check.names=FALSE)
 plate2 <- read.delim("counts_Calero_20160325.tsv", 
