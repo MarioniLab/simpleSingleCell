@@ -470,7 +470,7 @@ This is similar to the "graph abstraction" strategy proposed by @wolf2017graph.
 cluster.gr <- igraph::graph_from_adjacency_matrix(ratio, 
     mode="undirected", weighted=TRUE)
 cluster.gr <- igraph::simplify(cluster.gr)    
-plot(cluster.gr, edge.width=igraph::E(cluster.gr)$width*10)  
+plot(cluster.gr, edge.width=igraph::E(cluster.gr)$weight*10)  
 ```
 
 **Comments from Aaron:**
