@@ -18,7 +18,8 @@ vignette: >
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}    
 output: 
-    BiocStyle::html_document
+  BiocStyle::html_document:
+    titlecaps: false
 bibliography: ref.bib
 ---
 
@@ -29,10 +30,18 @@ opts_chunk$set(error=FALSE, message=FALSE, warning=FALSE)
 opts_chunk$set(fig.asp=1)
 ```
 
-```{r, echo=FALSE, results='hide'}
+# Overview
+
+In this workflow, we examine a heterogeneous dataset from a study of cell types in the mouse brain [@zeisel2015brain].
+This contains approximately 3000 cells of varying types such as oligodendrocytes, microglia and neurons.
+Individual cells were isolated using the Fluidigm C1 microfluidics system [@pollen2014lowcoverage] and library preparation was performed on each cell using a UMI-based protocol.
+After sequencing, expression was quantified by counting the number of UMIs mapped to each gene.
+Count data for all endogenous genes, mitochondrial genes and spike-in transcripts are available from http://linnarssonlab.org/cortex.
+
+```{r}
 all.urls <- c("https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt",
-"https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mito_17-Aug-2014.txt",
-"https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_spikes_17-Aug-2014.txt")
+              "https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mito_17-Aug-2014.txt",
+              "https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_spikes_17-Aug-2014.txt")
 all.basenames <- basename(all.urls)
 for (x in seq_along(all.urls)) { 
     if (!file.exists(all.basenames[x])) { 
@@ -40,14 +49,6 @@ for (x in seq_along(all.urls)) {
     }
 }
 ```
-
-# Overview
-
-In this workflow, we examine a heterogeneous dataset from a study of cell types in the mouse brain [@zeisel2015brain].
-This contains approximately 3000 cells of varying types such as oligodendrocytes, microglia and neurons.
-Individual cells were isolated using the Fluidigm C1 microfluidics system [@pollen2014lowcoverage] and library preparation was performed on each cell using a UMI-based protocol.
-After sequencing, expression was quantified by counting the number of UMIs mapped to each gene.
-Count data for all endogenous genes, mitochondrial genes and spike-in transcripts were obtained from http://linnarssonlab.org/cortex.
 
 # Setting up the data 
 
@@ -384,6 +385,8 @@ gc()
 
 # Clustering cells into putative subpopulations
 
+## Using graph-based clustering
+
 The reduced dimension coordinates are used to cluster cells into putative subpopulations.
 We do so by constructing a shared-nearest-neighbour graph [@xu2015identification], in which cells are the nodes and edges are formed between cells that share nearest neighbours.
 Clusters are then defined as highly connected communities of cells within this graph, using methods from the `r CRANpkg("igraph")` package.
@@ -394,28 +397,6 @@ snn.gr <- buildSNNGraph(sce, use.dimred="PCA")
 cluster.out <- igraph::cluster_walktrap(snn.gr)
 my.clusters <- cluster.out$membership
 table(my.clusters)
-```
-
-The modularity score provides a global measure of clustering performance for community detection methods.
-Briefly, it compares the number of within-cluster edges to the expected number under a null model of random edges.
-A high modularity score (approaching the maximum of 1) indicates that the detected clusters are enriched for internal edges, with relatively few edges between clusters.
-
-```{r}
-igraph::modularity(cluster.out)
-```
-
-We further investigate the clusters by examining the total weight of edges for each pair of clusters.
-For each pair, the observed total weight is compared to what is expected under a null model, similar to the modularity calculation.
-Most clusters contain more internal links than expected (Figure \@ref(fig:heatmodbrain)), while links between clusters are fewer than expected.
-This indicates that we successfully clustered cells into highly-connected communities.
-
-```{r heatmodbrain, fig.cap="Heatmap of the log~10~-ratio of the total weight between nodes in the same cluster or in different clusters, relative to the total weight expected under a null model of random links."}
-mod.out <- clusterModularity(snn.gr, my.clusters, get.values=TRUE)
-ratio <- log10(mod.out$observed/mod.out$expected + 1)
-
-library(pheatmap)
-pheatmap(ratio, cluster_rows=FALSE, cluster_cols=FALSE, 
-    color=colorRampPalette(c("white", "blue"))(100))
 ```
 
 We visualize the cluster assignments for all cells on the _t_-SNE plot in Figure \@ref(fig:tsneclusterbrain).
@@ -453,10 +434,51 @@ For simplicity, though, we will only use the broad clusters corresponding to cle
 We find that the Walktrap algorithm is usually a good default choice [@yang2016comparative], though users are encouraged to experiment with different algorithms.
 - Decreasing the number of neighbours `k` in `buildSNNGraph` will reduce the connectivity of the graph.
 This will generally result in the formation of smaller clusters [@xu2015identification], which may be desirable if greater resolution is required.
-- We do not use the silhouette coefficient to assess clustering for large datasets.
-This is because `cluster::silhouette` requires the construction of a distance matrix, which may not be feasible when many cells are involved.
 - Notice that we do not run `library(igraph)`, but instead use `igraph::` to extract methods from the package. 
 This is because `r CRANpkg("igraph")` contains a `normalize` method that will override its counterpart from `r Biocpkg("scater")`, resulting in some unusual bugs.
+
+## Evaluating graph-based clusters
+
+The modularity score provides a global measure of clustering performance for community detection methods.
+Briefly, it compares the number of within-cluster edges to the expected number under a null model of random edges.
+A high modularity score (approaching the maximum of 1) indicates that the detected clusters are enriched for internal edges, with relatively few edges between clusters.
+
+```{r}
+igraph::modularity(cluster.out)
+```
+
+We further investigate the clusters by examining the total weight of edges for each pair of clusters.
+For each pair, the observed total weight is compared to what is expected under a null model, similar to the modularity calculation.
+Most clusters contain more internal links than expected (Figure \@ref(fig:heatmodbrain)), while links between clusters are fewer than expected.
+This indicates that we successfully clustered cells into highly-connected communities.
+
+```{r heatmodbrain, fig.cap="Heatmap of the log~10~-ratio of the total weight between nodes in the same cluster or in different clusters, relative to the total weight expected under a null model of random links."}
+mod.out <- clusterModularity(snn.gr, my.clusters, get.values=TRUE)
+ratio <- mod.out$observed/mod.out$expected
+lratio <- log10(ratio + 1)
+
+library(pheatmap)
+pheatmap(lratio, cluster_rows=FALSE, cluster_cols=FALSE, 
+    color=colorRampPalette(c("white", "blue"))(100))
+```
+
+To summarize the relationships between clusters, we use the ratio of the observed and expected total weights to build a graph across clusters.
+The cluster-based graph can be visualized using a force-directed layout to identify "clusters of clusters" that are highly interconnected. 
+This is similar to the "graph abstraction" strategy proposed by @wolf2017graph.
+
+```{r graphbrain, fig.cap="Force-directed layout showing the relationships between clusters based on the ratio of observed to expected total weights between nodes in different clusters. The thickness of the edge between a pair of clusters is proportional to the corresponding ratio."}
+cluster.gr <- igraph::graph_from_adjacency_matrix(ratio, 
+    mode="undirected", weighted=TRUE)
+cluster.gr <- igraph::simplify(cluster.gr)    
+plot(cluster.gr, edge.width=igraph::E(cluster.gr)$width*10)  
+```
+
+**Comments from Aaron:**
+
+- We do not use the silhouette coefficient to assess clustering for large datasets.
+This is because `cluster::silhouette` requires the construction of a distance matrix, which may not be feasible when many cells are involved.
+- Technically, the modularity score is obtained by subtracting the observed from expected total weights. 
+We use the ratio instead as this is guaranteed to be positive and does not exhibit differences in magnitude due to differences in the number of cells in each cluster.
 
 # Detecting marker genes between subpopulations
 
