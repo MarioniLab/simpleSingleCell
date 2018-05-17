@@ -1,0 +1,12 @@
+*.html
+*.rds
+*.zip
+*.tsv.gz
+*.tsv
+*.txt.gz
+*.txt
+*.xls.gz
+*.xls
+*.xlsx
+*.tar.gz
+*.csv
