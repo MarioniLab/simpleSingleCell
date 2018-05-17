@@ -18,7 +18,8 @@ vignette: >
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}    
 output: 
-    BiocStyle::html_document
+  BiocStyle::html_document:
+    titlecaps: false
 bibliography: ref.bib
 ---
 
@@ -27,26 +28,6 @@ library(BiocStyle)
 library(knitr)
 opts_chunk$set(error=FALSE, message=FALSE, warning=FALSE)
 opts_chunk$set(fig.asp=1)
-```
-
-```{r, echo=FALSE, results='hide'}
-all.urls <- c("https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE61533&format=file&file=GSE61533%5FHTSEQ%5Fcount%5Fresults%2Exls%2Egz", 
-"https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE29087&format=file&file=GSE29087%5FL139%5Fexpression%5Ftab%2Etxt%2Egz",
-"http://www.ebi.ac.uk/teichmann-srv/espresso/static/counttable_es.csv", 
-"http://www.nature.com/nbt/journal/v33/n2/extref/nbt.3102-S7.xlsx")
-
-all.basenames <- basename(all.urls)
-all.basenames[1] <- "GSE61533_HTSEQ_count_results.xls.gz"
-all.basenames[2] <- "GSE29087_L139_expression_tab.txt.gz"
-
-all.modes <- rep("w", length(all.urls))
-all.modes[!grepl("(txt|csv)$", all.basenames)] <- "wb"
-
-for (x in seq_along(all.urls)) { 
-    if (!file.exists(all.basenames[x])) {
-        download.file(all.urls[x], all.basenames[x], mode=all.modes[x], cacheOK=FALSE)
-    }
-}
 ```
 
 # Overview
@@ -196,6 +177,15 @@ With non-DE normalization, an increase in RNA content will systematically increa
 
 We demonstrate the use of spike-in normalization on a dataset involving different cell types -- namely, mouse embryonic stem cells (mESCs) and mouse embryonic fibroblasts (MEFs) [@islam2011characterization].
 The count table was obtained from the NCBI Gene Expression Omnibus (GEO) as a supplementary file using the accession number [GSE29087](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE29087).
+
+```{r}
+islam.fname <- "GSE29087_L139_expression_tab.txt.gz"
+if (!file.exists(islam.fname)) {
+    download.file("https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE29087&format=file&file=GSE29087%5FL139%5Fexpression%5Ftab%2Etxt%2Egz",
+        islam.fname, mode="wb")
+}
+```
+
 We load the counts into R, using `colClasses` to speed up `read.table` by pre-defining the type of each column.
 We also specify the rows corresponding to spike-in transcripts.
 
@@ -292,14 +282,23 @@ This adds another level of statistical rigour to our previous analyses, in which
 
 To demonstrate, we use data from haematopoietic stem cells (HSCs) [@wilson2015combined], generated using the Smart-seq2 protocol [@picelli2014fulllength] with ERCC spike-ins.
 Counts were obtained from NCBI GEO as a supplementary file using the accession number [GSE61533](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE61533).
+
+```{r}
+wilson.fname <- "GSE61533_HTSEQ_count_results.xls.gz"
+if (!file.exists(wilson.fname)) {
+    download.file("https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE61533&format=file&file=GSE61533%5FHTSEQ%5Fcount%5Fresults%2Exls%2Egz", 
+        wilson.fname, mode="wb")
+}
+library(R.utils)
+gunzip(wilson.fname, remove=FALSE, overwrite=TRUE)
+```
+
 Our first task is to load the count matrix into memory.
 In this case, some work is required to retrieve the data from the Gzip-compressed Excel format.
 
 ```{r}
-library(R.utils)
-gunzip("GSE61533_HTSEQ_count_results.xls.gz", remove=FALSE, overwrite=TRUE)
 library(gdata)
-all.counts <- read.xls('GSE61533_HTSEQ_count_results.xls', sheet=1, header=TRUE)
+all.counts <- read.xls("GSE61533_HTSEQ_count_results.xls", sheet=1, header=TRUE)
 rownames(all.counts) <- all.counts$ID
 all.counts <- as.matrix(all.counts[,-1])
 ```
@@ -615,6 +614,15 @@ Cell cycle phase is usually uninteresting in studies focusing on other aspects o
 However, the effects of cell cycle on the expression profile can mask other effects and interfere with the interpretation of the results.
 This cannot be avoided by simply removing cell cycle marker genes, as the cell cycle can affect a substantial number of other transcripts [@buettner2015computational].
 Rather, more sophisticated strategies are required, one of which is demonstrated below using data from a study of T Helper 2 (T~H~2) cells [@mahata2014singlecell].
+
+```{r, echo=FALSE, results='hide'}
+all.urls <- "http://www.nature.com/nbt/journal/v33/n2/extref/nbt.3102-S7.xlsx"
+mahata.fname <- basename(all.urls)
+if (!file.exists(mahata.fname)) { 
+    download.file(all.urls, mahata.fname, mode="wb")
+}
+```
+
 @buettner2015computational have already applied quality control and normalized the data, so we can use them directly as log-expression values (accessible as Supplementary Data 1 of https://dx.doi.org/10.1038/nbt.3102).
 
 ```{r}
