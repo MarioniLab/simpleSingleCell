@@ -32,15 +32,11 @@ The data are publicly available from the [10X Genomics website](https://support.
 from which we download the raw gene/barcode count matrices, i.e., before cell calling from the _CellRanger_ pipeline.
 
 ```{r}
-all.urls <- "http://cf.10xgenomics.com/samples/cell-exp/2.1.0/pbmc4k/pbmc4k_raw_gene_bc_matrices.tar.gz"
-all.basenames <- basename(all.urls)
-all.modes <- c("wb")
-for (x in seq_along(all.urls)) { 
-    if (!file.exists(all.basenames[x])) {
-        download.file(all.urls[x], all.basenames[x], mode=all.modes[x])
-    }
-}
-untar("pbmc4k_raw_gene_bc_matrices.tar.gz", exdir="pbmc4k")
+library(BiocFileCache)
+bfc <- BiocFileCache("raw_data", ask = FALSE)
+raw.path <- bfcrpath(bfc, file.path("http://cf.10xgenomics.com/samples",
+    "cell-exp/2.1.0/pbmc4k/pbmc4k_raw_gene_bc_matrices.tar.gz"))
+untar(raw.path, exdir="pbmc4k")
 ```
 
 # Setting up the data

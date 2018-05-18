@@ -39,15 +39,16 @@ After sequencing, expression was quantified by counting the number of UMIs mappe
 Count data for all endogenous genes, mitochondrial genes and spike-in transcripts are available from http://linnarssonlab.org/cortex.
 
 ```{r}
-all.urls <- c("https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt",
-              "https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mito_17-Aug-2014.txt",
-              "https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_spikes_17-Aug-2014.txt")
-all.basenames <- basename(all.urls)
-for (x in seq_along(all.urls)) { 
-    if (!file.exists(all.basenames[x])) { 
-        download.file(all.urls[x], all.basenames[x])
-    }
-}
+library(BiocFileCache)
+bfc <- BiocFileCache("raw_data", ask = FALSE)
+base.url <- file.path("https://storage.googleapis.com",
+    "linnarsson-lab-www-blobs/blobs/cortex")
+mRNA.path <- bfcrpath(bfc, file.path(base.url, 
+    "expression_mRNA_17-Aug-2014.txt"))
+mito.path <- bfcrpath(bfc, file.path(base.url, 
+    "expression_mito_17-Aug-2014.txt"))
+spike.path <- bfcrpath(bfc, file.path(base.url, 
+    "expression_spikes_17-Aug-2014.txt"))
 ```
 
 # Setting up the data 
@@ -76,9 +77,9 @@ readFormat <- function(infile) {
 Using this function, we read in the counts for the endogenous genes, ERCC spike-in transcripts and mitochondrial genes.
 
 ```{r}
-endo.data <- readFormat("expression_mRNA_17-Aug-2014.txt")
-spike.data <- readFormat("expression_spikes_17-Aug-2014.txt")
-mito.data <- readFormat("expression_mito_17-Aug-2014.txt")
+endo.data <- readFormat(mRNA.path)
+spike.data <- readFormat(spike.path)
+mito.data <- readFormat(mito.path)
 ```
 
 We also need to rearrange the columns for the mitochondrial data, as the order is not consistent with the other files.

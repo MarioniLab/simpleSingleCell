@@ -39,19 +39,19 @@ High-throughput sequencing was performed and the expression of each gene was qua
 Similarly, the quantity of each spike-in transcript was measured by counting the number of reads mapped to the spike-in reference sequences.
 
 Counts for all genes/transcripts in each cell are available from ArrayExpress using the accession number [E-MTAB-5522](https://www.ebi.ac.uk/arrayexpress/experiments/E-MTAB-5522).
-We download both the count tables (in the "processed files") as well as the metadata file using the `download.file` function.
+We download both the count tables (in the "processed files") as well as the metadata file using the `r Biocpkg("BiocFileCache")` framework.
+This saves the files to a local cache (`raw_data`) and avoids re-downloading them if they are already present.
 
 ```{r}
-all.urls <- c("https://www.ebi.ac.uk/arrayexpress/files/E-MTAB-5522/E-MTAB-5522.processed.1.zip",
-              "https://www.ebi.ac.uk/arrayexpress/files/E-MTAB-5522/E-MTAB-5522.sdrf.txt")
-all.basenames <- basename(all.urls)
-all.modes <- c("wb", "w")
-for (x in seq_along(all.urls)) { 
-    if (!file.exists(all.basenames[x])) {
-        download.file(all.urls[x], all.basenames[x], mode=all.modes[x])
-    }
-}
-unzip("E-MTAB-5522.processed.1.zip")
+library(BiocFileCache)
+bfc <- BiocFileCache("raw_data", ask = FALSE)
+lun.zip <- bfcrpath(bfc, 
+    file.path("https://www.ebi.ac.uk/arrayexpress/files",
+        "E-MTAB-5522/E-MTAB-5522.processed.1.zip"))
+lun.sdrf <- bfcrpath(bfc, 
+    file.path("https://www.ebi.ac.uk/arrayexpress/files",
+        "E-MTAB-5522/E-MTAB-5522.sdrf.txt"))
+unzip(lun.zip)
 ```
 
 # Setting up the data
@@ -128,7 +128,7 @@ It is important to check that the rows of the metadata table are in the same ord
 Otherwise, incorrect metadata will be assigned to each cell.
 
 ```{r}
-metadata <- read.delim("E-MTAB-5522.sdrf.txt", check.names=FALSE, header=TRUE)
+metadata <- read.delim(lun.sdrf, check.names=FALSE, header=TRUE)
 m <- match(colnames(sce), metadata[["Source Name"]]) # Enforcing identical order.
 stopifnot(all(!is.na(m))) # Checking that nothing's missing.
 metadata <- metadata[m,]
