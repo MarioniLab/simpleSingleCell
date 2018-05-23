@@ -470,8 +470,7 @@ This is similar to the "graph abstraction" strategy proposed by @wolf2017graph.
 
 ```{r graphbrain, fig.cap="Force-directed layout showing the relationships between clusters based on the ratio of observed to expected total weights between nodes in different clusters. The thickness of the edge between a pair of clusters is proportional to the corresponding ratio."}
 cluster.gr <- igraph::graph_from_adjacency_matrix(ratio, 
-    mode="undirected", weighted=TRUE)
-cluster.gr <- igraph::simplify(cluster.gr)    
+    mode="undirected", weighted=TRUE, diag=FALSE)
 plot(cluster.gr, edge.width=igraph::E(cluster.gr)$weight*10)  
 ```
 
