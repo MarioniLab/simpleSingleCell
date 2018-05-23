@@ -1,5 +1,5 @@
 ---
-title: "Workflows for analyzing single-cell RNA-seq data with R/Bioconductor"
+title: Worflows for analyzing single-cell RNA-seq data with R/Bioconductor
 author: 
 - name: Aaron T. L. Lun
   affiliation: &CRUK Cancer Research UK Cambridge Institute, Li Ka Shing Centre, Robinson Way, Cambridge CB2 0RE, United Kingdom
@@ -14,7 +14,7 @@ author:
   - Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
 date: "`r Sys.Date()`"
 vignette: >
-  %\VignetteIndexEntry{Workflows for analyzing single-cell RNA-seq data with R/Bioconductor}
+  %\VignetteIndexEntry{Episode 1: analyzing scRNA-seq data with R/Bioconductor}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}    
 output: 

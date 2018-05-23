@@ -14,7 +14,7 @@ author:
   - Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
 date: "`r Sys.Date()`"
 vignette: >
-  %\VignetteIndexEntry{Analyzing scRNA-seq UMI count data}
+  %\VignetteIndexEntry{Episode 3: analyzing scRNA-seq UMI count data}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}    
 output: 
