@@ -191,7 +191,7 @@ We also specify the rows corresponding to spike-in transcripts.
 
 ```{r}
 library(SingleCellExperiment)
-counts <- read.table("GSE29087_L139_expression_tab.txt.gz", 
+counts <- read.table(islam.fname,
     colClasses=c(list("character", NULL, NULL, NULL, NULL, NULL, NULL), 
     rep("integer", 96)), skip=6, sep='\t', row.names=1)
 
@@ -287,7 +287,8 @@ Counts were obtained from NCBI GEO as a supplementary file using the accession n
 wilson.fname <- bfcrpath(bfc, file.path("ftp://ftp.ncbi.nlm.nih.gov/geo/series",
     "GSE61nnn/GSE61533/suppl/GSE61533_HTSEQ_count_results.xls.gz"))
 library(R.utils)
-gunzip(wilson.fname, remove=FALSE, overwrite=TRUE)
+wilson.name2 <- "GSE61533_HTSEQ_count_results.xls"
+gunzip(wilson.fname, destname=wilson.name2, remove=FALSE, overwrite=TRUE)
 ```
 
 Our first task is to load the count matrix into memory.
@@ -295,7 +296,7 @@ In this case, some work is required to retrieve the data from the Gzip-compresse
 
 ```{r}
 library(gdata)
-all.counts <- read.xls("GSE61533_HTSEQ_count_results.xls", sheet=1, header=TRUE)
+all.counts <- read.xls(wilson.name2, sheet=1, header=TRUE)
 rownames(all.counts) <- all.counts$ID
 all.counts <- as.matrix(all.counts[,-1])
 ```
@@ -621,7 +622,7 @@ mahata.fname <- bfcrpath(bfc,
 
 ```{r}
 library(readxl)
-incoming <- as.data.frame(read_excel("nbt.3102-S7.xlsx", sheet=1))
+incoming <- as.data.frame(read_excel(mahata.fname, sheet=1))
 rownames(incoming) <- incoming[,1]
 incoming <- incoming[,-1]
 incoming <- incoming[,!duplicated(colnames(incoming))] # Remove duplicated genes.
