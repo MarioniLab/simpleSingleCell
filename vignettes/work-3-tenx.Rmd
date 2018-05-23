@@ -158,7 +158,7 @@ hist(sce$pct_counts_Mito, breaks=20, col="grey80",
 	xlab="Proportion of reads in mitochondrial genes")
 ```
 
-Ideally, we would remove cells with low library sizes or total number of expressed features.
+Ideally, we would remove cells with low library sizes or total number of expressed features as described [previously](https://bioconductor.org/packages/release/workflows/vignettes/simpleSingleCell/inst/doc/work-1-reads.html#quality-control-on-the-cells).
 However, this would likely remove cell types with low RNA content, especially in a heterogeneous PBMC population with many different cell types.
 Thus, we use a more relaxed strategy and only remove cells with large mitochondrial proportions, using it as a proxy for cell damage.
 (Keep in mind that droplet-based datasets usually do not have spike-in RNA.)
@@ -168,6 +168,16 @@ high.mito <- isOutlier(sce$pct_counts_Mito, nmads=3, type="higher")
 sce <- sce[,!high.mito]
 summary(high.mito)
 ```
+
+**Comments from Aaron:**
+
+- The above justification for using a more relaxed filter is largely retrospective.
+In practice, we may not know _a priori_ the degree of population heterogeneity and whether it manifests in the QC metrics.
+We recommend performing the analysis first with a stringent QC filter, and then relaxing it based on further diagnostics (see [here](http://bioconductor.org/packages/devel/workflows/vignettes/simpleSingleCell/inst/doc/work-4-misc.html#checking-for-discarded-cell-types) for an example).
+This is motivated by the fact that low-quality cells can often yield misleading results, clustering separately from other cells; 
+containing genes that appear to be strongly "upregulated" due to the presence of very small size factors; 
+containing genes that are strongly downregulated due to the loss of RNA upon cell damage; 
+and distorting the characterization of population heterogeneity during variance estimation or PCA.
 
 # Examining gene expression
 
