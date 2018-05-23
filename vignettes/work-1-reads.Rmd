@@ -848,7 +848,7 @@ A more comprehensive investigation of the function of these markers can be perfo
 top.markers <- rownames(marker.set)[marker.set$Top <= 10]
 plotHeatmap(sce, features=top.markers, columns=order(sce$cluster), 
     colour_columns_by=c("cluster", "Plate", "Oncogene"),
-    cluster_cols=FALSE, zlim=c(-5, 5)) 
+    cluster_cols=FALSE, center=TRUE, symmetric=TRUE, zlim=c(-5, 5)) 
 ```
 
 Many of the markers in Figure \@ref(fig:heatmapmarker416b) are not uniquely up- or downregulated in the chosen cluster.

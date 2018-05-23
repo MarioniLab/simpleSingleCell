@@ -497,7 +497,8 @@ differing from closely related cells in cluster 9 by virtue of high *Synpr* expr
 ```{r heatmapmarkerbrain, fig.wide=TRUE, fig.cap="Heatmap of mean-centred and normalized log-expression values for the top set of markers for cluster 1 in the brain dataset. Column colours represent the cluster to which each cell is assigned, as indicated by the legend."}
 top.markers <- rownames(marker.set)[marker.set$Top <= 10]
 plotHeatmap(sce, features=top.markers, columns=order(my.clusters),
-    colour_columns_by="cluster", cluster_cols=FALSE, zlim=c(-5, 5))
+    colour_columns_by="cluster", cluster_cols=FALSE, 
+    center=TRUE, symmetric=TRUE, zlim=c(-5, 5))
 ```
 
 # Concluding remarks
