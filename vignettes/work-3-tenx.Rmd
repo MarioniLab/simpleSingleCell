@@ -11,6 +11,7 @@ vignette: >
 output: 
   BiocStyle::html_document:
     titlecaps: false
+    toc_float: true
 bibliography: ref.bib
 ---
 
