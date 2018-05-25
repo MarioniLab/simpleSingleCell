@@ -181,9 +181,36 @@ We also save the HSC dataset to file for later use, using `saveRDS()` as previou
 saveRDS(sce.hsc, file="hsc_data.rds")
 ```
 
-# Trend fitting when spike-ins are unavailable
+# Fine-tuning the mean-variance trend fit
 
-If spike-in RNA has not been added in appropriate quantities (or at all), an alternative approach is to fit the trend to the variance estimates of the endogenous genes.
+## Details of trend fitting parameters
+
+Fitting of the mean-variance trend with `trendVar()` is complicated by the small number of spike-in transcripts and the uneven distribution of their abundances.
+For low numbers of cells, these issues are exacerbated by the low precision of the variance estimates.
+Thus, some tuning of trend parameters such as `span` may be required to achieve a suitable fit - see `?trendVar` for more details.
+Setting `parametric=TRUE` is especially useful for modelling the expected wave-like shape of the mean-variance relationship.
+(This is not the default setting as it is not robust for arbitrary trend shapes.)
+
+The `trendVar` function will also automatically filter out low-abundance genes prior to trend fitting.
+This ensures that low-abundance genes do not interfere with the fit due to discreteness, which biases the estimate of variability of the variances around the trend;
+or due to the frequency of low-abundance genes, which reduces the sensitivity of span-based smoothing algorithms at higher abundances.
+The internal choice of filtering strategy involves a number of considerations:
+
+- Filtering uses the average of log-expression values rather than the (library size-adjusted) average count.
+The mean log-expression is independent of the variance estimate in a linear modelling framework [@bourgon2010independent], 
+which ensures that the filter does not introduce spurious trends in the variances at the filter boundary.
+- The filter threshold is specified with the `min.mean` argument in `trendVar`.
+We use the default threshold of 0.1 (`min.mean`) based on the appearance of discrete patterns in the variance estimates for simulated Poisson-distributed counts.
+Lower thresholds of 0.001-0.01 may be more suitable for very sparse data, e.g., from droplet-based protocols.
+- The filter used in `trendVar` is _not_ applied in `decomposeVar` by default.
+Retention of all genes ensures that weak biological signal from rare subpopulations is not discarded.
+To apply the filter in `decomposeVar`, users should set `subset.row=rowMeans(logcounts(sce)) > 0.1` in the function call.
+
+## When spike-ins are unavailable
+
+In some datasets, spike-in RNA may not have been added in appropriate quantities (or indeed at all).
+It may also be inappropriate to assume Poisson technical noise with `makeTechTrend()`, especially for read count data where amplification noise is non-negligible.
+In such cases, an alternative approach is to fit the trend to the variance estimates of the endogenous genes.
 This is done using the `use.spikes=FALSE` setting in `trendVar`, as shown below for the HSC dataset.
 
 ```{r}

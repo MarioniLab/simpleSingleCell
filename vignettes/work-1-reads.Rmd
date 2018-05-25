@@ -532,8 +532,6 @@ gc()
 
 # Modelling the technical noise in gene expression
 
-## Fitting a trend to the spike-in variances
-
 Variability in the observed expression values across genes can be driven by genuine biological heterogeneity or uninteresting technical noise. 
 To distinguish between these two possibiltiies, we need to model the technical component of the variance of the expression values for each gene.
 We do so using the set of spike-in transcripts, which were added in the same quantity to each cell.
@@ -572,34 +570,12 @@ chosen.genes <- order(var.out$bio, decreasing=TRUE)[1:10]
 plotExpression(sce, features=rownames(var.out)[chosen.genes]) + fontsize
 ```
 
-## Choosing the parameters of the trend fit
-
-In practice, trend fitting is complicated by the small number of spike-in transcripts and the uneven distribution of their abundances.
-For low numbers of cells, these issues are exacerbated by the low precision of the variance estimates.
-Thus, some tuning of trend parameters such as `span` may be required to achieve a suitable fit - see `?trendVar` for more details.
-Setting `parametric=TRUE` is especially useful for modelling the expected wave-like shape of the mean-variance relationship.
-(This is not the default setting as it is not robust for arbitrary trend shapes.)
-
-The `trendVar` function will also automatically filter out low-abundance genes prior to trend fitting.
-This ensures that low-abundance genes do not interfere with the fit due to discreteness, which biases the estimate of variability of the variances around the trend;
-or due to the frequency of low-abundance genes, which reduces the sensitivity of span-based smoothing algorithms at higher abundances.
-The internal choice of filtering strategy involves a number of considerations:
-
-- Filtering uses the average of log-expression values rather than the (library size-adjusted) average count.
-The mean log-expression is independent of the variance estimate in a linear modelling framework [@bourgon2010independent], 
-which ensures that the filter does not introduce spurious trends in the variances at the filter boundary.
-- The filter threshold is specified with the `min.mean` argument in `trendVar`.
-We use the default threshold of 0.1 (`min.mean`) based on the appearance of discrete patterns in the variance estimates for simulated Poisson-distributed counts.
-Lower thresholds of 0.001-0.01 may be more suitable for very sparse data, e.g., from droplet-based protocols.
-- The filter used in `trendVar` is _not_ applied in `decomposeVar` by default.
-Retention of all genes ensures that weak biological signal from rare subpopulations is not discarded.
-To apply the filter in `decomposeVar`, users should set `subset.row=rowMeans(logcounts(sce)) > 0.1` in the function call.
-
-Finally, users can set `use.spikes=FALSE` to fit a trend to the variances of the endogenous genes in the absence of spike-in transcripts.
-This requires some care in interpretation of the results, which will be discussed later.
-
 **Comments from Aaron:**
 
+- In practice, trend fitting is complicated by the small number of spike-in transcripts and the uneven distribution of their abundances.
+See [here](http://bioconductor.org/packages/devel/workflows/vignettes/simpleSingleCell/inst/doc/xtra-3-var.html#details-of-trend-fitting-parameters) for more details on how to refine the fit.
+- In the absence of spike-ins, users can set `use.spikes=FALSE` to fit a trend to the variances of the endogenous genes (see [here](http://bioconductor.org/packages/devel/workflows/vignettes/simpleSingleCell/inst/doc/xtra-3-var.html#when-spike-ins-are-unavailable)).
+Alternatively, we can create a trend based on the assumption of Poisson technical noise, as described [here](https://bioconductor.org/packages/release/workflows/vignettes/simpleSingleCell/inst/doc/work-3-tenx.html#modelling-the-mean-variance-trend).
 - Negative biological components are often obtained from `decomposeVar`. 
 These are intuitively meaningless as it is impossible for a gene to have total variance below technical noise.
 Nonetheless, such values occur due to imprecise estimation of the total variance, especially for low numbers of cells.
