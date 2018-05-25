@@ -174,10 +174,6 @@ summary(high.mito)
 - The above justification for using a more relaxed filter is largely retrospective.
 In practice, we may not know _a priori_ the degree of population heterogeneity and whether it manifests in the QC metrics.
 We recommend performing the analysis first with a stringent QC filter, and then relaxing it based on further diagnostics (see [here](http://bioconductor.org/packages/devel/workflows/vignettes/simpleSingleCell/inst/doc/work-4-misc.html#checking-for-discarded-cell-types) for an example).
-This is motivated by the fact that low-quality cells can often yield misleading results, clustering separately from other cells; 
-containing genes that appear to be strongly "upregulated" due to the presence of very small size factors; 
-containing genes that are strongly downregulated due to the loss of RNA upon cell damage; 
-and distorting the characterization of population heterogeneity during variance estimation or PCA.
 
 # Examining gene expression
 

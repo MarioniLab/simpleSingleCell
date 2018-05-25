@@ -221,6 +221,7 @@ head(colnames(colData(sce)), 10)
 
 The distributions of these metrics are shown in Figure \@ref(fig:qcplot416b), stratified by oncogene induction status and plate of origin.
 The aim is to remove putative low-quality cells that have low library sizes, low numbers of expressed features, and high spike-in (or mitochondrial) proportions.
+Such cells can interfere with downstream analyses, e.g., by forming distinct clusters that complicate interpretation of the results.
 
 ```{r qcplot416b, fig.wide=TRUE, fig.cap="Distributions of various QC metrics for all cells in the 416B dataset. This includes the library sizes, number of expressed genes, and proportion of reads mapped to spike-in transcripts or mitochondrial genes."}
 sce$PlateOnco <- paste0(sce$Oncogene, ".", sce$Plate)
