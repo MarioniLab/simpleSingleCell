@@ -290,7 +290,8 @@ This is recapitulated with a _t_-SNE plot (Figure \@ref(fig:tsneplot-init)).
 Again, note that we set `use_dimred=` to perform _t_-SNE on the denoised expression matrix.
 
 ```{r tsneplot-init, fig.cap="_t_-SNE plots constructed from the denoised PCs of the PBMC dataset. Each point represents a cell and is coloured according to the log-number of expressed features."}
-sce <- runTSNE(sce, use_dimred="PCA", perplexity=30, rand_seed=100)
+set.seed(100)
+sce <- runTSNE(sce, use_dimred="PCA", perplexity=30)
 plotTSNE(sce, colour_by="log10_total_features_by_counts")
 ```
 

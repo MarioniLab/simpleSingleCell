@@ -364,7 +364,8 @@ This is consistent with the presence of multiple cell types in the diverse brain
 We increase the perplexity to favour visualization of the overall structure at the expense of local scale.
 
 ```{r tsneplotbrain, fig.cap="_t_-SNE plots constructed from the denoised PCs of the brain dataset. Each point represents a cell and is coloured according to its expression of _Neurod6_ (left) or _Mog_ (right).", fig.width=12, fig.asp=0.5}
-sce <- runTSNE(sce, use_dimred="PCA", perplexity=50, rand_seed=1000)
+set.seed(1000)
+sce <- runTSNE(sce, use_dimred="PCA", perplexity=50)
 tsne1 <- plotTSNE(sce, colour_by="Neurod6") + fontsize
 tsne2 <- plotTSNE(sce, colour_by="Mog") + fontsize
 multiplot(tsne1, tsne2, cols=2)

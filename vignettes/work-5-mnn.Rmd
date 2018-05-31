@@ -571,10 +571,14 @@ After correction, more intermingling between batches is observed, consistent wit
 Note that the E-MTAB-5601 dataset still displays some separation, which is probably due to the fact that the other batches are UMI datasets.
 
 ```{r tsne-batch, fig.width=10, fig.asp=0.6, fig.cap="t-SNE plots of the pancreas datasets, before and after MNN correction. Each point represents a cell and is coloured by the batch of origin."}
-osce <- runTSNE(sce, exprs_values="original", rand_seed=100)
+set.seed(100)
+osce <- runTSNE(sce, exprs_values="original")
 ot <- plotTSNE(osce, colour_by="Batch") + ggtitle("Original")
-csce <- runTSNE(sce, exprs_values="corrected", rand_seed=100)
+
+set.seed(100)
+csce <- runTSNE(sce, exprs_values="corrected")
 ct <- plotTSNE(csce, colour_by="Batch") + ggtitle("Corrected")
+
 multiplot(ot, ct, cols=2)
 ```
 
