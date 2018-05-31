@@ -267,6 +267,7 @@ summary(discard)
 We compute size factors for the endogenous genes and spike-in transcripts, and use them to compute log-normalized expression values.
 
 ```{r}
+set.seed(1000)
 clusters <- quickCluster(sce.gse85241, min.mean=0.1, method="igraph")
 table(clusters)
 sce.gse85241 <- computeSumFactors(sce.gse85241, min.mean=0.1, clusters=clusters)
@@ -413,6 +414,7 @@ We compute size factors for the endogenous genes and spike-in transcripts.
 Recall that the Smart-seq2 protocol generates read count data, so we use a more stringent filter of `min.mean=1` to remove low-abundance genes.
 
 ```{r}
+set.seed(1000)
 clusters <- quickCluster(sce.e5601, min.mean=1, method="igraph")
 table(clusters)
 sce.e5601 <- computeSumFactors(sce.e5601, min.mean=1, clusters=clusters)

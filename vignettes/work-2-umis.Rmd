@@ -258,6 +258,7 @@ This improves normalization accuracy by reducing the number of DE genes between 
 Scaling is then performed to ensure that size factors of cells in different clusters are comparable.
 
 ```{r}
+set.seed(1000)
 clusters <- quickCluster(sce, min.mean=0.1, method="igraph")
 sce <- computeSumFactors(sce, cluster=clusters, min.mean=0.1)
 summary(sizeFactors(sce))
@@ -302,7 +303,8 @@ The function is robust to a moderate level of differential expression between ce
 - `quickCluster` uses distances based on Spearman's rank correlation for clustering.
 This ensures that scaling biases in the counts do not affect clustering, but yields very coarse clusters and is not recommended for biological interpretation.
 - For large datasets, using `method="igraph"` in `quickCluster` will speed up clustering. 
-This uses a graph-based clustering algorithm - see `?buildSNNGraph` for more details.
+This uses a graph-based clustering algorithm with a randomization step, hence the need for `set.seed()`.
+See `?buildSNNGraph` for more details.
 
 # Modelling and removing technical noise
 
@@ -342,8 +344,10 @@ plotExpression(sce, rownames(var.out)[chosen.genes],
 Finally, we use PCA to denoise the expression values, yielding a set of coordinates for each cell where the technical noise has been removed.
 Setting `approximate=TRUE` in `denoisePCA` will perform an approximate singular value decomposition, using methods from the `r CRANpkg("irlba")` package.
 This is much faster than the exact algorithm on large datasets without much loss of accuracy.
+The approximate algorithm involves a random initialization so we set the seed to guarantee reproducibility.
 
 ```{r}
+set.seed(1000)
 sce <- denoisePCA(sce, technical=var.fit$trend, approximate=TRUE)
 ncol(reducedDim(sce, "PCA"))
 ```

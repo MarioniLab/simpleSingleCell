@@ -194,14 +194,21 @@ plotHighestExprs(sce)
 
 # Normalizing for cell-specific biases
 
-We apply the deconvolution method to compute size factors for all cells [@lun2016pooling].
-We perform some pre-clustering to break up obvious clusters and avoid pooling cells that are very different.
+We perform some pre-clustering to break up obvious clusters, as described [previously](http://bioconductor.org/packages/devel/workflows/vignettes/simpleSingleCell/inst/doc/work-2-umis.html#normalization-of-cell-specific-biases).
+Recall that we need to set the seed when using `method="igraph"`.
 
 ```{r}
 library(scran)
+set.seed(1000)
 clusters <- quickCluster(sce, method="igraph", min.mean=0.1,
     irlba.args=list(maxit=1000)) # for convergence.
 table(clusters)
+```
+
+We apply the deconvolution method to compute size factors for all cells [@lun2016pooling].
+The specification of `cluster=` ensures that we do not pool cells that are very different.
+
+```{r}
 sce <- computeSumFactors(sce, min.mean=0.1, cluster=clusters)
 summary(sizeFactors(sce))
 ```
@@ -212,7 +219,7 @@ The size factors are well correlated against the library sizes (Figure \@ref(fig
 plot(sce$total_counts, sizeFactors(sce), log="xy")
 ```
 
-Finally, we compute normalized log-expresion values.
+Finally, we compute normalized log-expression values.
 There is no need to call `computeSpikeFactors()` here, as there are no spike-in transcripts available.
 
 ```{r}
@@ -258,10 +265,12 @@ plotExpression(sce, features=rownames(top.dec)[1:10])
 
 # Dimensionality reduction
 
-We use the `denoisePCA()` function with the assumed Poisson technical trend, to choose the number of dimensions to retain after PCA.
+We use the `denoisePCA()` function with the assumed Poisson technical trend to choose the number of dimensions to retain after PCA.
+Recall that this involves a random initialization when `approximate=TRUE`, which motivates the call to `set.seed()` to obtain reproducible results.
 
 ```{r}
-sce <- denoisePCA(sce, technical=new.trend, approx=TRUE)
+set.seed(1000)
+sce <- denoisePCA(sce, technical=new.trend, approximate=TRUE)
 ncol(reducedDim(sce, "PCA"))
 ```
 
