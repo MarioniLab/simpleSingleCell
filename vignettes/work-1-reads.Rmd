@@ -649,7 +649,9 @@ rm(sce2)
 gc()
 ```
 
-# Data exploration with dimensionality reduction 
+# Visualizing data in low-dimensional space
+
+## With PCA
 
 We visualize the relationships between cells by constructing pairwise PCA plots for the first three components (Figure \@ref(fig:pcaplot416b-onco)).
 Cells with similar expression profiles should be located close together in the plot, while dissimilar cells should be far apart.
@@ -668,24 +670,54 @@ plotReducedDim(sce, use_dimred="PCA", ncomponents=3,
     colour_by="Plate") + fontsize
 ```
 
+Note that `plotReducedDim()` will use the PCA results that were already stored in `sce` by `denoisePCA()`.
+This allows us to rapidly generate new plots with different aesthetics, without repeating the entire PCA computation. 
+Similarly, `plotPCA()` will use existing results if they are available in the `SingleCellExperiment`, and will recalculate them otherwise.
+Users should set `rerun=TRUE` to forcibly recalculate the PCs in the presence of existing results.
+
+__Comments from Aaron:__
+
+- For each visualization method, additional cell-specific information can be incorporated into the size or shape of each point.
+This is done using the `size_by=` and `shape_by=` arguments in most plotting functions.
+- More components can be shown but these are usually less informative as they explain less of the variance. 
+They are also often more difficult to interpret as they are defined to be orthogonal to earlier PCs (and thus dependent on what is detected in those PCs).
+
+## With _t_-SNE
+
 Another widely used approach for dimensionality reduction is the _t_-stochastic neighbour embedding (_t_-SNE) method [@van2008visualizing].
 _t_-SNE tends to work better than PCA for separating cells in more diverse populations.
 This is because the former can directly capture non-linear relationships in high-dimensional space, whereas the latter must represent them on linear axes.
 However, this improvement comes at the cost of more computational effort and requires the user to consider parameters such as the random seed and perplexity (see comments).
-We demonstrate the generation of _t_-SNE plots in Figure \@ref(fig:tsneplot416b), using the low-rank approximation of the data to take advantage of the denoising step.
+
+We demonstrate the generation of _t_-SNE plots in Figure \@ref(fig:tsneplot416b) using the `plotTSNE()` function.
+We set `use_dimred="PCA"` to perform the _t_-SNE on the low-rank approximation of the data, allowing the algorithm to take advantage of the previous denoising step.
 
 ```{r tsneplot416b, fig.cap="_t_-SNE plots constructed from the denoised PCs in the 416B dataset, using a range of perplexity values. Each point represents a cell, coloured according to its oncogene induction status. Bars represent the coordinates of the cells on each axis.", fig.width=15, fig.asp=0.5}
-run_args <- list(rand_seed=100, use_dimred="PCA")
-out5 <- plotTSNE(sce, run_args=c(run_args, perplexity=5),
+set.seed(100)
+out5 <- plotTSNE(sce, run_args=list(use_dimred="PCA", perplexity=5),
     colour_by="Oncogene") + fontsize + ggtitle("Perplexity = 5")
 
-out10 <- plotTSNE(sce, run_args=c(run_args, perplexity=10),
+out10 <- plotTSNE(sce, run_args=list(use_dimred="PCA", perplexity=10),
     colour_by="Oncogene") + fontsize + ggtitle("Perplexity = 10")
 
-out20 <- plotTSNE(sce, run_args=c(run_args, perplexity=20),
+out20 <- plotTSNE(sce, run_args=list(use_dimred="PCA", perplexity=20),
     colour_by="Oncogene") + fontsize + ggtitle("Perplexity = 20")
 
 multiplot(out5, out10, out20, cols=3)
+```
+
+_t_-SNE is a stochastic method, so users should run the algorithm several times to ensure that the results are representative.
+Scripts should set a seed (via the `set.seed()` command) to ensure that the chosen results are reproducible.
+It is also advisable to test different settings of the "perplexity" parameter as this will affect the distribution of points in the low-dimensional space.
+
+Here, we call `runTSNE()` with a perplexity of 20 to store the _t_-SNE results inside our `SingleCellExperiment` object.
+This avoids repeating the calculations whenever we want to create a new plot with `plotTSNE()`, as the stored results will be used instead.
+Again, users can set `rerun=TRUE` to force recalculation in the presence of stored results.
+
+```{r}
+set.seed(100)
+sce <- runTSNE(sce, use_dimred="PCA", perplexity=20)
+reducedDimNames(sce)
 ```
 
 There are many other dimensionality reduction techniques that we do not consider here but could also be used, e.g., multidimensional scaling, diffusion maps.
@@ -693,14 +725,8 @@ These have their own advantages and disadvantages -- for example, diffusion maps
 
 __Comments from Aaron:__
 
-- For each visualization method, additional cell-specific information can be incorporated into the colour, size or shape of each point.
-Here, cells are coloured by the total number of expressed features, which is strongly correlated with the first PC.
-We will discuss this in more detail in the next section.
-- For PCA, more components can be shown but these are usually less informative (and more difficult to interpret) as they explain less of the variance. 
-- _t_-SNE is a stochastic method, so users should run the algorithm several times to ensure that the results are representative.
-Scripts should set a seed (via the `rand_seed` argument) to ensure that the chosen results are reproducible.
-It is also advisable to test different settings of the "perplexity" parameter as this will affect the distribution of points in the low-dimensional space.
-A good guide on how to interpret _t_-SNE plots can be found at http://distill.pub/2016/misread-tsne/.
+- A good guide on how to interpret _t_-SNE plots can be found at http://distill.pub/2016/misread-tsne/.
+This demonstrates how distances between clusters in the 2-dimensional embedding have little meaning, as does the apparent "size" (i.e., spread) of the clusters.
 
 # Clustering cells into putative subpopulations
 
@@ -741,8 +767,7 @@ Adjacent cells are generally assigned to the same cluster, indicating that the c
 
 ```{r tsnecluster416b, fig.cap="_t_-SNE plot of the denoised PCs of the 416B dataset. Each point represents a cell and is coloured according to the cluster identity to which it was assigned."}
 sce$cluster <- factor(my.clusters)
-plotTSNE(sce, run_args=list(use_dimred="PCA", perplexity=20, 
-    rand_seed=200), colour_by="cluster") + fontsize
+plotTSNE(sce, colour_by="cluster") + fontsize
 ```
 
 We check the separatedness of the clusters using the silhouette width (Figure \@ref(fig:silhouette416b)).
