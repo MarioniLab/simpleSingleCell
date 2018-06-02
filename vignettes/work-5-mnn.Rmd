@@ -34,7 +34,7 @@ Batch effects are problematic as they can be major drivers of heterogeneity in t
 Computational correction of these effects is critical for eliminating batch-to-batch variation, allowing data across multiple batches to be combined for valid downstream analysis.
 However, existing methods such as `removeBatchEffect()` [@ritchie2015limma] assume that the composition of cell populations are either known or the same across batches.
 This workflow describes the application of an alternative strategy for batch correction based on the detection of mutual nearest neighbours (MNNs) [@haghverdi2018batch].
-The `mnnCorreect()` approach does not rely on pre-defined or equal population compositions across batches, only requiring that a subset of the population be shared between batches.
+The `mnnCorrect()` approach does not rely on pre-defined or equal population compositions across batches, only requiring that a subset of the population be shared between batches.
 We demonstrate its use on three human pancreas scRNA-seq datasets from different groups and using different protocols.
 
 # Processing the different datasets
@@ -131,7 +131,8 @@ This is done with pre-clustering through `quickCluster()` to avoid pooling toget
 
 ```{r}
 library(scran)
-clusters <- quickCluster(sce.gse81076, min.mean=0.1)
+set.seed(1000)    
+clusters <- quickCluster(sce.gse81076, method="igraph", min.mean=0.1)
 table(clusters)
 sce.gse81076 <- computeSumFactors(sce.gse81076, min.mean=0.1, clusters=clusters)
 summary(sizeFactors(sce.gse81076))
@@ -162,9 +163,10 @@ while the variances shown are averaged across blocks and not robust to outliers.
 block <- paste0(sce.gse81076$Plate, "_", sce.gse81076$Donor)
 fit <- trendVar(sce.gse81076, block=block, parametric=TRUE) 
 dec <- decomposeVar(sce.gse81076, fit)
+
 plot(dec$mean, dec$total, xlab="Mean log-expression", 
 	ylab="Variance of log-expression", pch=16)
-OBis.spike <- isSpike(sce.gse81076)
+is.spike <- isSpike(sce.gse81076)
 points(dec$mean[is.spike], dec$total[is.spike], col="red", pch=16)
 curve(fit$trend(x), col="dodgerblue", add=TRUE)
 ```
@@ -627,6 +629,15 @@ However, this assumes that the batch effect is constant for all clusters and/or 
 This assumption can be eliminated with an interaction model allowing for cluster-specific batch effects.
 - Users should set `cos.norm.in=FALSE` and `cos.norm.out=FALSE` when supplying `mnnCorrect()` with MNN-corrected values.
 This ensures that the cosine normalization is only applied once, during the first round of MNN correction.
+
+# Concluding remarks
+
+All software packages used in this workflow are publicly available from the Comprehensive R Archive Network (https://cran.r-project.org) or the Bioconductor project (http://bioconductor.org).
+The specific version numbers of the packages used are shown below, along with the version of the R installation.
+
+```{r}
+sessionInfo()
+```
 
 # References
 
