@@ -697,9 +697,11 @@ set.seed(100)
 out5 <- plotTSNE(sce, run_args=list(use_dimred="PCA", perplexity=5),
     colour_by="Oncogene") + fontsize + ggtitle("Perplexity = 5")
 
+set.seed(100)
 out10 <- plotTSNE(sce, run_args=list(use_dimred="PCA", perplexity=10),
     colour_by="Oncogene") + fontsize + ggtitle("Perplexity = 10")
 
+set.seed(100)
 out20 <- plotTSNE(sce, run_args=list(use_dimred="PCA", perplexity=20),
     colour_by="Oncogene") + fontsize + ggtitle("Perplexity = 20")
 
