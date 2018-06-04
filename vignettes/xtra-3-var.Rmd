@@ -109,7 +109,7 @@ sce.hsc <- sce.hsc[to.keep,]
 summary(to.keep)
 ```
 
-We apply the deconvolution method [@lun206pooling] to compute size factors for the endogenous genes [@lun2016pooling].
+We apply the deconvolution method [@lun2016pooling] to compute size factors for the endogenous genes [@lun2016pooling].
 Separate size factors for the spike-in transcripts are also calculated, as previously discussed.
 We then calculate log-transformed normalized expression values for further use.
 
@@ -221,7 +221,7 @@ var.out.nospike <- decomposeVar(sce.hsc, var.fit.nospike)
 
 The simplest interpretation of the results assumes that the majority of genes are not variably expressed.
 This means that the technical component dominates the total variance for most genes, such that the fitted trend can be treated as an estimate of the technical component.
-In Figure 11, the trend passes through or close to most of the spike-in variances, indicating that our assumption is valid.
+In Figure \@ref(fig:hvgplot416b2), the trend passes through or close to most of the spike-in variances, indicating that our assumption is valid.
 
 ```{r hvgplot416b2, fig.cap="Variance of normalized log-expression values for each gene in the 416B dataset, plotted against the mean log-expression. The blue line represents the mean-dependent trend fitted to the variances of the endogenous genes (black), with spike-in transcripts shown in red."}
 plot(var.out.nospike$mean, var.out.nospike$total, pch=16, cex=0.6, 
