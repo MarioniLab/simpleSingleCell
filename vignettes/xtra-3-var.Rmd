@@ -206,6 +206,16 @@ Lower thresholds of 0.001-0.01 may be more suitable for very sparse data, e.g., 
 Retention of all genes ensures that weak biological signal from rare subpopulations is not discarded.
 To apply the filter in `decomposeVar`, users should set `subset.row=rowMeans(logcounts(sce)) > 0.1` in the function call.
 
+**Comments from Aaron:**
+
+- On occasion, users may observe a warning from `trendVar()` about the lack of centering in the size factors.
+Recall that the trend is fitted to the mean and variances of the spike-in transcripts, and the technical component for each _endogenous_ gene is estimated by interpolation.
+This assumes that an endogenous gene is comparable to a spike-in transcript of the same abundance.
+In particular, we assume that variation is primarily driven by the magnitude of the counts, based on the well-known mean-variance relationships in count models.
+Thus, we need to ensure that similarities in the average counts are preserved in the normalized expression values.
+This is achieved by centering the gene- and spike-in-based size factors in `normalize()`, such that features with similar average counts will also have similar normalized abundances.
+However, if the `SingleCellExperiment` object was manipulated (e.g., subsetted) _after_ `normalize()` and _before_ `trendVar()`, centering may not be preserved - hence the warning. 
+
 ## When spike-ins are unavailable
 
 In some datasets, spike-in RNA may not have been added in appropriate quantities (or indeed at all).
@@ -243,9 +253,9 @@ Any gene with an increase in its variance is _relatively_ highly variable and ca
 Our previous analysis of the 416B dataset specified `block=` in `trendVar()` to ensure that systematic differences between plates do not inflate the variance.
 This involves estimating the mean and variance of the log-expression _separately_ in each plate,
 followed by fitting a single trend to the plate-specific means and variances of all spike-in transcripts.
-In doing so, we implicitly assume that the trend is the same between plates, which is fairly reasonable for this dataset (Figure \@ref(fig:trendplotblock-416b)).
+In doing so, we implicitly assume that the trend is the same between plates, which is reasonable for this dataset (Figure \@ref(fig:trendplotblock-416b)).
 
-```{r trendplotblock-416b, fig.cap="Plate-specific variance estimates for all spike-in transcripts in the 416B dataset, plotted against the plate-specific means. Each point represents a spike-in transcript, numbered by the plate from which the values were estimated."}
+```{r trendplotblock-416b, fig.cap="Plate-specific variance estimates for all spike-in transcripts in the 416B dataset, plotted against the plate-specific means. Each point represents a spike-in transcript, numbered by the plate from which the values were estimated. The red line denotes the fitted mean-variance trend."}
 # Loading the saved object.
 sce.416B <- readRDS("416B_data.rds") 
 
@@ -253,23 +263,28 @@ sce.416B <- readRDS("416B_data.rds")
 var.fit <- trendVar(sce.416B, parametric=TRUE, block=sce.416B$Plate,
     loess.args=list(span=0.3))
 
-matplot(var.fit$means, var.fit$vars, col=c("darkorange", "forestgreen"))
+matplot(var.fit$means, var.fit$vars, col=c("darkorange", "forestgreen"),
+    xlab="Mean log-expression", ylab="Variance of log-expression")
+curve(var.fit$trend(x), add=TRUE, col="red")
 ```
 
-The use of `block=` also assumes that the endogenous genes have comparable abundances between the two plates.
-This is most easily examined by comparing the distribution of size factors for the endogenous genes across the plates.
-Similar size factor distributions in Figure \@ref(fig:sizefacplot-416b) indicate that the coverage of most genes is not systematically different between plates.
+The use of `block=` also assumes that the average size factor within each plate is close to unity for both endogenous genes and spike-in transcripts.
+This ensures that scaling normalization preserves the magnitude of the counts, allowing genes of the same average abundance to be compared within and across plates.
+Here, the distributions of size factors exhibit only modest deviations from unity in the averages for the endogenous genes and spike-in transcripts (Figure \@ref(fig:sizefacplot-416b)), indicating that our assumption is again reasonable.
 
-```{r sizefacplot-416b, fig.cap="Plate-specific distribution of the size factors for endogenous genes."}
+```{r sizefacplot-416b, fig.width=10, fig.asp=0.5, fig.cap="Plate-specific distribution of the size factors for endogenous genes (left) and spike-in transcripts (right)."}
 tmp.416B <- sce.416B
 tmp.416B$log_size_factor <- log(sizeFactors(sce.416B))
-plotColData(tmp.416B, x="Plate", y="log_size_factor")
+tmp.416B$log_size_factor_ERCC <- log(sizeFactors(sce.416B, "ERCC"))
+p1 <- plotColData(tmp.416B, x="Plate", y="log_size_factor")
+p2 <- plotColData(tmp.416B, x="Plate", y="log_size_factor_ERCC")
+multiplot(p1, p2, cols=2)
 ```
 
-However, these assumptions may not hold for other datasets.
-For example, if more spike-in RNA is added in a particular batch, the technical noise (and thus the trend) will decrease due to increased coverage.
-The mean log-expression of the spike-ins would also shift relative to the endogenous genes in that batch.
-The use of a single trend would subsequently be inappropriate, resulting in inaccurate estimates of the technical component for each gene.
+The most obvious violation of the above assumption occurs when more spike-in RNA is added in a particular batch.
+Spike-in size factors would then be systematically larger than unity in that batch, meaning that average abundances after normalization would not be comparable between spike-in transcripts and endogenous genes.
+This would compromise the accuracy of estimation of the technical component by interpolation from the trend.
+More generally, batches that are processed separately may not exhibit to the same technical variation, such that the use of a single trend would be inappropriate.
 
 ## Fitting batch-specific trends
 
