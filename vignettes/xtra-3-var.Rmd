@@ -294,7 +294,7 @@ We demonstrate this approach by treating each plate in the 416B dataset as a dif
 This yields plate-specific estimates of the biological and technical components for each gene.
 
 ```{r}
-sce.416B.2 <- normalize(sce.416B, size_factor_grouping=sce.416B$Plate)
+sce.416B.2 <- multiBlockNorm(sce.416B, sce.416B$Plate)
 comb.out <- multiBlockVar(sce.416B.2, block=sce.416B.2$Plate,
     trend.args=list(parametric=TRUE, loess.args=list(span=0.4)))
 ```
@@ -327,12 +327,13 @@ We recommend using `block=` as the default unless there is clear evidence for di
 
 **Comments from Aaron:**
 
-- We run `normalize()` with `size_factor_grouping=` to centre the size factors within each level of the blocking factor.
-This adjusts the size factors across cells in each batch so that the mean is equal to 1, for both the spike-in and gene-based sets of size factors. 
+- We run `multiBlockNorm()` to adjust the size factors within each level of the blocking factor.
+This ensures that the mean of the spike-in size factors across cells in each batch is equal to that of the gene-based size factors. 
 Log-normalized expression values are then recalculated using these centred size factors.
 This procedure ensures that the average abundances of the spike-in transcripts are comparable to the endogenous genes,
 avoiding problems due to differences in the quantity of spike-in RNA between batches.
-Otherwise, if the globally-centred size factors were used, there would be a systematic difference in the scaling of spike-in transcripts compared to endogenous genes.
+Otherwise, if the globally-centred size factors (from `normalize()`) were used, 
+there would be a systematic difference in the scaling of spike-in transcripts compared to endogenous genes in batches with more or less spike-in RNA than the dataset average.
 The fitted trend would then be shifted along the x-axis and fail to accurately capture the technical component for each gene.
 
 ## Using the `design=` argument
