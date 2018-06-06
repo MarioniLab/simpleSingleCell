@@ -298,10 +298,14 @@ gc()
 
 __Comments from Aaron:__
 
-- Only a rough clustering is required to avoid pooling together very different cell types in `computeSumFactors`.
-The function is robust to a moderate level of differential expression between cells in the same cluster.
+- Only a rough clustering is required to avoid pooling together very different cell types in `computeSumFactors()`.
+This reduces the chance of violating the non-DE assumption that is made during any gene-based scaling normalization.
+We stress that there is no need for precise clustering at this step, as we will not be interpreting these clusters at all.
+Our normalization strategy is also robust to a moderate level of differential expression between cells in the same cluster, so careful definition of subclusters is not required.
+We do ask that there are sufficient cells in each cluster for pooling, which can be guaranteed with the `min.size=` argument in `quickCluster()`.
 - `quickCluster` uses distances based on Spearman's rank correlation for clustering.
 This ensures that scaling biases in the counts do not affect clustering, but yields very coarse clusters and is not recommended for biological interpretation.
+However, for the purposes of breaking up distinct cell types, this is more than sufficient.
 - For large datasets, using `method="igraph"` in `quickCluster` will speed up clustering. 
 This uses a graph-based clustering algorithm with a randomization step, hence the need for `set.seed()`.
 See `?buildSNNGraph` for more details.
