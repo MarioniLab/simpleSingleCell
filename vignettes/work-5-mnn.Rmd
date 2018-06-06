@@ -7,7 +7,7 @@ author:
   affiliation: Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
 date: "`r Sys.Date()`"
 vignette: >
-  %\VignetteIndexEntry{Episode 6: correcting batch effects in scRNA-seq data}
+  %\VignetteIndexEntry{Episode 5: correcting batch effects in scRNA-seq data}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}    
 output: 
