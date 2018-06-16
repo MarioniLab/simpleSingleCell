@@ -226,6 +226,17 @@ There is no need to call `computeSpikeFactors()` here, as there are no spike-in 
 sce <- normalize(sce)
 ```
 
+**Comments from Aaron:**
+
+- Larger droplet-based datasets will often be processed in separate batches or runs.
+In such cases, we can set `block=` in `quickCluster()` to cluster cells within each batch or run.
+This reduces computational work considerably without compromising performance, provided that the clusters within each batch are sufficiently large 
+(see comments [here](http://bioconductor.org/packages/devel/workflows/vignettes/simpleSingleCell/inst/doc/work-2-umis.html#6_normalization_of_cell-specific_biases) for a discussion of the considerations involved in pre-clustering for normalization).
+Even in the absence of any known batch structure, we can improve speed by setting an arbitrary factor, e.g., using `block=rep(seq_len(10), length.out=ncol(sce))` to split the cells into ten "batches" of roughly equal size.
+- On a similar note, both `quickCluster()` and `computeSumFactors()` can process blocks or clusters in parallel.
+This is achieved using the `r Biocpkg("BiocParallel")` framework, which accommodates a range of parallelization strategies.
+In this manner, size factors for large datasets can be computed in a scalable manner.
+
 # Modelling the mean-variance trend
 
 The lack of spike-in transcripts complicates the modelling of the technical noise.
