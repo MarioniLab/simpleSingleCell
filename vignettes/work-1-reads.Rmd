@@ -304,7 +304,7 @@ dim(sce)
 
 **Comments from Aaron:**
 
-- See [this section](http://bioconductor.org/packages/devel/workflows/vignettes/simpleSingleCell/inst/doc/work-4-misc.html#assumptions-of-outlier-identification) for a more detailed discussion of the assumptions underlying the outlier-based detection of low-quality cells.
+- See [this section](https://master.bioconductor.org/packages/devel/workflows/vignettes/simpleSingleCell/inst/doc/xtra-1-qc.html#assumptions-of-outlier-identification) for a more detailed discussion of the assumptions underlying the outlier-based detection of low-quality cells.
 
 # Classification of cell cycle phase 
 
@@ -476,7 +476,9 @@ Genes with a library size-adjusted average count below a specified threshold (`m
     - While the library size-adjusted average is not entirely independent of the bias [@bourgon2010independent], this is a better filter statistic than the sample mean count.
       The latter would enrich for genes that are upregulated in cells with large library sizes, resulting in inflated size factor estimates for those cells.
 - Cell-based QC should always be performed prior to normalization, to remove cells with very low numbers of expressed genes.
-If this is not done, the `computeSumFactors` function may yield negative size factors for low-quality cells.
+Otherwise, `computeSumFactors()` may yield negative size factors for low-quality cells.
+This is because too many zeroes are present in these cells, reducing the effectiveness of pooling to eliminate zeroes.
+Indeed, for some low-quality cells, the effect of cell damage on the transcriptome may already violate the non-DE assumption.
 - The `sizes` argument can be used to specify the number of pool sizes to use to compute the size factors.
 More `sizes` yields more precise estimates at the cost of some computational time and memory.
 In general, `sizes` should not be below 20 cells, to ensure that there are sufficient non-zero expression values in each pool.
@@ -485,7 +487,7 @@ We also recommend that the total number of cells should be at least 100 for effe
 This can be done with the `quickCluster` function and the results passed to `computeSumFactors` via the `cluster` argument.
 Cells in each cluster are normalized separately, and the size factors are rescaled to be comparable across clusters.
 This avoids the need to assume that most genes are non-DE across the entire population - only a non-DE majority is required between pairs of clusters.
-We demonstrate this approach later with a larger dataset, as there are not enough cells in the 416B dataset.
+We demonstrate this approach later with a larger dataset in the next [workflow](https://master.bioconductor.org/packages/devel/workflows/vignettes/simpleSingleCell/inst/doc/work-2-umis.html#6_normalization_of_cell-specific_biases).
 
 ## Computing separate size factors for spike-in transcripts
 
