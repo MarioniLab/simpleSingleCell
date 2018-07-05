@@ -321,7 +321,7 @@ It is also worth pointing out that both of the CEL-seq(2) batches above contain 
 Each donor could be treated as a separate batch in their own right, 
 reflecting (presumably uninteresting) biological differences between donors due to genotype, age, sex or other factors that are not easily controlled when dealing with humans.
 For simplicity, we will ignore the donor effects within each study and only consider the removal of the batch effect between the two studies.
-However, we note that it is possible to apply the MNN correction _within_ each batch and then _across_ batches - see `?fastMNN` for details.
+However, we note that it is possible to apply the MNN correction between donors in each batch and then between the batches - see `?fastMNN` for details.
 
 # Feature selection across batches
 
