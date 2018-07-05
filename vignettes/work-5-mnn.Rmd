@@ -317,6 +317,12 @@ As one might expect, batch correction is easiest when dealing with data generate
 as fewer systematic differences are present that can interfere with the biological structure.
 Nonetheless, it is often possible to obtain good results when applying MNN correction to batches of data generated with different technologies.
 
+It is also worth pointing out that both of the CEL-seq(2) batches above contain cells from multiple donors.
+Each donor could be treated as a separate batch in their own right, 
+reflecting (presumably uninteresting) biological differences between donors due to genotype, age, sex or other factors that are not easily controlled when dealing with humans.
+For simplicity, we will ignore the donor effects within each study and only consider the removal of the batch effect between the two studies.
+However, we note that it is possible to apply the MNN correction _within_ each batch and then _across_ batches - see `?fastMNN` for details.
+
 # Feature selection across batches
 
 To obtain a single set of features for batch correction, we compute the average biological component across all batches.
