@@ -34,8 +34,7 @@ opts_chunk$set(fig.asp=1)
 # Overview
 
 Here, we describe a few additional analyses that can be performed with single-cell RNA sequencing data.
-This includes detection of significant correlations between genes, 
-alternative methods for selecting the number of components from a principal components analysis (PCA),
+This includes detection of significant correlations between genes
 and regressing out the effect of cell cycle from the gene expression matrix.
 
 # Identifying correlated gene pairs with Spearman's rho
@@ -94,40 +93,6 @@ This calculates a combined _p_-value [@simes1986improved] for each gene that ind
 From a statistical perspective, this is a more natural approach to correcting for multiple testing when genes, rather than pairs of genes, are of interest.
 - The `Limited` field indicates whether the _p_-value was lower-bounded by the number of permutations.
 If this is `TRUE` for any non-significant gene at the chosen FDR threshold, consider increasing the number of permutations to improve power.
-
-# Using parallel analysis to choose the number of PCs
-
-We have previously described the use of the total technical variance to determine the number of principal components (PCs) to retain from a PCA of the scRNA-seq expression matrix.
-An alternative strategy for choosing the number of PCs is to use Horn's parallel analysis [@horn1965rationale],
-which involves permuting the matrix and repeating the PCA to determine the variance explained by each PC under a random null model.
-Repeated permutations can be used to obtain "p-values" for each PC [@buja1992remarks].
-PCs are discarded if they do not explain significantly more variance than expected under the null.
-
-This is demonstrated using the batch-corrected expression values from the 416B dataset.
-To focus on relevant features, we only use genes with positive biological components.
-This is identical to the variance modelling used in the [previous workflow](https://bioconductor.org/packages/release/workflows/vignettes/simpleSingleCell/inst/doc/work-1-reads.html#modelling-the-technical-noise-in-gene-expression).
-
-```{r}
-sce.416B <- readRDS("416B_data.rds")
-fit.416B <- trendVar(sce.416B, parametric=TRUE, block=sce.416B$Plate,
-    loess.args=list(span=0.3))
-dec.416B <- decomposeVar(sce.416B, fit.416B)
-```
-
-We perform parallel analysis using the `parallelPCA()` function from `r Biocpkg("scran")`.
-This procedure relies on random permutations, so setting the random seed is necessary for reproducible results.
-
-```{r}
-set.seed(1000)
-npcs <- parallelPCA(sce.416B, assay.type="corrected", 
-	subset.row=dec.416B$bio > 0, value="n")
-as.integer(npcs)
-```
-
-Parallel analysis tends to yield more accurate estimates of the true rank of the matrix than `denoisePCA()`.
-It is also applicable to expression values that have been transformed such that the gene-wise variances are distorted (and thus `denoisePCA()` cannot be used).
-This means that parallel analysis can be used to choose the number of PCs after certain non-linear operations like batch correction [@haghverdi2018batch].
-However, it is obviously much slower that `denoisePCA()` due to the need for multiple permutations.
 
 # Blocking on the cell cycle phase
 
