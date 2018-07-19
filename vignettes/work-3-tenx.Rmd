@@ -86,6 +86,8 @@ summary(location=="MT")
 
 # Calling cells from empty droplets
 
+## Testing for deviations from ambient expression
+
 An interesting aspect of droplet-based data is that we have no prior knowledge about which droplets (i.e., cell barcodes) actually contain cells, and which are empty.
 Thus, we need to call cells from empty droplets based on the observed expression profiles.
 This is not entirely straightforward as empty droplets can contain ambient (i.e., extracellular) RNA that can be captured and sequenced.
@@ -117,14 +119,6 @@ e.out <- emptyDrops(counts(sce))
 sum(e.out$FDR <= 0.01, na.rm=TRUE)
 ```
 
-`emptyDrops()` computes Monte Carlo _p_-values, so it is important to set the random seed to obtain reproducible results.
-The number of Monte Carlo iterations also determines the lower bound for the _p_values.
-If any non-significant barcodes are `TRUE` for `Limited`, we may need to increase the number of iterations to ensure that they can be detected.
-
-```{r}
-table(Sig=e.out$FDR <= 0.01, Limited=e.out$Limited)
-```
-
 We then subset our `SingleCellExperiment` object to retain only the detected cells.
 
 ```{r}
@@ -134,12 +128,43 @@ sce <- sce[,which(e.out$FDR <= 0.01)]
 
 **Comments from Aaron:**
 
-- `emptyDrops()` assumes that cell barcodes with total UMI counts below a certain threshold (default of 100) correspond to empty droplets, 
+- `emptyDrops()` computes Monte Carlo _p_-values, so it is important to set the random seed to obtain reproducible results.
+- The function assumes that cell barcodes with total UMI counts below a certain threshold (default of 100) correspond to empty droplets, 
 and uses them to estimate the ambient expression profile.
 By definition, these barcodes cannot be cell-containing droplets and are excluded from the hypothesis testing, hence the `NA`s in the output.
 - Users wanting to use the cell calling algorithm from the _CellRanger_ pipeline can call `defaultDrops()` instead.
 This tends to be quite conservative as it often discards genuine cells with low RNA content (and thus low total counts).
 It also requires an estimate of the expected number of cells in the experiment.
+
+## Examining cell-calling diagnostics
+
+The number of Monte Carlo iterations (specified by the `niters` argument in `emptyDrops()`) determines the lower bound for the _p_values [@phipson2010permutation].
+The `Limited` field in the output indicates whether or not the computed _p_-value for a particular barcode is bounded by the number of iterations.
+If any non-significant barcodes are `TRUE` for `Limited`, we may need to increase the number of iterations.
+A larger number of iterations will often result in a lower _p_-value for these barcodes, which may allow them to be detected after correcting for multiple testing.
+
+```{r}
+table(Sig=e.out$FDR <= 0.01, Limited=e.out$Limited)
+```
+
+As mentioned above, `emptyDrops()` assumes that barcodes with low total UMI counts are empty droplets.
+Thus, the null hypothesis should be true for all of these barcodes. 
+We can check whether the hypothesis test holds its size by examining the distribution of _p_-values for low-total barcodes.
+Ideally, the distribution should be close to uniform.
+
+```{r ambientpvalhist, fig.cap="Distribution of p-values for the assumed empty droplets."}
+full.data <- read10xCounts(fname, col.names=TRUE)
+set.seed(100)
+limit <- 100   
+all.out <- emptyDrops(counts(full.data), lower=limit, test.ambient=TRUE)
+hist(all.out$PValue[all.out$Total <= limit & all.out$Total > 0],
+    xlab="P-value", main="", col="grey80") 
+```
+
+Large peaks near zero indicate that barcodes with total counts below `limit` are not all ambient.
+This can be resolved by decreasing `limit` further to exclude barcodes corresponding to droplets with very small cells.
+Alternatively, it may indicate that the transcripts are not independently sampled into droplets.
+This can be accommodated by setting `alpha=NULL` in `emptyDrops()` to account for overdispersion in sampling. 
 
 # Quality control on the cells
 
