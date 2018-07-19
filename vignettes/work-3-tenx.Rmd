@@ -265,7 +265,8 @@ In this manner, size factors for large datasets can be computed in a scalable ma
 # Modelling the mean-variance trend
 
 The lack of spike-in transcripts complicates the modelling of the technical noise.
-One option is to assume that most genes do not exhibit strong biological variation, and to fit a trend to the variances of endogenous genes.
+One option is to assume that most genes do not exhibit strong biological variation, and to fit a trend to the variances of endogenous genes
+(see [here](http://bioconductor.org/packages/devel/workflows/vignettes/simpleSingleCell/inst/doc/xtra-3-var.html#32_when_spike-ins_are_unavailable) for details).
 However, this assumption is generally unreasonable for a heterogeneous population.
 Instead, we assume that the technical noise is Poisson and create a fitted trend on that basis using the `makeTechTrend()` function.
 
@@ -274,7 +275,9 @@ new.trend <- makeTechTrend(x=sce)
 ```
 
 We estimate the variances for all genes and compare the trend fits in Figure \@ref(fig:trendplot).
-The Poisson-based trend serves as a lower bound for the variances of the endogenous genes, consistent with non-zero biological components. 
+The Poisson-based trend serves as a lower bound for the variances of the endogenous genes.
+This results in non-zero biological components for most genes, which is consistent with other UMI-based data sets 
+(see the [corresponding analysis](http://bioconductor.org/packages/devel/workflows/vignettes/simpleSingleCell/inst/doc/work-2-umis.html#7_modelling_and_removing_technical_noise) of the @zeisel2015brain data set).
 
 ```{r trendplot, fig.cap="Variance of normalized log-expression values for each gene in the PBMC dataset, plotted against the mean log-expression. The blue line represents the mean-dependent trend fitted to the variances, while the red line represents the Poisson noise."}
 fit <- trendVar(sce, use.spikes=FALSE, loess.args=list(span=0.05))
@@ -298,6 +301,15 @@ We can plot the genes with the largest biological components, to verify that the
 ```{r hvgplot, fig.wide=TRUE, fig.cap="Distributions of normalized log-expression values for the top 10 genes with the largest biological components in the PBMC dataset. Each point represents the log-expression value in a single cell."}
 plotExpression(sce, features=rownames(top.dec)[1:10])
 ```
+
+**Comments from Aaron:**
+
+- The Poisson-based trend from `makeTechTrend()` tends to yield large biological components for highly-expressed genes for which Poisson noise is low (in the log-expression space).
+This often includes so-called "house-keeping" genes coding for essential cellular components such as ribosomal proteins.
+These genes are often considered uninteresting for characterizing cellular heterogeneity, 
+though this is debatable as they are often differentially expressed in a variety of conditions [@glare2002betaactin;@nazari2015gapdh;@guimaraes2016patterns].
+Indeed, the fact that they have large biological components indicates that there is strong variation in their expression across cells, which warrants some further investigation.
+Nonetheless, if they are deemed to be uninteresting, their impact can be reduced by fitting the mean-variance trend to the endogenous genes.
 
 # Dimensionality reduction
 
