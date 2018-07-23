@@ -623,7 +623,7 @@ In contrast, random technical noise affects each gene independently and will be 
 The `denoisePCA()` function removes later PCs until the total discarded variance is equal to the sum of technical components for all genes used in the PCA.
 
 ```{r}
-sce <- denoisePCA(sce, technical=var.fit$trend, assay.type="corrected")
+sce <- denoisePCA(sce, technical=var.out, assay.type="corrected")
 dim(reducedDim(sce, "PCA")) 
 ```
 
@@ -635,6 +635,9 @@ __Comments from Aaron:__
 
 - `denoisePCA()` will only use genes that have positive biological components, i.e., variances greater than the fitted trend.
 This guarantees that the total technical variance to be discarded will not be greater than the total variance in the data.
+- For the `technical=` argument, the function will also accept the trend function directly (i.e., `var.fit$trend`) or a vector of technical components per gene.
+Here, we supply the `DataFrame` from `decomposeVar()` to allow the function to adjust for the loss of residual degrees of freedom after batch correction.
+Specifically, the variance in the batch-corrected matrix is slightly understated, requiring some rescaling of the technical components to compensate.
 - No filtering is performed on abundance here, which ensures that PCs corresponding to rare subpopulations can still be detected. 
 Discreteness is less of an issue as low-abundance genes also have lower variance, thus reducing their contribution to the PCA.
 - It is also possible to obtain a low-rank approximation of the original expression matrix, capturing the variance equivalent to the retained PCs.
