@@ -346,7 +346,7 @@ plotExpression(sce, rownames(var.out)[chosen.genes],
 ```
 
 Finally, we use PCA to denoise the expression values, yielding a set of coordinates for each cell where the technical noise has been removed.
-Setting `approximate=TRUE` in `denoisePCA` will perform an approximate singular value decomposition, using methods from the `r CRANpkg("irlba")` package.
+Setting `approximate=TRUE` in `denoisePCA` will perform an approximate singular value decomposition (SVD), using methods from the `r CRANpkg("irlba")` package.
 This is much faster than the exact algorithm on large datasets without much loss of accuracy.
 The approximate algorithm involves a random initialization so we set the seed to guarantee reproducibility.
 
@@ -355,6 +355,12 @@ set.seed(1000)
 sce <- denoisePCA(sce, technical=var.fit$trend, approximate=TRUE)
 ncol(reducedDim(sce, "PCA"))
 ```
+
+**Comments from Aaron:**
+
+- The upper limit of PCs to retain in `denoisePCA()` is specified by the `max.rank=` argument.
+This is set to 100 by default to ensure that the approximate SVD runs quickly.
+A higher `max.rank` may be more appropriate for extremely heterogeneous populations, though the default setting is generally satisfactory for dimensionality reduction.
 
 ```{r, echo=FALSE, results='hide', message=FALSE}
 gc()
