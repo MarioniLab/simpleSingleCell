@@ -36,9 +36,16 @@ opts_chunk$set(fig.asp=1)
 Low-quality cells can often yield misleading results in downstream analyses, by:
 
 - forming their own distinct cluster(s), complicating interpretation of the results.
+This can be most obviously driven by increased mitochondrial proportions or enrichment for nuclear RNAs after cell damage.
+However, very small libraries can also form their own clusters due to shifts in the mean upon log-transformation.
 - containing genes that appear to be strongly "upregulated" due to the presence of very small size factors.
+This is most problematic if some transcripts are present at constant levels in the ambient solution for all cells (i.e., wells or droplets).
+Small counts will then be greatly inflated upon normalization with these size factors.
 - containing genes that appear to be strongly "downregulated" due to the loss of RNA upon cell damage.
-- distorting the characterization of population heterogeneity during variance estimation or PCA.
+This seems most pronounced with ribosomal protein genes, though other cytoplasmic transcripts are likely to be affected.
+- distorting the characterization of population heterogeneity during variance estimation or principal components analysis.
+The first few principal components will capture differences in quality rather than biology, reducing the effectiveness of dimensionality reduction.
+Similarly, genes with the largest variances will be driven by differences between low- and high-quality cells.
 
 As such, we need to remove these cells at the start of the analysis.
 Recall that we were defining low-quality cells as those with outlier values for various quality control (QC) metrics,
