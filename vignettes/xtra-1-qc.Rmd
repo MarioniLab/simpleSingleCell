@@ -68,54 +68,104 @@ However, this is not applicable in experiments where the factors are not known i
 
 # Checking for discarded cell types
 
-We can diagnose loss of distinct cell types during QC by looking for differences in gene expression between the discarded and retained cells (Figure \@ref(fig:discardplot416b)).
-If the discarded pool is enriched for a certain cell type, we should observe increased expression of the corresponding marker genes.
-No systematic upregulation of genes is apparent in the discarded pool in Figure \@ref(fig:discardplot416b), 
-indicating that the QC step did not inadvertently filter out a cell type in the 416B dataset.
+## In the 416B data set 
 
-```{r discardplot416b, fig.cap="Average counts across all discarded and retained cells in the 416B dataset. Each point represents a gene, with spike-in and mitochondrial transcripts in red and blue respectively."}
+We can diagnose loss of distinct cell types during QC by looking for differences in gene expression between the discarded and retained cells.
+To demonstrate, we compute the average count across the discarded and retained pools in the 416B data set.
+
+```{r}
 library(SingleCellExperiment)
 sce.full.416b <- readRDS("416B_preQC.rds")
 
 library(scater)
 lost <- calcAverage(counts(sce.full.416b)[,!sce.full.416b$PassQC])
 kept <- calcAverage(counts(sce.full.416b)[,sce.full.416b$PassQC])
-logfc <- log2((lost+1)/(kept+1))
-head(sort(logfc, decreasing=TRUE), 20)
-
-plot(lost, kept, xlab="Average count (discarded)", 
-    ylab="Average count (retained)", log="xy", pch=16)
-is.spike <- isSpike(sce.full.416b)
-points(lost[is.spike], kept[is.spike], col="red", pch=16)
-is.mito <- rowData(sce.full.416b)$is_feature_control_Mt
-points(lost[is.mito], kept[is.mito], col="dodgerblue", pch=16)
 ```
 
-By comparison, a more stringent filter in the PBMC dataset would remove the previously identified platelet population 
-(see the [previous workflow](http://bioconductor.org/packages/devel/workflows/vignettes/simpleSingleCell/inst/doc/work-3-tenx.html#marker-gene-detection)).
-This manifests in Figure \@ref(fig:discardplotpbmc) as a shift to the bottom-right for a number of genes, including _PF4_ and _PPBP_.
+If the discarded pool is enriched for a certain cell type, we should observe increased expression of the corresponding marker genes.
+No systematic upregulation of genes is apparent in the discarded pool in Figure \@ref(fig:discardplot416b), 
+indicating that the QC step did not inadvertently filter out a cell type in the 416B dataset.
 
-```{r discardplotpbmc, fig.cap="Average counts across all discarded and retained cells in the PBMC dataset, after using a more stringent filter on the total UMI count. Each point represents a gene, with platelet-related genes highlighted in orange."}
+```{r discardplot416b, fig.cap="Average counts across all discarded and retained cells in the 416B dataset. Each point represents a gene, with spike-in and mitochondrial transcripts in red and blue respectively."}
+# Avoid loss of points where either average is zero.
+capped.lost <- pmax(lost, min(lost[lost>0]))
+capped.kept <- pmax(kept, min(kept[kept>0]))
+
+plot(capped.lost, capped.kept, xlab="Average count (discarded)", 
+    ylab="Average count (retained)", log="xy", pch=16)
+is.spike <- isSpike(sce.full.416b)
+points(capped.lost[is.spike], capped.kept[is.spike], col="red", pch=16)
+is.mito <- rowData(sce.full.416b)$is_feature_control_Mt
+points(capped.lost[is.mito], capped.kept[is.mito], col="dodgerblue", pch=16)
+```
+
+We examine this more closely by computing log-fold changes between the average counts of the two pools.
+The `predFC` function stabilizes the log-fold change estimates by adding a prior count to the average of each pool.
+We only examine the log-fold changes rather than formally testing for differential expression, as we are not interested in penalizing intra-pool heterogeneity.
+
+```{r}
+library(edgeR)
+coefs <- predFC(cbind(lost, kept), design=cbind(1, c(1, 0)))[,2]
+info <- data.frame(logFC=coefs, Lost=lost, Kept=kept, 
+    row.names=rownames(sce.full.416b))
+head(info[order(info$logFC, decreasing=TRUE),], 20)
+```
+
+Again, no obvious cell type markers are present in the top set of genes upregulated in the discarded pool.
+The magnitude of the log-fold changes is less important, attributable to imprecision with few cells in the discarded pool.
+Large log-fold changes can also be driven by enrichment or depletion of mitochondrial, ribosomal protein or nuclear genes upon cell damage.
+
+## In the PBMC data set
+
+For comparison, we consider the PBMC data set in which we previously identified a platelet population
+(see the [previous workflow](http://bioconductor.org/packages/devel/workflows/vignettes/simpleSingleCell/inst/doc/work-3-tenx.html#marker-gene-detection)).
+Recall that we relied on the use of the `emptyDrops()` method from the `r Biocpkg("DropletUtils")` package to retain the platelets.
+In contrast, if we had used a naive threshold on the total unique molecular identifier (UMI) count, we would have removed this population during the cell calling step.
+
+```{r}
 sce.pbmc <- readRDS("pbmc_data.rds")
 wrong.keep <- sce.pbmc$total_counts >= 1000
 
 lost <- calcAverage(counts(sce.pbmc)[,!wrong.keep])
 kept <- calcAverage(counts(sce.pbmc)[,wrong.keep])
-logfc <- log2((lost+1)/(kept+1))
-head(sort(logfc, decreasing=TRUE), 20)
-
-plot(lost, kept, xlab="Average count (discarded)", 
-    ylab="Average count (retained)", log="xy", pch=16)
-platelet <- c("PF4", "PPBP", "SDPR")
-points(lost[platelet], kept[platelet], col="orange", pch=16)
 ```
 
-If cell types are being incorrectly discarded, the solution is to relax the QC filters.
-This can be achieved by either increasing `nmads=` in `isOutlier()` or by dropping the filter altogether.
-However, keep in mind that low-quality cells will often increase the apparent heterogeneity, usually because of increased sampling noise at low sequencing coverage.
-This can interfere with variance modelling and PCA, e.g., where the first few PCs separate cells according to quality rather than any biology.
-At worst, low-quality cells can form their own cluster, which requires additional care during interpretation of the results. 
-These considerations motivate the use of a more strict filter (at least on the first pass) in our workflows.
+The presence of a distinct population in the discarded pool manifests in Figure \@ref(fig:discardplotpbmc) as a shift to the bottom-right for a number of genes.
+This includes _PF4_, _PPBP_ and _SDPR_ that are strongly upregulated in the platelets.
+
+```{r discardplotpbmc, fig.cap="Average counts across all discarded and retained cells in the PBMC dataset, after using a more stringent filter on the total UMI count. Each point represents a gene, with platelet-related genes highlighted in orange."}
+# Avoid loss of points where either average is zero.
+capped.lost <- pmax(lost, min(lost[lost>0]))
+capped.kept <- pmax(kept, min(kept[kept>0]))
+
+plot(capped.lost, capped.kept, xlab="Average count (discarded)", 
+    ylab="Average count (retained)", log="xy", pch=16)
+platelet <- c("PF4", "PPBP", "SDPR")
+points(capped.lost[platelet], capped.kept[platelet], col="orange", pch=16)
+```
+
+These platelet-specific genes are also present among the top set of positive log-fold changes. 
+
+```{r}
+coefs <- predFC(cbind(lost, kept), design=cbind(1, c(1, 0)))[,2]
+info <- data.frame(logFC=coefs, Lost=lost, Kept=kept, 
+    row.names=rownames(sce.pbmc))
+head(info[order(info$logFC, decreasing=TRUE),], 20)
+```
+
+## Avoiding loss of cell types
+
+If cell types are being incorrectly discarded, the most direct solution is to relax the QC filters by increasing `nmads=` in the `isOutlier()` calls.
+We can also avoid filtering on metrics that are associated with genuine biological differences between cell types.
+The most extreme approach would be to not perform any QC filtering at all, thus guaranteeing that all cell types in the data are retained.
+However, this obviously comes with an increased risk of retaining more low-quality damaged cells.
+Such cells will cause problems in downstream analyses as discussed above, which motivates the use of a more strict filter (at least on the first pass) in our workflows.
+
+As an aside, it is worth mentioning that the true technical quality of a cell may be correlated with its type.
+(This differs from a correlation between the cell type and the QC metrics, as the latter are our imperfect proxies for quality.)
+This can arise if some cell types are not amenable to dissociation or microfluidics handling during the scRNA-seq protocol.
+In such cases, it is possible to correctly discard an entire cell type during QC if all of its members are damaged.
+Indeed, concerns over the computational removal of cell types during QC are probably minor compared to losses in the experimental protocol.
 
 # Alternative approaches to quality control
 
