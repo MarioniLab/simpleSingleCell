@@ -108,6 +108,8 @@ Here, we set `general.use=TRUE` as we intend to apply the spike-in factors to al
 ```{r}
 library(scran)
 sce.islam <- computeSpikeFactors(sce.islam, general.use=TRUE)
+head(sizeFactors(sce.islam))    
+head(sizeFactors(sce.islam, "spike")) # same as general size factors.
 ```
 
 Running `normalize` will use the spike-in-based size factors to compute normalized log-expression values.
@@ -119,15 +121,20 @@ This is because the relevant factors are already being used for all genes and sp
 sce.islam <- normalize(sce.islam)
 ```
 
-For comparison, we also compute the deconvolution size factors [@lun2016pooling] and plot them against the spike-in factors.
-We observe a negative correlation between the two sets of values (Figure \@ref(fig:normplotspikemef)).
+For comparison, we also compute the deconvolution size factors for this data set [@lun2016pooling].
+
+```{r}
+deconv.sf <- computeSumFactors(sce.islam, sf.out=TRUE, cluster=sce.islam$grouping)
+head(deconv.sf)
+```
+
+We observe a negative correlation between the two sets of size factors (Figure \@ref(fig:normplotspikemef)).
 This is because MEFs contain more endogenous RNA, which reduces the relative spike-in coverage in each library (thereby decreasing the spike-in size factors) but increases the coverage of endogenous genes (thus increasing the deconvolution size factors).
 If the spike-in size factors were applied to the counts, the expression values in MEFs would be scaled up while expression in mESCs would be scaled down.
 However, the opposite would occur if deconvolution size factors were used.
 
 ```{r normplotspikemef, fig.cap="Size factors from spike-in normalization, plotted against the size factors from deconvolution for all cells in the mESC/MEF dataset. Axes are shown on a log-scale, and cells are coloured according to their identity. Deconvolution size factors were computed with small pool sizes owing to the low number of cells of each type."}
 colours <- c(mESC="red", MEF="grey")
-deconv.sf <- computeSumFactors(sce.islam, sf.out=TRUE, cluster=sce.islam$grouping)
 plot(sizeFactors(sce.islam), deconv.sf, col=colours[sce.islam$grouping], pch=16, 
     log="xy", xlab="Size factor (spike-in)", ylab="Size factor (deconvolution)")
 legend("bottomleft", col=colours, legend=names(colours), pch=16)
