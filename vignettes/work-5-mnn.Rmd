@@ -369,20 +369,22 @@ The function returns a matrix of corrected values for downstream analyses like c
 
 ```{r}
 set.seed(100) 
-# Slightly convoluted call to avoid re-writing code later.
 original <- list(
     GSE81076=logcounts(rescaled.gse81076)[chosen,],
     GSE85241=logcounts(rescaled.gse85241)[chosen,]
 )
-mnn.out <- do.call(fastMNN, c(original, list(k=20, d=50)))
+
+# Slightly convoluted call to avoid re-writing code later.
+# Equivalent to fastMNN(GSE81076, GSE85241, k=20, d=50, approximate=TRUE)
+mnn.out <- do.call(fastMNN, c(original, list(k=20, d=50, approximate=TRUE)))
 dim(mnn.out$corrected)
 ```
 
 Each row of the `corrected` matrix corresponds to a cell in one of the batches.
-The `batch` field contains a vector specifying the batch of origin of each row.
+The `batch` field contains a run-length encoding object specifying the batch of origin of each row.
 
 ```{r}
-head(mnn.out$batch)
+mnn.out$batch
 ```
 
 Advanced users may also be interested in the list of `DataFrame`s in the `pairs` field.
@@ -407,7 +409,7 @@ We suggest setting the largest and/or most heterogeneous batch as the first.
 This ensures that sufficient MNN pairs will be identified between the first and other batches for stable correction.
 In situations where the nature of each batch is unknown, users can set `auto.order=TRUE` to allow `fastMNN()` to empirically choose which batches to merge at each step.
 Batches are chosen to maximize the number of MNN pairs in order to provide a stable correction.
-- `fastMNN()` uses methods from the `r CRANpkg("irlba")` package to perform the principal components analysis quickly.
+- When `approximate=TRUE`, `fastMNN()` uses methods from the `r CRANpkg("irlba")` package to perform the principal components analysis quickly.
 While the run-to-run differences should be minimal, it does mean that `set.seed()` is required to obtain fully reproducible results.
 
 # Examining the effect of correction
@@ -419,7 +421,7 @@ The MNN-corrected values are stored as dimensionality reduction results, befitti
 omat <- do.call(cbind, original)
 sce <- SingleCellExperiment(list(logcounts=omat))
 reducedDim(sce, "MNN") <- mnn.out$corrected
-sce$Batch <- mnn.out$batch
+sce$Batch <- as.character(mnn.out$batch)
 sce
 ```
 
@@ -483,7 +485,7 @@ Intra-batch comparisons are more robust but assume that any pair of clusters is 
 ```{r}
 m.out <- findMarkers(sce, clusters$membership, block=sce$Batch,
     direction="up")        
-demo <- m.out[["5"]] # looking at cluster 5 (probably alpha cells).
+demo <- m.out[["4"]] # looking at cluster 4 (probably alpha cells).
 demo <- demo[demo$Top <= 3,]
 
 library(org.Hs.eg.db)
@@ -501,7 +503,7 @@ However, the use of a linear model makes some strong assumptions about the homog
 design <- model.matrix(~sce$Batch)
 m.alt <- findMarkers(sce, clusters$membership, design=design, 
     direction="up")
-demo <- m.alt[["5"]]
+demo <- m.alt[["4"]]
 demo <- demo[demo$Top <= 3,]
 
 data.frame(row.names=rownames(demo),
