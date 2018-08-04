@@ -227,7 +227,7 @@ Such cells can interfere with downstream analyses, e.g., by forming distinct clu
 sce$PlateOnco <- paste0(sce$Oncogene, ".", sce$Plate)
 multiplot(
     plotColData(sce, y="total_counts", x="PlateOnco"),
-    plotColData(sce, y="total_features", x="PlateOnco"),
+    plotColData(sce, y="total_features_by_counts", x="PlateOnco"),
     plotColData(sce, y="pct_counts_ERCC", x="PlateOnco"),
     plotColData(sce, y="pct_counts_Mt", x="PlateOnco"),
     cols=2)
@@ -239,11 +239,11 @@ Clear discrepancies may correspond to technical differences between batches of c
 
 ```{r qcbiplot416b, fig.width=10, fig.asp=0.5, fig.cap="Behaviour of each QC metric compared to the total number of expressed features. Each point represents a cell in the 416B dataset."}
 par(mfrow=c(1,3))
-plot(sce$total_features, sce$total_counts/1e6, xlab="Number of expressed genes",
+plot(sce$total_features_by_counts, sce$total_counts/1e6, xlab="Number of expressed genes",
     ylab="Library size (millions)")
-plot(sce$total_features, sce$pct_counts_ERCC, xlab="Number of expressed genes",
+plot(sce$total_features_by_counts, sce$pct_counts_ERCC, xlab="Number of expressed genes",
     ylab="ERCC proportion (%)")
-plot(sce$total_features, sce$pct_counts_Mt, xlab="Number of expressed genes",
+plot(sce$total_features_by_counts, sce$pct_counts_Mt, xlab="Number of expressed genes",
     ylab="Mitochondrial proportion (%)")
 ```
 
@@ -262,7 +262,7 @@ We also remove cells where the log-transformed number of expressed genes is 3 MA
 ```{r}
 libsize.drop <- isOutlier(sce$total_counts, nmads=3, type="lower", 
     log=TRUE, batch=sce$PlateOnco)
-feature.drop <- isOutlier(sce$total_features, nmads=3, type="lower", 
+feature.drop <- isOutlier(sce$total_features_by_counts, nmads=3, type="lower", 
     log=TRUE, batch=sce$PlateOnco)
 ```
 
@@ -373,7 +373,7 @@ For example, a top set containing many spike-in transcripts suggests that too mu
 
 ```{r topgene416b, fig.asp=1.2, fig.wide=TRUE, fig.cap="Percentage of total counts assigned to the top 50 most highly-abundant features in the 416B dataset. For each feature, each bar represents the percentage assigned to that feature for a single cell, while the circle represents the average across all cells. Bars are coloured by the total number of expressed features in each cell, while circles are coloured according to whether the feature is labelled as a control feature."}
 fontsize <- theme(axis.text=element_text(size=12), axis.title=element_text(size=16))
-plotQC(sce, type = "highest-expression", n=50) + fontsize
+plotHighestExprs(sce, n=50) + fontsize
 ```
 
 ## Filtering out low-abundance genes

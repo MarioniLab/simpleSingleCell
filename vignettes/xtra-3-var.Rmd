@@ -94,7 +94,7 @@ We filter out HSCs that are outliers for any metric, under the assumption that t
 library(scater)
 sce.hsc <- calculateQCMetrics(sce.hsc)
 libsize.drop <- isOutlier(sce.hsc$total_counts, nmads=3, type="lower", log=TRUE)
-feature.drop <- isOutlier(sce.hsc$total_features, nmads=3, type="lower", log=TRUE)
+feature.drop <- isOutlier(sce.hsc$total_features_by_counts, nmads=3, type="lower", log=TRUE)
 spike.drop <- isOutlier(sce.hsc$pct_counts_ERCC, nmads=3, type="higher")
 sce.hsc <- sce.hsc[,!(libsize.drop | feature.drop | spike.drop)]
 data.frame(ByLibSize=sum(libsize.drop), ByFeature=sum(feature.drop),

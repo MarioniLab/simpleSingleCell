@@ -88,7 +88,7 @@ sce.islam$grouping <- rep(c("mESC", "MEF", "Neg"), c(48, 44, 4))
 
 libsize.drop <- isOutlier(sce.islam$total_counts, nmads=3, type="lower", 
     log=TRUE, batch=sce.islam$grouping)
-feature.drop <- isOutlier(sce.islam$total_features, nmads=3, type="lower", 
+feature.drop <- isOutlier(sce.islam$total_features_by_counts, nmads=3, type="lower", 
     log=TRUE, batch=sce.islam$grouping)
 spike.drop <- isOutlier(sce.islam$pct_counts_spike, nmads=3, type="higher", 
     batch=sce.islam$grouping)

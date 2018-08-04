@@ -159,7 +159,7 @@ This may reflect a greater variability in the total amount of endogenous RNA per
 par(mfrow=c(2,2), mar=c(5.1, 4.1, 0.1, 0.1))
 hist(sce$total_counts/1e3, xlab="Library sizes (thousands)", main="", 
     breaks=20, col="grey80", ylab="Number of cells")
-hist(sce$total_features, xlab="Number of expressed genes", main="", 
+hist(sce$total_features_by_counts, xlab="Number of expressed genes", main="", 
     breaks=20, col="grey80", ylab="Number of cells")
 hist(sce$pct_counts_Spike, xlab="ERCC proportion (%)",
     ylab="Number of cells", breaks=20, main="", col="grey80")
@@ -172,7 +172,7 @@ Again, the presence of spike-in transcripts means that we do not have to use the
 
 ```{r}
 libsize.drop <- isOutlier(sce$total_counts, nmads=3, type="lower", log=TRUE)
-feature.drop <- isOutlier(sce$total_features, nmads=3, type="lower", log=TRUE)
+feature.drop <- isOutlier(sce$total_features_by_counts, nmads=3, type="lower", log=TRUE)
 spike.drop <- isOutlier(sce$pct_counts_Spike, nmads=3, type="higher")
 ```
 
@@ -224,7 +224,7 @@ There are also a number of constitutively expressed genes, as expected.
 
 ```{r topgenebrain, fig.asp=1.2, fig.wide=TRUE, fig.cap="Percentage of total counts assigned to the top 50 most highly-abundant features in the brain dataset. For each feature, each bar represents the percentage assigned to that feature for a single cell, while the circle represents the average across all cells. Bars are coloured by the total number of expressed features in each cell, while circles are coloured according to whether the feature is labelled as a control feature."}
 fontsize <- theme(axis.text=element_text(size=12), axis.title=element_text(size=16))
-plotQC(sce, type = "highest-expression", n=50) + fontsize
+plotHighestExprs(sce, n=50) + fontsize
 ```
 
 Gene abundance is quantified by computing the average count across all cells (Figure \@ref(fig:abhistbrain)).
@@ -342,7 +342,7 @@ Some tweaking of the `plotExpression` parameters is necessary to visualize a lar
 ```{r hvgvioplotbrain, fig.cap="Violin plots of normalized log-expression values for the top 10 HVGs in the brain dataset. For each gene, each point represents the log-expression value for an individual cell."}
 chosen.genes <- order(var.out$bio, decreasing=TRUE)[1:10]
 plotExpression(sce, rownames(var.out)[chosen.genes], 
-    alpha=0.05, jitter="jitter") + fontsize
+    point_alpha=0.05, jitter_type="jitter") + fontsize
 ```
 
 Finally, we use PCA to denoise the expression values, yielding a set of coordinates for each cell where the technical noise has been removed.
