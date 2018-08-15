@@ -36,7 +36,7 @@ on.bioc <- TRUE
 
 **R version**: `r R.version.string`
 
-**Bioconductor version**: `r BiocInstaller::biocVersion()`
+**Bioconductor version**: `r packageVersion("BiocVersion")`
 
 **Package**: `r packageVersion("simpleSingleCell")`
 
@@ -69,8 +69,8 @@ cat("***Note:*** *to cite this article, please refer to http://f1000research.com
 
 # Links to individual workflows 
 
-See the [_simpleSingleCell_ landing page](https://master.bioconductor.org/packages/devel/workflows/html/simpleSingleCell.html) for links to individual workflows and for instructions on how to install the required packages.
-Each workflow starts from a publicly available count matrix and finishes at the characterisation of cell clusters.
+See the `r Biocpkg("simpleSingleCell")` landing page for links to individual workflows and for instructions on how to install the required packages.
+Each workflow starts from a publicly available count matrix and typically finishes with the characterisation of cell clusters.
 Across a few "episodes", we will explore the analysis of read count scRNA-seq dataset [@lun2017assessing], a UMI count dataset [@zeisel2015brain] and a droplet-based dataset [@zheng2017massively].
 We will also examine how to correct for batch effects across different datasets using the method of @haghverdi2018batch.
 Additional special workflows are also provided that elaborate on specific steps of the general workflow.

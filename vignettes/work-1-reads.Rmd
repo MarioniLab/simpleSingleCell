@@ -304,7 +304,7 @@ dim(sce)
 
 **Comments from Aaron:**
 
-- See [this section](https://master.bioconductor.org/packages/devel/workflows/vignettes/simpleSingleCell/inst/doc/xtra-1-qc.html#assumptions-of-outlier-identification) for a more detailed discussion of the assumptions underlying the outlier-based detection of low-quality cells.
+- See `r Biocpkg("simpleSingleCell", vignette="xtra-1-qc.html#assumptions-of-outlier-identification", label="this section")` for a more detailed discussion of the assumptions underlying the outlier-based detection of low-quality cells.
 
 # Classification of cell cycle phase 
 
@@ -487,7 +487,7 @@ We also recommend that the total number of cells should be at least 100 for effe
 This can be done with the `quickCluster` function and the results passed to `computeSumFactors` via the `cluster` argument.
 Cells in each cluster are normalized separately, and the size factors are rescaled to be comparable across clusters.
 This avoids the need to assume that most genes are non-DE across the entire population - only a non-DE majority is required between pairs of clusters.
-We demonstrate this approach later with a larger dataset in the next [workflow](https://master.bioconductor.org/packages/devel/workflows/vignettes/simpleSingleCell/inst/doc/work-2-umis.html#6_normalization_of_cell-specific_biases).
+We demonstrate this approach later with a larger dataset in the next `r Biocpkg("simpleSingleCell", vignette="work-2-umis.html#6_normalization_of_cell-specific_biases", label="workflow")`.
 
 ## Computing separate size factors for spike-in transcripts
 
@@ -575,9 +575,9 @@ plotExpression(sce, features=rownames(var.out)[chosen.genes]) + fontsize
 **Comments from Aaron:**
 
 - In practice, trend fitting is complicated by the small number of spike-in transcripts and the uneven distribution of their abundances.
-See [here](http://bioconductor.org/packages/devel/workflows/vignettes/simpleSingleCell/inst/doc/xtra-3-var.html#details-of-trend-fitting-parameters) for more details on how to refine the fit.
-- In the absence of spike-ins, users can set `use.spikes=FALSE` to fit a trend to the variances of the endogenous genes (see [here](http://bioconductor.org/packages/devel/workflows/vignettes/simpleSingleCell/inst/doc/xtra-3-var.html#when-spike-ins-are-unavailable)).
-Alternatively, we can create a trend based on the assumption of Poisson technical noise, as described [here](https://bioconductor.org/packages/release/workflows/vignettes/simpleSingleCell/inst/doc/work-3-tenx.html#modelling-the-mean-variance-trend).
+See `r Biocpkg("simpleSingleCell", vignette="xtra-3-var.html#details-of-trend-fitting-parameters", label="here")` for more details on how to refine the fit.
+- In the absence of spike-ins, users can set `use.spikes=FALSE` to fit a trend to the variances of the endogenous genes (see `r Biocpkg("simpleSingleCell", vignette="xtra-3-var.html#when-spike-ins-are-unavailable", label="here")`).
+Alternatively, we can create a trend based on the assumption of Poisson technical noise, as described `r Biocpkg("simpleSingleCell", vignette="work-3-tenx.html#modelling-the-mean-variance-trend", label="here")`.
 - Negative biological components are often obtained from `decomposeVar`. 
 These are intuitively meaningless as it is impossible for a gene to have total variance below technical noise.
 Nonetheless, such values occur due to imprecise estimation of the total variance, especially for low numbers of cells.
