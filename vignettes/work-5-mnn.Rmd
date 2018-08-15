@@ -477,10 +477,11 @@ csce$Cluster <- factor(clusters$membership)
 plotTSNE(csce, colour_by="Cluster")
 ```
 
-Differential expression analyses should be performed on the original log-expression values or counts.
+Differential expression analyses should be performed on the **original** log-expression values or counts.
+We do not use the corrected values here (which no longer correspond to genes anyway) except to obtain the clusters or trajectories to be characterized.
 To model the batch effect, we set the batch of origin as the `block=` argument in `findMarkers()`.
 This will perform all comparisons between clusters _within_ each batch, and then combine the _p_-values with Stouffer's Z method to consolidate results across batches.
-Intra-batch comparisons are more robust but assume that any pair of clusters is present in at least one batch.
+Intra-batch comparisons are robust to differences between batches but assume that each pair of clusters is present in at least one batch.
 
 ```{r}
 m.out <- findMarkers(sce, clusters$membership, block=sce$Batch,
@@ -496,6 +497,7 @@ data.frame(row.names=rownames(demo),
 ```
 
 Another approach is to define a design matrix containing the batch of origin as the sole factor.
+`findMarkers()` will then fit a linear model to the log-expression values, similar to the use of `r Biocpkg("limma")` for bulk RNA sequencing data [@ritchie2015limma].
 This handles situations where multiple batches contain unique clusters, whereby comparisons can be implicitly performed between shared cell types.
 However, the use of a linear model makes some strong assumptions about the homogeneity of the batch effect across cell types and the equality of variances.
 

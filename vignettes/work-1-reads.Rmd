@@ -815,8 +815,8 @@ Of course, it is simple (and recommended) to try other approaches provided that 
 ## Detecting marker genes between clusters
 
 Once putative subpopulations are identified by clustering, we can identify marker genes for each cluster using the `findMarkers` function.
-This fits a linear model to the log-expression values for each gene using `r Biocpkg("limma")` [@ritchie2015limma].
-The aim is to test for DE in each cluster compared to the others while blocking on uninteresting factors such as the plate of origin in `design`.
+This performs Welch $t$-tests on the log-expression values for every gene and between every pair of clusters [@soneson2018bias].
+The aim is to test for DE in each cluster compared to the others while blocking on uninteresting factors such as the plate of origin.
 The top DE genes are likely to be good candidate markers as they can effectively distinguish between cells in different clusters.
 
 ```{r}
@@ -878,6 +878,9 @@ __Comments from Aaron:__
 - By setting `direction="up"`, `findMarkers` will only return genes that are upregulated in each cluster compared to the others.
 This is convenient in highly heterogeneous populations to focus on genes that can immediately identify each cluster.
 While lack of expression may also be informative, it is less useful for positive identification.
+- By setting `block=`, `findMarkers()` will perform pairwise tests between clusters using only cells on the same plate.
+It will then combine $p$-values from different plates using Stouffer's Z method to obtain a single $p$-value per gene.
+An alternative approach is to use linear models via the `design=` argument - the differences between the two are discussed `r Biocpkg("simpleSingleCell", vignette="work-5-mnn.html#using-the-corrected-values-in-downstream-analyses", label="here")`.
 - `findMarkers` can also be directed to find genes that are DE between the chosen cluster and _all_ other clusters.
 This should be done by setting `pval.type="all"`, which defines the p-value for each gene as the maximum value across all pairwise comparisons involving the chosen cluster.
 Combined with `direction="up"`, this can be used to identify unique markers for each cluster.
