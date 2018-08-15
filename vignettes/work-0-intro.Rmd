@@ -36,7 +36,7 @@ on.bioc <- TRUE
 
 **R version**: `r R.version.string`
 
-**Bioconductor version**: `r packageVersion("BiocVersion")`
+**Bioconductor version**: `r BiocManager::version()`
 
 **Package**: `r packageVersion("simpleSingleCell")`
 
