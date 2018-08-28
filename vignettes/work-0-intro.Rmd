@@ -84,8 +84,7 @@ Similarly, genomic intervals for both spike-in transcripts and endogenous genes 
 - If UMIs are present, these should be extracted from the read sequence prior to alignment, e.g., with the _UMI-tools_ software [@smith2017umitools].
 Reads with the same UMI mapping to the same gene represent a single underlying transcript molecule and only increment the count of that gene by one.
 - Alignment-free methods such as _kallisto_ [@bray2016near] or _Salmon_ [@patro2015accurate] may also be useful, due to their speed and ability to perform transcript quantification.
-This can be run using the functions `runKallisto` and `runSalmon` in the `r Biocpkg("scater")` package.
-
+This can be loaded into R using methods from the `r Biocpkg("tximport")` package [@soneson2015differential].
 
 # Author information
 
