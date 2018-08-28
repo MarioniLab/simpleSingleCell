@@ -27,9 +27,6 @@ bibliography: ref.bib
 library(BiocStyle)
 library(knitr)
 opts_chunk$set(error=FALSE, message=FALSE, warning=FALSE)
-
-# Deciding whether we want to re-download everything or not.
-on.bioc <- TRUE
 ```
 
 # Workflow version information
@@ -63,9 +60,7 @@ The workflows start from a count matrix and describe the steps required for qual
 The application of these procedures will be demonstrated on several public scRNA-seq datasets involving immortalized myeloid progenitors, brain cells, haematopoietic stem cells, T-helper cells and mouse embryonic stem cells, generated with a range of experimental protocols and platforms [@lun2017assessing;@wilson2015combined;@zeisel2015brain;@islam2011characterization;@buettner2015computational].
 The aim is to provide a variety of modular usage examples that can be applied to construct custom analysis pipelines.
 
-```{r, results='asis', eval=on.bioc, echo=FALSE}
-cat("***Note:*** *to cite this article, please refer to http://f1000research.com/articles/5-2122/v2 for instructions.*")
-```
+***Note:*** *to cite this article, please refer to http://f1000research.com/articles/5-2122/v2 for instructions.*
 
 # Links to individual workflows 
 
