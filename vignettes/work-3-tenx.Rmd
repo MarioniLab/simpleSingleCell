@@ -253,11 +253,13 @@ sce <- normalize(sce)
 
 **Comments from Aaron:**
 
-- Larger droplet-based datasets will often be processed in separate batches or runs.
+- Larger droplet-based datasets will often be generated in separate batches or runs.
 In such cases, we can set `block=` in `quickCluster()` to cluster cells within each batch or run.
 This reduces computational work considerably without compromising performance, provided that the clusters within each batch are sufficiently large 
 (see comments `r Biocpkg("simpleSingleCell", vignette="work-2-umis.html#6_normalization_of_cell-specific_biases", label="here")`) for a discussion of the considerations involved in pre-clustering for normalization).
-Even in the absence of any known batch structure, we can improve speed by setting an arbitrary factor, e.g., using `block=rep(seq_len(10), length.out=ncol(sce))` to split the cells into ten "batches" of roughly equal size.
+- Even in the absence of any known batch structure, we can improve speed by setting an arbitrary factor, e.g., using `block=cut(seq_len(ncol(sce)), 10)` to split the cells into ten "batches" of roughly equal size.
+Recall that we are not interpreting the clusters themselves, so it is not a problem to have multiple redundant cluster labels.
+Again, this assumes that each cluster is large enough to support deconvolution.
 - On a similar note, both `quickCluster()` and `computeSumFactors()` can process blocks or clusters in parallel.
 This is achieved using the `r Biocpkg("BiocParallel")` framework, which accommodates a range of parallelization strategies.
 In this manner, size factors for large datasets can be computed in a scalable manner.
