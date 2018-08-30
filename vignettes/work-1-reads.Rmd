@@ -305,6 +305,13 @@ dim(sce)
 **Comments from Aaron:**
 
 - See `r Biocpkg("simpleSingleCell", vignette="xtra-1-qc.html#assumptions-of-outlier-identification", label="this section")` for a more detailed discussion of the assumptions underlying the outlier-based detection of low-quality cells.
+- `isOutlier()` will also return the exact filter thresholds for each metric (within each batch, if `batch=` is specified).
+These may be useful for checking whether the automatically selected thresholds are appropriate.
+
+    ```{r}
+    attr(libsize.drop, "thresholds")
+    attr(spike.drop, "thresholds")
+    ```
 
 # Classification of cell cycle phase 
 
