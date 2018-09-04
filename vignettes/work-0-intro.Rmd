@@ -37,7 +37,7 @@ opts_chunk$set(error=FALSE, message=FALSE, warning=FALSE)
 
 **Package**: `r packageVersion("simpleSingleCell")`
 
-# Introduction
+# Motivation
 
 Single-cell RNA sequencing (scRNA-seq) is widely used to measure the genome-wide expression profile of individual cells.
 From each cell, mRNA is isolated and reverse transcribed to cDNA for high-throughput sequencing [@stegle2015computational].
@@ -55,20 +55,15 @@ Dedicated steps are required to deal with this noise during analysis, especially
 In addition, scRNA-seq data can be used to study cell-to-cell heterogeneity, e.g., to identify new cell subtypes, to characterize differentiation processes, to assign cells into their cell cycle phases, or to identify HVGs driving variability across the population [@vallejos2015basics;@fan2016characterizing;@trapnell2014dynamics].
 This is simply not possible with bulk data, meaning that custom methods are required to perform these analyses. 
 
-This article describes a set of computational workflows for basic analysis of scRNA-seq data, using software packages from the open-source Bioconductor project [@huber2015orchestrating].
-The workflows start from a count matrix and describe the steps required for quality control to remove problematic cells; normalization of cell-specific biases, with and without spike-ins; cell cycle phase classification from gene expression data; data exploration to identify putative subpopulations; and finally, HVG and marker gene identification to prioritize interesting genes.
-The application of these procedures will be demonstrated on several public scRNA-seq datasets involving immortalized myeloid progenitors, brain cells, haematopoietic stem cells, T-helper cells and mouse embryonic stem cells, generated with a range of experimental protocols and platforms [@lun2017assessing;@wilson2015combined;@zeisel2015brain;@islam2011characterization;@buettner2015computational].
+# scRNA-seq data analysis with Bioconductor
+
+This package contains a set of computational workflows for basic analysis of scRNA-seq data, using software from the open-source Bioconductor project [@huber2015orchestrating].
+The workflows start from a count matrix and describe a number of key steps for scRNA-seq data analysis, including quality control to remove problematic cells; normalization of cell-specific biases, with and without spike-ins; correction for batch effects; cell cycle phase classification from gene expression data; data exploration to identify putative subpopulations; and finally, HVG and marker gene identification to prioritize interesting genes.
+The application of these procedures will be demonstrated on several public scRNA-seq datasets involving immortalized myeloid progenitors, brain cells, haematopoietic stem cells, T-helper cells and mouse embryonic stem cells, generated with a range of experimental protocols and platforms [@lun2017assessing;@wilson2015combined;@zeisel2015brain;@islam2011characterization;@buettner2015computational;@zheng2017massively].
 The aim is to provide a variety of modular usage examples that can be applied to construct custom analysis pipelines.
 
-***Note:*** *to cite this article, please refer to http://f1000research.com/articles/5-2122/v2 for instructions.*
-
-# Links to individual workflows 
-
 See the `r Biocpkg("simpleSingleCell")` landing page for links to individual workflows and for instructions on how to install the required packages.
-Each workflow starts from a publicly available count matrix and typically finishes with the characterisation of cell clusters.
-Across a few "episodes", we will explore the analysis of read count scRNA-seq dataset [@lun2017assessing], a UMI count dataset [@zeisel2015brain] and a droplet-based dataset [@zheng2017massively].
-We will also examine how to correct for batch effects across different datasets using the method of @haghverdi2018batch.
-Additional special workflows are also provided that elaborate on specific steps of the general workflow.
+To cite any of these workflows, please refer to http://f1000research.com/articles/5-2122/v2 for instructions.
 
 # Obtaining a count matrix
 
