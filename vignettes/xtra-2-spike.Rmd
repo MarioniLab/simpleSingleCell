@@ -14,7 +14,7 @@ author:
   - Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
 date: "`r Sys.Date()`"
 vignette: >
-  %\VignetteIndexEntry{Specials 2: spike-in normalization of scRNA-seq data}
+  %\VignetteIndexEntry{7. Spike-in normalization of scRNA-seq data}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}    
 output: 
