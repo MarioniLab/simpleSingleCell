@@ -224,9 +224,21 @@ plotExpression(sce, features=c("Acta2", "Csn2"),
 ```
 
 The strength of `doubletCluster()` lies in its simplicity and ease of interpretation.
-Suspect clusters can be quickly flagged for further investigation.
+Suspect clusters can be quickly flagged for further investigation, based on the metrics returned by the function.
 However, it is obviously dependent on the quality of the clustering.
 Clusters that are too coarse will fail to separate doublets from other cells, while clusters that are too fine will complicate interpretation.
+
+**Comments from Aaron:**
+
+- The output of `doubletClusters()` should generally be treated as a prioritization of "high-risk" clusters that require more careful investigation.
+We do not recommend using a fixed threshold on any of the metrics to identify clusters that do or do not consist of doublets.
+This is because any appropriate threshold for the metrics will depend on the quality of the clustering.
+- The pair of parents for each query cluster are identified solely on the basis of the lowest `N`.
+This means that any `lib.size*` above unity is not definitive evidence against a doublet identity for a query cluster.
+It is possible for the "true" parent clusters to be adjacent to the detected parents but with slightly higher `N`.
+- Clusters with few cells are implicitly more likely to be detected as doublets.
+This is because they will have less power to detect DE genes and thus the value of `N` is more likely to be small.
+Fortunately for us, this is a desirable effect as doublets should be rare in a properly performed scRNA-seq experiment.
 
 # Session information
 
