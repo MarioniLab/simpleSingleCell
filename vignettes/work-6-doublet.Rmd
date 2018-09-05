@@ -170,19 +170,63 @@ We cluster cells into putative subpopulations using `buildSNNGraph()` [@xu2015id
 We use a higher `k` to increase connectivity and reduce the granularity of the clustering.
 
 ```{r}
-snn.gr <- buildSNNGraph(sce, use.dimred="PCA")
+snn.gr <- buildSNNGraph(sce, use.dimred="PCA", k=25)
 sce$Cluster <- factor(igraph::cluster_walktrap(snn.gr)$membership)
 table(sce$Cluster)
 ```
 
 We visualize the clustering on a _t_-SNE plot [@van2008visualizing].
-Figure @(fig:tsneclust) shows a number of well-separated clusters as well as some more inter-related clusters.
+Figure \@(fig:tsneclust) shows that there are a number of well-separated clusters as well as some more inter-related clusters.
 
 ```{r tsneclust, fig.cap="t-SNE plot of the mammary gland data set. Each point is a cell coloured according to its assigned cluster identity."}
 set.seed(1000)
 sce <- runTSNE(sce, use_dimred="PCA")
 plotTSNE(sce, colour_by="Cluster")
 ```
+
+# Doublet detection with clustering information
+
+If clustering information is available, the `doubletCluster()` function will identify clusters that have intermediate expression profiles of two other clusters.
+Specifically, it will examine every possible triplet of clusters consisting of a query cluster and its two "parents".
+It will then determine the number of genes that are differentially expressed in the same direction in the query cluster compared to _both_ of the parent clusters.
+Such genes would be unique markers for the query cluster and provide evidence against the null hypothesis, i.e., that the query cluster consists of doublets from the two parents.
+Clusters with few unique genes (in the `N` field) are more likely to be doublets.
+
+```{r}
+dbl.out <- doubletCluster(sce, sce$Cluster)
+dbl.out
+```
+
+In addition, the library sizes for the query cluster should be larger than the library sizes of the parent clusters if the former consists of doublets of the latter.
+This information is reported in the `lib.size*` fields, which contains the ratio of the median library size in the parent to the median library size in the query.
+The proportion of cells in the query should also be reasonable - typically less than 5% of all cells, depending on the loading of cells onto the 10X Genomics device.
+
+Based on this reasoning, cluster 7 is most likely to contain doublets, having no unique genes and larger library sizes compared to its parents.
+We see that every gene detected in this cluster is also expressed in either of the two proposed parent clusters (Figure \@ref(fig:heatclust)).
+This is consistent with a doublet identity for cells in cluster 7.
+
+```{r heatclust, fig.cap="Heatmap of mean-centred and normalized log-expression values for the top set of markers for cluster 1 in the 416B dataset. Column colours represent the cluster to which each cell is assigned, as indicated by the legend."}
+markers <- findMarkers(sce, sce$Cluster, direction="up")
+dbl.markers <- markers[["7"]]
+chosen <- rownames(dbl.markers)[dbl.markers$Top <= 10]
+plotHeatmap(sce, columns=order(sce$Cluster), colour_columns_by="Cluster", 
+    features=chosen, cluster_cols=FALSE, center=TRUE, symmetric=TRUE, 
+    zlim=c(-5, 5), show_colnames=FALSE)
+```
+
+A closer examination of a few known markers suggests that cluster 7 consists of doublets of basal cells (_Acta2_) and alveolar cells (_Csn2_) (Figure \@ref(fig:markerexprs))).
+Indeed, no cell type is known to strongly express both of these genes at the same time.
+Of course, it is possible that this cluster represents an entirely novel cell type, though the presence of doublets provides a more sober explanation for its expression profile.
+
+```{r markerexprs, fig.asp=0.5, fig.width=10, fig.cap="Distribution of log-normalized expression values for _Acta2_ and _Csn2_ in each cluster. Each point represents a cell."}
+plotExpression(sce, features=c("Acta2", "Csn2"), 
+    x="Cluster", colour_by="Cluster")
+```
+
+The strength of `doubletCluster()` lies in its simplicity and ease of interpretation.
+Suspect clusters can be quickly flagged for further investigation.
+However, it is obviously dependent on the quality of the clustering.
+Clusters that are too coarse will fail to separate doublets from other cells, while clusters that are too fine will complicate interpretation.
 
 # Session information
 
