@@ -41,6 +41,157 @@ A more general approach is to infer doublets from the expression profiles alone 
 In this workflow, we will describe two purely computational approaches for detecting doublets from scRNA-seq data.
 The main difference between These two methods is whether or not they need cluster information beforehand.
 Both are implemented in the `r Biocpkg("scran")` package from the open-source Bioconductor project [@huber2015orchestrating].
-We will demonstrate the use of these methods on data from a scRNA-seq study of the mouse mammary gland [@bach2017differentiation].
+We will demonstrate the use of these methods on data from a droplet-based scRNA-seq study of the mouse mammary gland [@bach2017differentiation],
+available from NCBI GEO with the accession code GSE106273.
+
+```{r}
+library(BiocFileCache)
+bfc <- BiocFileCache("raw_data", ask = FALSE)
+base.path <- "ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM2834nnn/GSM2834500/suppl"
+barcode.fname <- bfcrpath(bfc, file.path(base.path, 
+    "GSM2834500%5FG%5F1%5Fbarcodes%2Etsv%2Egz"))
+gene.fname <- bfcrpath(bfc, file.path(base.path,
+    "GSM2834500%5FG%5F1%5Fgenes%2Etsv%2Egz"))
+counts.fname <- bfcrpath(bfc, file.path(base.path,
+    "GSM2834500%5FG%5F1%5Fmatrix%2Emtx%2Egz"))
+```
+
+# Preparing the data
+
+## Reading in the counts
+
+We create a `SingleCellExperiment` object from the count matrix.
+The files have been modified from the _CellRanger_ output, so we have to manually load them in rather than using `read10xCounts()`.
+
+```{r}
+library(scater)
+library(Matrix)
+gene.info <- read.table(gene.fname, stringsAsFactors=FALSE)
+colnames(gene.info) <- c("Ensembl", "Symbol")
+sce <- SingleCellExperiment(
+    list(counts=as(readMM(counts.fname), "dgCMatrix")), 
+    rowData=gene.info, 
+    colData=DataFrame(Barcode=readLines(barcode.fname))
+)
+```
+
+We put some more meaningful information in the row and column names.
+Note the use of `uniquifyFeatureNames()` to generate unique row names from gene symbols.
+
+```
+rownames(sce) <- uniquifyFeatureNames(
+    rowData(sce)$Ensembl, rowData(sce)$Symbol)
+colnames(sce) <- sce$Barcode
+sce
+```
+
+We add some genomic location annotation for downstream use.
+
+```{r}
+library(TxDb.Mmusculus.UCSC.mm10.ensGene)
+chrloc <- mapIds(TxDb.Mmusculus.UCSC.mm10.ensGene, keytype="GENEID", 
+    keys=rowData(sce)$Ensembl, column="CDSCHROM")
+rowData(sce)$Chr <- chrloc
+```
+
+## Quality control
+
+We compute quality control (QC) metrics using the `calculateQCMetrics()` function from the `r Biocpkg("scater")` package [@mccarthy2017scater].
+
+```{r}
+is.mito <- rowData(sce)$Chr == "chrM"
+summary(is.mito)
+sce <- calculateQCMetrics(sce, feature_controls=list(Mito=which(is.mito)))
+```
+
+We remove cells that are outliers for any of these metrics, as previously discussed.
+Note that some quality control was already performed by the authors of the original study, so relatively few cells are discarded here.
+
+```{r}
+low.lib <- isOutlier(sce$total_counts, log=TRUE, nmads=3, type="lower")
+low.nexprs <- isOutlier(sce$total_features_by_counts, log=TRUE, nmads=3, type="lower")
+high.mito <- isOutlier(sce$pct_counts_Mito, nmads=3, type="higher")
+discard <- low.lib | low.nexprs | high.mito
+DataFrame(LowLib=sum(low.lib), LowNum=sum(low.nexprs), HighMito=sum(high.mito), 
+    Discard=sum(discard), Kept=sum(!discard))
+```
+
+We then subset the `SingleCellExperiment` object to remove these low-quality cells.
+
+```{r}
+sce <- sce[,!discard]
+```
+
+## Normalization for cell-specific biases
+
+We apply the deconvolution method with pre-clustering [@lun2016pooling] to compute size factors for scaling normalization of cell-specific biases.
+
+```{r}
+library(scran)
+clusters <- quickCluster(sce, method="igraph", min.mean=0.1)
+table(clusters)
+sce <- computeSumFactors(sce, clusters=clusters, min.mean=0.1)
+summary(sizeFactors(sce))
+```
+
+We then compute log-normalized expression values for downstream use.
+This data set does not contain spike-in transcripts so separate normalziation with `computeSpikeFactors()` is not required.
+
+```{r}
+sce <- normalize(sce)
+assayNames(sce)
+```
+
+## Modelling and removing noise
+
+As we have no spike-ins, we model technical noise using the `makeTechTrend()` function.
+
+```{r varplot, fig.cap="Variance of the log-expression values as a function of the mean log-expression in the mammary gland data set. Each point represents a gene, and the red line corresponds to Poisson variance."}
+tech.trend <- makeTechTrend(x=sce)
+fit <- trendVar(sce, use.spikes=FALSE)
+plot(fit$mean, fit$var, pch=16, log="x",
+    xlab="Mean log-expression",
+    ylab="Variance of log-expression")
+curve(tech.trend(x), add=TRUE, col="red")
+```
+
+We use `denoisePCA()` to choose the number of principal components (PCs) to retain based on the technical noise per gene.
+We need to set the seed for reproducibility when `approximate=TRUE`, due to the use of randomized methods from `r Biocpkg("irlba")`.
+
+```{r}
+set.seed(12345)
+sce <- denoisePCA(sce, technical=tech.trend, approximate=TRUE)
+ncol(reducedDim(sce))
+```
+
+## Clustering into subpopulations
+
+We cluster cells into putative subpopulations using `buildSNNGraph()` [@xu2015identification].
+We use a higher `k` to increase connectivity and reduce the granularity of the clustering.
+
+```{r}
+snn.gr <- buildSNNGraph(sce, use.dimred="PCA")
+sce$Cluster <- factor(igraph::cluster_walktrap(snn.gr)$membership)
+table(sce$Cluster)
+```
+
+We visualize the clustering on a _t_-SNE plot [@van2008visualizing].
+Figure @(fig:tsneclust) shows a number of well-separated clusters as well as some more inter-related clusters.
+
+```{r tsneclust, fig.cap="t-SNE plot of the mammary gland data set. Each point is a cell coloured according to its assigned cluster identity."}
+set.seed(1000)
+sce <- runTSNE(sce, use_dimred="PCA")
+plotTSNE(sce, colour_by="Cluster")
+```
+
+# Session information
+
+```{r}
+saveRDS(sce, file="mammary.rds")
+```
+
+```{r}
+sessionInfo()
+```
 
 # References
