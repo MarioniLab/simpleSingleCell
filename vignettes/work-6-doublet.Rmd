@@ -1,0 +1,46 @@
+---
+title: Detecting doublets in single-cell RNA-seq data
+author:
+- name: Aaron T. L. Lun
+  affiliation: &CRUK Cancer Research UK Cambridge Institute, Li Ka Shing Centre, Robinson Way, Cambridge CB2 0RE, United Kingdom
+date: "`r Sys.Date()`"
+vignette: >
+  %\VignetteIndexEntry{8. Detecting doublets in scRNA-seq data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+output:
+  BiocStyle::html_document:
+    titlecaps: false
+    toc_float: true
+bibliography: ref.bib
+---
+
+```{r style, echo=FALSE, results='hide', message=FALSE}
+library(BiocStyle)
+library(knitr)
+opts_chunk$set(error=FALSE, message=FALSE, warning=FALSE)
+opts_chunk$set(fig.asp=1)
+```
+
+# Overview
+
+In single-cell RNA sequencing (scRNA-seq) experiments, doublets are artifactual libraries generated from two cells.
+They typically arise due to errors in cell sorting or capture, especially in droplet-based protocols [@zheng2017massively] involving thousands of cells.
+Doublets are obviously undesirable when the aim is to characterize populations at the _single_-cell level.
+In particular, they can incorrectly suggest the existence of intermediate populations or transitory states that not actually exist.
+Thus, it is desirable to remove doublet libraries so that they do not compromise interpretation of the results.
+
+Several experimental strategies are available for doublet removal.
+One approach exploits natural genetic variation when pooling cells from multiple donor individuals [@kang2018multiplexed].
+Doublets can be identified as libraries with allele combinations that do not exist in any single donor.
+Another approach is to mark a subset of cells (e.g., all cells from one sample) with an antibody conjugated to a different oligonucleotide [@stoeckius2017hashing].
+Upon pooling, libraries that are observed to have different oligonucleotides are considered to be doublets and removed.
+These approaches can be highly effective but rely on experimental information that may not be available.
+
+A more general approach is to infer doublets from the expression profiles alone [@dahlin2018single].
+In this workflow, we will describe two purely computational approaches for detecting doublets from scRNA-seq data.
+The main difference between These two methods is whether or not they need cluster information beforehand.
+Both are implemented in the `r Biocpkg("scran")` package from the open-source Bioconductor project [@huber2015orchestrating].
+We will demonstrate the use of these methods on data from a scRNA-seq study of the mouse mammary gland [@bach2017differentiation].
+
+# References
