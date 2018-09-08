@@ -475,7 +475,7 @@ legend("bottomright", col=c("red", "black"), pch=16, cex=1.2,
 __Comments from Aaron:__
 
 - While the deconvolution approach is robust to the high frequency of zeroes in scRNA-seq data, it will eventually fail if too many counts are zero.
-This manifests as negative size factors, which are obviously nonsensical.
+This manifests as negative size factors that are obviously nonsensical.
 To avoid this, the `computeSumFactors` function will automatically remove low-abundance genes prior to the calculation of size factors.
 Genes with a library size-adjusted average count below a specified threshold (`min.mean`) are ignored.
     - For read count data, the default value of 1 is usually satisfactory.
@@ -488,8 +488,8 @@ This is because too many zeroes are present in these cells, reducing the effecti
 Indeed, for some low-quality cells, the effect of cell damage on the transcriptome may already violate the non-DE assumption.
 - The `sizes` argument can be used to specify the number of pool sizes to use to compute the size factors.
 More `sizes` yields more precise estimates at the cost of some computational time and memory.
-In general, `sizes` should not be below 20 cells, to ensure that there are sufficient non-zero expression values in each pool.
-We also recommend that the total number of cells should be at least 100 for effective pooling.
+In general, all `sizes` should not above 20 cells to ensure that there are sufficient non-zero expression values in each pool.
+The total number of cells should also be at least 100 for effective pooling.
 - For highly heterogeneous datasets, it is advisable to perform a rough clustering of the cells.
 This can be done with the `quickCluster` function and the results passed to `computeSumFactors` via the `cluster` argument.
 Cells in each cluster are normalized separately, and the size factors are rescaled to be comparable across clusters.
@@ -799,11 +799,16 @@ plot(sil, main = paste(length(unique(my.clusters)), "clusters"),
     border=sil.cols, col=sil.cols, do.col.sort=FALSE) 
 ```
 
-Most cells in in Figure \@ref(fig:silhouette416b) have small positive widths, representing weak separation between clusters in the 416B dataset.
-This may be symptomatic of over-clustering where clusters that are clearly defined on oncogene induction status are further split into subsets that are less well separated.
-The silhouette width can be used to gauge the optimal parameter values (e.g., cut height, number of clusters) that maximize the separation between clusters.
+The silhouette width can be used to determine the parameter values that maximize the separation between clusters.
 For example, we could vary the cut height or splitting depth in `cutreeDynamic` to maximize the average silhouette width across all cells.
-Nonetheless, we will proceed with the current clustering scheme in `my.clusters`, which provides reasonable partitions for further characterization of heterogeneity.
+This usually provides a satisfactory initial clustering for further examination.
+However, keep in mind that the granularity of clustering is much like the magnification on a microscope.
+Different views of the data can be obtained with different granularities, some of which may be suboptimal on measures of separation.
+Users should not fixate on the clustering with the greatest separation if it does not provide the desired granularity for a particular biological question.
+
+Most cells have relatively small silhouette positive widths in Figure \@ref(fig:silhouette416b), indicating that the separation between clusters is weak.
+This may be symptomatic of over-clustering where clusters that are clearly defined on oncogene induction status are further split into subsets that are less well separated.
+Nonetheless, we will proceed with the current clustering scheme in `my.clusters`, as it provides reasonable partitions for further characterization of heterogeneity.
 
 ```{r echo=FALSE, results='hide'}
 gc()
