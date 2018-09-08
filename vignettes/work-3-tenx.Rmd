@@ -384,21 +384,28 @@ Again, we only look at upregulated genes in each cluster, as these are more usef
 markers <- findMarkers(sce, clusters=sce$Cluster, direction="up")
 ```
 
-We examine the markers for cluster 1 in more detail.
-The upregulation of genes such as _PF4_ and _PPBP_ suggests that cluster 1 contains platelets or their precursors.
+We examine the markers for cluster 2 in more detail.
+The upregulation of genes such as _PF4_ and _PPBP_ suggests that this cluster contains platelets or their precursors.
 
 ```{r}
-marker.set <- markers[["1"]]
+marker.set <- markers[["2"]]
 head(marker.set[,1:8], 10) # only first 8 columns, for brevity
 ```
 
-This is confirmed in Figure \@ref(fig:heatmap), where the transcriptional profile of cluster 1 is clearly distinct from the others.
+```{r, echo=FALSE, results="hide"}
+# Checking the cluster is what we wanted.
+pf4 <- sapply(marker.set["PF4",-(1:2)], sign)
+stopifnot(all(pf4==1))
+```
 
-```{r heatmap, fig.wide=TRUE, fig.cap="Heatmap of mean-centred and normalized log-expression values for the top set of markers for cluster 1 in the PBMC dataset. Column colours represent the cluster to which each cell is assigned, as indicated by the legend."}
+This is confirmed in Figure \@ref(fig:heatmap), where the transcriptional profile of cluster 2 is clearly distinct from the others.
+
+```{r heatmap, fig.wide=TRUE, fig.cap="Heatmap of mean-centred and normalized log-expression values for the top set of markers for cluster 2 in the PBMC dataset. Column colours represent the cluster to which each cell is assigned, as indicated by the legend."}
 chosen <- rownames(marker.set)[marker.set$Top <= 10]
 plotHeatmap(sce, features=chosen, exprs_values="logcounts", 
     zlim=5, center=TRUE, symmetric=TRUE, cluster_cols=FALSE,
-    colour_columns_by="Cluster", columns=order(sce$Cluster))
+    colour_columns_by="Cluster", columns=order(sce$Cluster),
+    show_colnames=FALSE)
 ```
 
 # Concluding remarks
