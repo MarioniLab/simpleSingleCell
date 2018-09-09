@@ -128,6 +128,7 @@ We apply the deconvolution method with pre-clustering [@lun2016pooling] to compu
 
 ```{r}
 library(scran)
+set.seed(1000)
 clusters <- quickCluster(sce, method="igraph", min.mean=0.1)
 table(clusters)
 sce <- computeSumFactors(sce, clusters=clusters, min.mean=0.1)
@@ -149,7 +150,7 @@ As we have no spike-ins, we model technical noise using the `makeTechTrend()` fu
 ```{r varplot, fig.cap="Variance of the log-expression values as a function of the mean log-expression in the mammary gland data set. Each point represents a gene, and the red line corresponds to Poisson variance."}
 tech.trend <- makeTechTrend(x=sce)
 fit <- trendVar(sce, use.spikes=FALSE)
-plot(fit$mean, fit$var, pch=16, log="x",
+plot(fit$mean, fit$var, pch=16, 
     xlab="Mean log-expression",
     ylab="Variance of log-expression")
 curve(tech.trend(x), add=TRUE, col="red")
@@ -188,24 +189,25 @@ plotTSNE(sce, colour_by="Cluster")
 
 The `doubletCluster()` function will identify clusters that have intermediate expression profiles of two other clusters [@bach2018differentiation].
 Specifically, it will examine every possible triplet of clusters consisting of a query cluster and its two "parents".
-It will then determine the number of genes that are differentially expressed in the same direction in the query cluster compared to _both_ of the parent clusters.
+It will then compute a number of statistics:
+
+- The number of genes (`N`) that are differentially expressed in the same direction in the query cluster compared to _both_ of the parent clusters.
 Such genes would be unique markers for the query cluster and provide evidence against the null hypothesis, i.e., that the query cluster consists of doublets from the two parents.
-Clusters with few unique genes (in the `N` field) are more likely to be doublets.
+Clusters with few unique genes are more likely to be doublets.
+- The ratio of the median library size in each parent to the median library size in the query (`lib.size*`).
+Doublet libraries are generated from a larger initial pool of RNA compared to libraries for single cells, and thus the former should have larger library sizes.
+Library size ratios much greater than unity are inconsistent with a doublet identity for the query.
+- The proportion of cells in the query cluster should also be reasonable - typically less than 5% of all cells, depending on how many cells were loaded onto the 10X Genomics device.
 
 ```{r}
 dbl.out <- doubletCluster(sce, sce$Cluster)
 dbl.out
 ```
 
-In addition, the library sizes for the query cluster should be larger than the library sizes of the parent clusters if the former consists of doublets of the latter.
-This information is reported in the `lib.size*` fields, which contains the ratio of the median library size in the parent to the median library size in the query.
-The proportion of cells in the query should also be reasonable - typically less than 5% of all cells, depending on the loading of cells onto the 10X Genomics device.
-
-Based on this reasoning, cluster 7 is most likely to contain doublets, having no unique genes and larger library sizes compared to its parents.
+Examination of the output of `doubletCluster()` indicates that cluster 7 has the fewest unique genes and library sizes that are comparable to or greater than its parents.
 We see that every gene detected in this cluster is also expressed in either of the two proposed parent clusters (Figure \@ref(fig:heatclust)).
-This is consistent with a doublet identity for cells in cluster 7.
 
-```{r heatclust, fig.cap="Heatmap of mean-centred and normalized log-expression values for the top set of markers for cluster 1 in the 416B dataset. Column colours represent the cluster to which each cell is assigned, as indicated by the legend."}
+```{r heatclust, fig.cap="Heatmap of mean-centred and normalized log-expression values for the top set of markers for cluster 7 in the 416B dataset. Column colours represent the cluster to which each cell is assigned, as indicated by the legend."}
 markers <- findMarkers(sce, sce$Cluster, direction="up")
 dbl.markers <- markers[["7"]]
 chosen <- rownames(dbl.markers)[dbl.markers$Top <= 10]
@@ -214,8 +216,19 @@ plotHeatmap(sce, columns=order(sce$Cluster), colour_columns_by="Cluster",
     zlim=c(-5, 5), show_colnames=FALSE)
 ```
 
-A closer examination of a few known markers suggests that cluster 7 consists of doublets of basal cells (_Acta2_) and alveolar cells (_Csn2_) (Figure \@ref(fig:markerexprs))).
-Indeed, no cell type is known to strongly express both of these genes at the same time.
+```{r, echo=FALSE, results="hide"}
+# Checking that we've picked the correct cluster.
+acta2 <- sapply(dbl.markers["Acta2", -(1:2)], sign)
+csn2 <- sapply(dbl.markers["Csn2", -(1:2)], sign)
+
+below <- acta2 < 0
+stopifnot(all(csn2[below] == 1))
+below <- csn2 < 0
+stopifnot(all(acta2[below] == 1))
+```
+
+Closer examination of some known markers suggests that the offending cluster consists of doublets of basal cells (_Acta2_) and alveolar cells (_Csn2_) (Figure \@ref(fig:markerexprs))).
+Indeed, no cell type is known to strongly express both of these genes at the same time, which supports the hypothesis that this cluster consists solely of doublets.
 Of course, it is possible that this cluster represents an entirely novel cell type, though the presence of doublets provides a more sober explanation for its expression profile.
 
 ```{r markerexprs, fig.asp=0.5, fig.width=10, fig.cap="Distribution of log-normalized expression values for _Acta2_ and _Csn2_ in each cluster. Each point represents a cell."}
@@ -230,12 +243,13 @@ Clusters that are too coarse will fail to separate doublets from other cells, wh
 
 **Comments from Aaron:**
 
-- The output of `doubletClusters()` should generally be treated as a prioritization of "high-risk" clusters that require more careful investigation.
-We do not recommend using a fixed threshold on any of the metrics to identify clusters that do or do not consist of doublets.
-This is because any appropriate threshold for the metrics will depend on the quality of the clustering.
+- The output of `doubletClusters()` should be treated as a prioritization of "high-risk" clusters that require more careful investigation.
+We do not recommend using a fixed threshold on any of the metrics to identify doublet clusters.
+Any appropriate threshold for the metrics will depend on the quality of the clustering and the biological context.
 - The pair of parents for each query cluster are identified solely on the basis of the lowest `N`.
 This means that any `lib.size*` above unity is not definitive evidence against a doublet identity for a query cluster.
 It is possible for the "true" parent clusters to be adjacent to the detected parents but with slightly higher `N`.
+If this occurs, inspect the `all.pairs` field for statistics on all possible parent pairs for a given query cluster. 
 - Clusters with few cells are implicitly more likely to be detected as doublets.
 This is because they will have less power to detect DE genes and thus the value of `N` is more likely to be small.
 Fortunately for us, this is a desirable effect as doublets should be rare in a properly performed scRNA-seq experiment.
@@ -305,7 +319,8 @@ Thus, these scores are most often used in the context of cluster annotation, whe
 
 - The issue of unknown combining proportions can be solved completely if spike-in information is available, e.g., in plate-based protocols.
 This will provide an accurate estimate of the total RNA content of each cell.
-To this end, size factors from `computeSumFactors()` (see `r Biocpkg("simpleSingleCell", vignette="xtra-2-spike", label="here")`) can be supplied to `doubletCells()` via `size.factors.content=`.
+To this end, size factors from `computeSpikeFactors()` (see `r Biocpkg("simpleSingleCell", vignette="xtra-2-spike", label="here")`) can be supplied to the `doubletCells()` function via the `size.factors.content=` argument.
+This will use the spike-in size factors to scale the contribution of each cell to a doublet library.
 
 # Session information
 
