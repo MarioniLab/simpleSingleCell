@@ -1,0 +1,13 @@
+bibentry(
+    bibtype = "article",
+    author = c(
+        person(c("Aaron", "T.", "L."), "Lun"),
+        person(c("Davis", "J."), "McCarthy"),
+        person(c("John", "C."), "Marioni")),
+    title="A step-by-step workflow for low-level analysis of single-cell RNA-seq data with Bioconductor",
+    journal="F1000Res.",
+    year="2016",
+    volume="5",
+    pages="2122",
+    doi = "10.12688/f1000research.9501.2"
+)

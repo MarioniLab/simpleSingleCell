@@ -486,7 +486,7 @@ Intra-batch comparisons are robust to differences between batches but assume tha
 ```{r}
 m.out <- findMarkers(sce, clusters$membership, block=sce$Batch,
     direction="up")        
-demo <- m.out[["4"]] # looking at cluster 4 (probably alpha cells).
+demo <- m.out[["5"]] # looking at cluster 5 (probably alpha cells).
 demo <- demo[demo$Top <= 3,]
 
 library(org.Hs.eg.db)
@@ -494,6 +494,11 @@ data.frame(row.names=rownames(demo),
     Symbol=mapIds(org.Hs.eg.db, keytype="ENSEMBL", 
         keys=rownames(demo), column="SYMBOL"),
     Top=demo$Top, FDR=demo$FDR)
+```
+
+```{r, echo=FALSE, results="hide"}
+# Checking that cluster 5 is what we think it is.
+stopifnot(all(sapply(demo["ENSG00000115263",-(1:2)], sign)==1))
 ```
 
 Another approach is to define a design matrix containing the batch of origin as the sole factor.
@@ -505,7 +510,7 @@ However, the use of a linear model makes some strong assumptions about the homog
 design <- model.matrix(~sce$Batch)
 m.alt <- findMarkers(sce, clusters$membership, design=design, 
     direction="up")
-demo <- m.alt[["4"]]
+demo <- m.alt[["5"]]
 demo <- demo[demo$Top <= 3,]
 
 data.frame(row.names=rownames(demo),
