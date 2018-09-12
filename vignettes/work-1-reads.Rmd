@@ -863,7 +863,7 @@ We save the list of candidate marker genes for further examination.
 
 ```{r}
 write.table(marker.set, file="416B_marker_1.tsv", sep="\t", 
-    quote=FALSE, row.names=FALSE)
+    quote=FALSE, col.names=NA)
 ```
 
 We visualize the expression profiles of the top candidates to verify that the DE signature is robust (Figure \@ref(fig:heatmapmarker416b)). 

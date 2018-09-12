@@ -534,7 +534,7 @@ The `overlapExprs` function may also be useful for summarizing differences betwe
 
 ```{r}
 gzout <- gzfile("brain_marker_1.tsv.gz", open="wb")
-write.table(marker.set, file=gzout, sep="\t", quote=FALSE, row.names=FALSE)
+write.table(marker.set, file=gzout, sep="\t", quote=FALSE, col.names=NA)
 close(gzout)
 ```
 
