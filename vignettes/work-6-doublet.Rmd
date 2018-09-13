@@ -187,7 +187,7 @@ plotTSNE(sce, colour_by="Cluster")
 
 # Doublet detection with clusters
 
-The `doubletCluster()` function will identify clusters that have intermediate expression profiles of two other clusters [@bach2018differentiation].
+The `doubletCluster()` function will identify clusters that have intermediate expression profiles of two other clusters [@bach2017differentiation].
 Specifically, it will examine every possible triplet of clusters consisting of a query cluster and its two "parents".
 It will then compute a number of statistics:
 
@@ -227,7 +227,7 @@ below <- csn2 < 0
 stopifnot(all(acta2[below] == 1))
 ```
 
-Closer examination of some known markers suggests that the offending cluster consists of doublets of basal cells (_Acta2_) and alveolar cells (_Csn2_) (Figure \@ref(fig:markerexprs))).
+Closer examination of some known markers suggests that the offending cluster consists of doublets of basal cells (_Acta2_) and alveolar cells (_Csn2_) (Figure \@ref(fig:markerexprs)).
 Indeed, no cell type is known to strongly express both of these genes at the same time, which supports the hypothesis that this cluster consists solely of doublets.
 Of course, it is possible that this cluster represents an entirely novel cell type, though the presence of doublets provides a more sober explanation for its expression profile.
 
@@ -323,16 +323,21 @@ Thus, some understanding of the experimental design is required prior to the use
 This avoids unnecessary concerns about the validity of clusters when they cannot possibly consist of doublets.
 
 It is also difficult to interpret doublet predictions in data containing cellular trajectories.
-By definition, cells on a trajectory are intermediate between other cells and are liable to be incorrectly detected as doublets.
+By definition, cells in the middle of a trajectory are always intermediate between other cells and are liable to be incorrectly detected as doublets.
 Some protection is provided by the non-linear nature of many real trajectories, which reduces the risk of simulated doublets coinciding with real cells in `doubletCells()`.
 One can also put more weight on the relative library sizes in `doubletCluster()` instead of relying on `N`, 
 under the assumption that sudden spikes in RNA content are unlikely in a continuous biological process.
 
 # Session information
 
+We save the `SingleCellExperiment` object with its associated data to file for future use.
+
 ```{r}
 saveRDS(sce, file="mammary.rds")
 ```
+
+All software packages used in this workflow are publicly available from the Comprehensive R Archive Network (https://cran.r-project.org) or the Bioconductor project (http://bioconductor.org).
+The specific version numbers of the packages used are shown below, along with the version of the R installation.
 
 ```{r}
 sessionInfo()
