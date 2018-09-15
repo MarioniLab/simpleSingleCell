@@ -5,7 +5,7 @@ author:
   affiliation: Cancer Research UK Cambridge Institute, Li Ka Shing Centre, Robinson Way, Cambridge CB2 0RE, United Kingdom
 date: "`r Sys.Date()`"
 vignette: >
-  %\VignetteIndexEntry{4. Analyzing droplet-based scRNA-seq data}
+  %\VignetteIndexEntry{04. Analyzing droplet-based scRNA-seq data}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}    
 output: 

@@ -5,7 +5,7 @@ author:
   affiliation: &CRUK Cancer Research UK Cambridge Institute, Li Ka Shing Centre, Robinson Way, Cambridge CB2 0RE, United Kingdom
 date: "`r Sys.Date()`"
 vignette: >
-  %\VignetteIndexEntry{8. Detecting doublets in scRNA-seq data}
+  %\VignetteIndexEntry{08. Detecting doublets in scRNA-seq data}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 output:
