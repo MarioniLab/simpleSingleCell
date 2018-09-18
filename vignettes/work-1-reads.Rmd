@@ -907,7 +907,8 @@ This is because the clusters have been empirically identified from the data.
 `r Biocpkg("limma")` does not account for the uncertainty of clustering, which means that the _p_-values are much lower than they should be. 
 This is not a concern in other analyses where the groups are pre-defined.
 - The `overlapExprs` function may also be useful here, to prioritize candidates where there is clear separation between the distributions of expression values of different clusters.
-This differs from `findMarkers`, which is primarily concerned with the log-fold changes in average expression between clusters.
+This uses the Wilcoxon rank sum test to detect uneven mixing of the distributions of expression values between clusters.
+By contrast, `findMarkers` uses t-tests and is primarily concerned with log-fold changes.
 
 # Concluding remarks
 
