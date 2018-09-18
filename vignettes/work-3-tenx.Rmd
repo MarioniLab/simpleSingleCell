@@ -394,7 +394,7 @@ head(marker.set[,1:8], 10) # only first 8 columns, for brevity
 
 ```{r, echo=FALSE, results="hide"}
 # Checking the cluster is what we wanted.
-pf4 <- sapply(marker.set["PF4",-(1:2)], sign)
+pf4 <- sapply(marker.set["PF4",-(1:3)], sign)
 stopifnot(all(pf4==1))
 ```
 

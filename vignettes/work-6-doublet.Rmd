@@ -218,8 +218,8 @@ plotHeatmap(sce, columns=order(sce$Cluster), colour_columns_by="Cluster",
 
 ```{r, echo=FALSE, results="hide"}
 # Checking that we've picked the correct cluster.
-acta2 <- sapply(dbl.markers["Acta2", -(1:2)], sign)
-csn2 <- sapply(dbl.markers["Csn2", -(1:2)], sign)
+acta2 <- sapply(dbl.markers["Acta2", -(1:3)], sign)
+csn2 <- sapply(dbl.markers["Csn2", -(1:3)], sign)
 
 below <- acta2 < 0
 stopifnot(all(csn2[below] == 1))

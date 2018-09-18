@@ -516,15 +516,15 @@ head(marker.set[,1:8], 10) # only first 8 columns, for brevity
 
 ```{r, echo=FALSE, results="hide"}
 # Checking the cluster is what we wanted, along with cluster 10 (=9 in marker.set).
-gad1 <- sapply(marker.set["Gad1",-(1:2)], sign)
+gad1 <- sapply(marker.set["Gad1",-(1:3)], sign)
 stopifnot(gad1[9]==-1)
 stopifnot(all(gad1[-9]==1))
 
-gad2 <- sapply(marker.set["Gad2",-(1:2)], sign)
+gad2 <- sapply(marker.set["Gad2",-(1:3)], sign)
 stopifnot(gad2[9]==-1)
 stopifnot(all(gad2[-9]==1))
 
-stopifnot(all(sapply(marker.set["Synpr",-(1:2)], sign)==1))
+stopifnot(all(sapply(marker.set["Synpr",-(1:3)], sign)==1))
 
 options(digits=old.digits)
 ```
