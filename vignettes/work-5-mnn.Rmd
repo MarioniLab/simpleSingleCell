@@ -507,8 +507,12 @@ This handles situations where multiple batches contain unique clusters, whereby 
 However, the use of a linear model makes some strong assumptions about the homogeneity of the batch effect across cell types and the equality of variances.
 
 ```{r}
+# Setting up the design matrix (we remove intercept for full rank
+# in the final design matrix with the cluster-specific terms).
 design <- model.matrix(~sce$Batch)
-m.alt <- findMarkers(sce, clusters$membership, design=design, 
+design <- design[,-1,drop=FALSE]
+
+m.alt <- findMarkers(sce, clusters$membership, design=design,
     direction="up")
 demo <- m.alt[["5"]]
 demo <- demo[demo$Top <= 3,]
