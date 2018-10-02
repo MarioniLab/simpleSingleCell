@@ -144,7 +144,38 @@ all.equal(alt, sce)
 # Approximate nearest neighbours searching
 
 Identification of neighbouring cells in PC or expression space is a common procedure that is used in many functions, e.g., `buildSNNGraph()`, `doubletCells()`.
+The default is to favour accuracy over speed by using an exact nearest neighbour search, implemented with the k-means for k-nearest neighbours algorithm [@wang2012fast]. 
+However, for large data sets, it may be preferable to use a faster approximate approach.
+The `r Biocpkg("BiocNeighbors")` framework makes it easy to switch between search options.
 
+To demonstrate, we will use the PBMC data from the `r Biocpkg("simpleSingleCell", "work-3-tenx.html", "previous workflow")`:
+
+```{r}
+sce.pbmc <- readRDS("pbmc_data.rds")
+```
+
+We had `r Biocpkg("simpleSingleCell", "work-3-tenx.html#clustering-with-graph-based-methods", "previously")` generated a shared nearest neighbor graph with	an exact neighbour search.
+We repeat this below using an approximate search, implemented using the [Annoy](https://github.com/spotify/Annoy) algorithm.
+This involves constructing a `BiocNeighborParam` object to specify the search algorithm, and passing it to the `buildSNNGraph()` function.
+
+```{r}
+library(scran)
+library(BiocNeighbors)
+snn.gr <- buildSNNGraph(sce.pbmc, BNPARAM=AnnoyParam(), use.dimred="PCA")
+```
+
+The results from the exact and approximate searches are consistent with most clusters from the former re-appearing in the latter.
+This suggests that the inaccuracy from the approximation can be largely ignored.
+However, if the approximation was unacceptable, it would be simple to switch back to an exact algorithm by altering `BNPARAM`.
+
+```{r}
+clusters <- igraph::cluster_walktrap(snn.gr)
+table(Exact=sce.pbmc$Cluster, Approx=clusters$membership)
+```
+
+**Comments from Aaron:**
+
+- The neighbour search algorithms are interoperable with `r Biocpkg("BiocParallel")`, so it is straightforward to parallelize the search for greater speed.
 
 # Concluding remarks
 
