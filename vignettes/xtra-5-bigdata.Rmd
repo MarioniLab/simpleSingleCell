@@ -179,6 +179,9 @@ table(Exact=sce.pbmc$Cluster, Approx=clusters$membership)
 
 # Concluding remarks
 
+All software packages used in this workflow are publicly available from the Comprehensive R Archive Network (https://cran.r-project.org) or the Bioconductor project (http://bioconductor.org).
+The specific version numbers of the packages used are shown below, along with the version of the R installation.
+
 ```{r}
 sessionInfo()
 ```
