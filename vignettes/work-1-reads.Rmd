@@ -14,7 +14,7 @@ author:
   - Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
 date: "`r Sys.Date()`"
 vignette: >
-  %\VignetteIndexEntry{02. Analyzing scRNA-seq read count data}
+  %\VignetteIndexEntry{02. Read count data}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}    
 output: 
