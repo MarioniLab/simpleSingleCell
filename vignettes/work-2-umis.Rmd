@@ -41,7 +41,7 @@ Count data for all endogenous genes, mitochondrial genes and spike-in transcript
 
 ```{r}
 library(BiocFileCache)
-bfc <- BiocFileCache("raw_data", ask = FALSE)
+bfc <- BiocFileCache(ask=FALSE)
 base.url <- file.path("https://storage.googleapis.com",
     "linnarsson-lab-www-blobs/blobs/cortex")
 mRNA.path <- bfcrpath(bfc, file.path(base.url, 

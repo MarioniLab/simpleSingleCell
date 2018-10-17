@@ -34,7 +34,7 @@ from which we download the raw gene/barcode count matrices, i.e., before cell ca
 
 ```{r}
 library(BiocFileCache)
-bfc <- BiocFileCache("raw_data", ask = FALSE)
+bfc <- BiocFileCache(ask=FALSE)
 raw.path <- bfcrpath(bfc, file.path("http://cf.10xgenomics.com/samples",
     "cell-exp/2.1.0/pbmc4k/pbmc4k_raw_gene_bc_matrices.tar.gz"))
 untar(raw.path, exdir="pbmc4k")

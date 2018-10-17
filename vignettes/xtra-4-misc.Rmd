@@ -103,7 +103,7 @@ Rather, more sophisticated strategies are required, one of which is demonstrated
 
 ```{r}
 library(BiocFileCache)
-bfc <- BiocFileCache("raw_data", ask = FALSE)
+bfc <- BiocFileCache(ask = FALSE)
 mahata.fname <- bfcrpath(bfc, 
     "http://www.nature.com/nbt/journal/v33/n2/extref/nbt.3102-S7.xlsx")
 ```
