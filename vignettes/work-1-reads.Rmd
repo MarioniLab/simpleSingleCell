@@ -40,7 +40,7 @@ High-throughput sequencing was performed and the expression of each gene was qua
 Similarly, the quantity of each spike-in transcript was measured by counting the number of reads mapped to the spike-in reference sequences.
 
 Counts for all genes/transcripts in each cell are available from ArrayExpress using the accession number [E-MTAB-5522](https://www.ebi.ac.uk/arrayexpress/experiments/E-MTAB-5522).
-We download both the count tables (in the "processed files") as well as the metadata file using the `r Biocpkg("BiocFileCache")` framework.
+We download both the count tables (in the "processed files") as well as the metadata file using the `r Biocpkg("BiocFileCache")` package. 
 This saves the files to a local cache (`raw_data`) and avoids re-downloading them if they are already present.
 
 ```{r}
@@ -54,6 +54,13 @@ lun.sdrf <- bfcrpath(bfc,
         "E-MTAB-5522/E-MTAB-5522.sdrf.txt"))
 unzip(lun.zip)
 ```
+
+<!--
+We don't use a global cache to ensure that the package build is self-contained on the Bioc build system and elsewhere.
+This avoids problems with cross-package behaviour.
+It also ensures that a new file is downloaded at every build, which is necessary for checking that the files are current.
+We avoid hosting an extra copy of everything (locally) by soft-linking raw_data to ~/.cache/BiocFileCache/.
+-->
 
 # Setting up the data
 
