@@ -55,7 +55,7 @@ The count table was obtained from the NCBI Gene Expression Omnibus (GEO) as a su
 
 ```{r}
 library(BiocFileCache)
-bfc <- BiocFileCache(ask=FALSE)
+bfc <- BiocFileCache("raw_data", ask=FALSE)
 islam.fname <- bfcrpath(bfc, file.path("ftp://ftp.ncbi.nlm.nih.gov/geo/series",
     "GSE29nnn/GSE29087/suppl/GSE29087_L139_expression_tab.txt.gz"))
 ```

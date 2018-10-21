@@ -48,7 +48,7 @@ Count tables were obtained from the NCBI Gene Expression Omnibus using the acces
 
 ```{r}
 library(BiocFileCache)
-bfc <- BiocFileCache(ask = FALSE)
+bfc <- BiocFileCache("raw_data", ask = FALSE)
 grun.fname <- bfcrpath(bfc, file.path("ftp://ftp.ncbi.nlm.nih.gov/geo/series",
     "GSE81nnn/GSE81076/suppl/GSE81076%5FD2%5F3%5F7%5F10%5F17%2Etxt%2Egz"))
 ```

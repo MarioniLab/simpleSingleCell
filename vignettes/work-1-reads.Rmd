@@ -41,11 +41,11 @@ Similarly, the quantity of each spike-in transcript was measured by counting the
 
 Counts for all genes/transcripts in each cell are available from ArrayExpress using the accession number [E-MTAB-5522](https://www.ebi.ac.uk/arrayexpress/experiments/E-MTAB-5522).
 We download both the count tables (in the "processed files") as well as the metadata file using the `r Biocpkg("BiocFileCache")` framework.
-This saves the files to a local cache and avoids re-downloading them if they are already present.
+This saves the files to a local cache (`raw_data`) and avoids re-downloading them if they are already present.
 
 ```{r}
 library(BiocFileCache)
-bfc <- BiocFileCache(ask=FALSE)
+bfc <- BiocFileCache("raw_data", ask = FALSE)
 lun.zip <- bfcrpath(bfc, 
     file.path("https://www.ebi.ac.uk/arrayexpress/files",
         "E-MTAB-5522/E-MTAB-5522.processed.1.zip"))

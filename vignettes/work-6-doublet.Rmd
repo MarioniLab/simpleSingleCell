@@ -46,7 +46,7 @@ available from NCBI GEO with the accession code GSE106273.
 
 ```{r}
 library(BiocFileCache)
-bfc <- BiocFileCache(ask=FALSE)
+bfc <- BiocFileCache("raw_data", ask = FALSE)
 base.path <- "ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM2834nnn/GSM2834500/suppl"
 barcode.fname <- bfcrpath(bfc, file.path(base.path, 
     "GSM2834500%5FG%5F1%5Fbarcodes%2Etsv%2Egz"))
