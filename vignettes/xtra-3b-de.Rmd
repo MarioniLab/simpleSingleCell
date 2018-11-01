@@ -1,0 +1,61 @@
+---
+title: Detecting differental expression from single-cell RNA-seq data
+author: 
+- name: Aaron T. L. Lun
+  affiliation: &CRUK Cancer Research UK Cambridge Institute, Li Ka Shing Centre, Robinson Way, Cambridge CB2 0RE, United Kingdom
+date: "`r Sys.Date()`"
+vignette: >
+  %\VignetteIndexEntry{10. Detecting differential expression}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}    
+output: 
+  BiocStyle::html_document:
+    titlecaps: false
+    toc_float: true
+bibliography: ref.bib
+---
+    
+```{r style, echo=FALSE, results='hide', message=FALSE}
+library(BiocStyle)
+library(knitr)
+opts_chunk$set(error=FALSE, message=FALSE, warning=FALSE)
+opts_chunk$set(fig.asp=1)
+```
+
+# Caveats with interpreting DE p-values
+
+## Data dredging from clustering
+
+It is worth noting that all of our DE strategies for detecting marker genes between clusters are statistically flawed to some extent.
+The DE analysis is performed on the same data used to obtain the clusters, which represents "data dredging" (also known as fishing or data snooping).
+The hypothesis of interest - that are there differences between clusters? - is formulated from the data, 
+so we are more likely to get a positive result when we re-use the data set to test that hypothesis.
+
+The practical effect of data dredging is best illustrated with a simple simulation.
+We simulate i.i.d. normal values, perform k-means clustering and test for DE between clusters of cells with `findMarkers()`.
+The resulting distribution of $p$-values is heavily skewed towards low values (Figure \@ref(fig:pval-dist)).
+Thus, we can detect "significant" differences between clusters even in the absence of any real substructure in the data.
+This effect arises from the fact that clustering, by definition, yields groups of cells that differ in their coordinates in expression space. 
+Testing for DE genes between clusters will inevitably yield some significant results as that is how the clusters were defined in the first place.
+
+```{r pval-dist, fig.cap="Distribution of p-values from a DE analysis between two clusters in a simulation with no true subpopulation structure."}
+set.seed(0)
+library(scran)
+y <- matrix(rnorm(100000), ncol=200)
+clusters <- kmeans(t(y), centers=2)$cluster
+out <- findMarkers(y, clusters)
+hist(out[[1]]$p.value, col="grey80", xlab="p-value")
+```
+
+By and large, this effect does not cause problems for marker gene detection as the DE statistics from `findMarkers()` and counterparts are primarily used for ranking.
+It does become an issue when the $p$-values are used to define "significant differences" between clusters with respect to an error rate threshold.
+Meaningful interpretation of error rates require consideration of the long-run behaviour, i.e., the rate of incorrect rejections if the experiment were repeated many times.
+The concept of statistical significance for differences between clusters is not applicable if clusters are not stably reproducible across (hypothetical) replicate experiments.
+
+To overcome this conceptual hurdle, we need to annotate our clusters based on a few marker genes.
+This allows us to use the annotated clusters as proxies for the true (and presumably reproducible) biological subpopulations.
+We might then be tempted to interpret the significant genes as being DE between subpopulations.
+However, this would result in loss of error control when the clusters are not stable, due to overfitting of the cluster definitions for true null genes.
+This effect is exacerbated as the clusters become more unstable, e.g., due to poor separation between the underlying populations.
+
+# References

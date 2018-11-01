@@ -910,9 +910,7 @@ This should be done by setting `pval.type="all"`, which defines the p-value for 
 Combined with `direction="up"`, this can be used to identify unique markers for each cluster.
 However, this is sensitive to overclustering, as unique marker genes will no longer exist if a cluster is split into two smaller subclusters.
 - It must be stressed that the (adjusted) _p_-values computed here cannot be properly interpreted as measures of significance.
-This is because the clusters have been empirically identified from the data.
-`r Biocpkg("limma")` does not account for the uncertainty of clustering, which means that the _p_-values are much lower than they should be. 
-This is not a concern in other analyses where the groups are pre-defined.
+This is because the clusters have been empirically identified from the data, see `r Biocpkg("simpleSingleCell", vignette="xtra-3b-de.html#misinterpretation-of-de-p-values")`.
 - The `overlapExprs` function may also be useful here, to prioritize candidates where there is clear separation between the distributions of expression values of different clusters.
 This uses the Wilcoxon rank sum test to detect uneven mixing of the distributions of expression values between clusters.
 By contrast, `findMarkers` uses t-tests and is primarily concerned with log-fold changes.
