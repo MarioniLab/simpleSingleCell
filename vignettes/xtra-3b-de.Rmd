@@ -58,4 +58,74 @@ We might then be tempted to interpret the significant genes as being DE between 
 However, this would result in loss of error control when the clusters are not stable, due to overfitting of the cluster definitions for true null genes.
 This effect is exacerbated as the clusters become more unstable, e.g., due to poor separation between the underlying populations.
 
+## Considering sample effects
+
+The naive application of DE analysis methods will treat counts from the same cluster of cells as replicate observations.
+This is not the most relevant level of replication when cells are derived from the same biological sample (i.e., cell culture, animal or patient).
+DE analyses that treat cells as replicates fail to properly model the sample-to-sample variability [@lun2017overcoming].
+The latter is arguably the more important level of replication as different samples will necessarily be generated if the experiment is to be replicated.
+Indeed, the use of cells as replicates only masks the fact that the sample size is actually one in an experiment involving a single biological sample.
+
+The "most correct" strategy for accommodating two levels of replication is to use a (generalized) linear mixed model.
+However, these are difficult to implement from both a theoretical and practical perspective - see [here](https://bbolker.github.io/mixedmodels-misc/glmmFAQ.html) for an in-depth discussion.
+A faster approach is to use a summation strategy [@lun2017overcoming], where all cells in each combination of batch and condition/cluster are summed together.
+This yields a single pseudo-bulk sample per combination for which standard methods like `r Biocpkg("edgeR")` or `r Biocpkg("limma")` can be applied.
+
+We demonstrate this procedure on the 416B data set from the `r Biocpkg("simpleSingleCell", vignette="work-1-reads.html", label="previous workflow")`.
+We first create a factor containing all combinations of the per-cell factors of interest.
+Here, the factors of interest are the assigned cluster and the plate of origin for each cell^[Cluster is nested in oncogene induction status so that latter will not be used here.].
+All cells from one plate with the same oncogene induction status were obtained from the same biological sample.
+
+```{r}
+library(SingleCellExperiment)
+sce.416b <- readRDS("416B_data.rds")
+combos <- with(colData(sce.416b), paste(cluster, Plate, sep="."))
+table(combos)
+```
+
+We sum the count profiles for all cells in each level of `combos`.
+This yields a set of pseudo-bulk samples that are more amenable to standard DE analysis as the counts are higher and per-observation variance is lower.
+It also ensures that the variance is modelled across samples rather than across cells.
+Each sample is represented no more than once for each condition in the `summed` matrix, avoiding problems from unmodelled correlations between samples. 
+
+```{r}
+library(edgeR)
+summed <- sumTechReps(counts(sce.416b), combos) # need a more efficient method here.
+head(summed)
+```
+
+Finally, we perform a standard `r Biocpkg("edgeR")` analysis using the quasi-likelihood framework [@chen2016from].
+We ignore spike-in transcripts and low-abundance genes;
+set up the design matrix so that the plate of origin is an additive effect;
+and test for DE between the first two clusters.
+This strategy yields more accurate $p$-values and fewer false positives than the naive approach.
+
+```{r}
+y <- DGEList(summed)
+y <- y[aveLogCPM(y) > 1 & !isSpike(sce.416b),]
+y <- calcNormFactors(y)
+
+sum.factors <- strsplit(colnames(summed), split="\\.")
+sum.clust <- unlist(lapply(sum.factors, "[[", i=1))
+sum.plate <- unlist(lapply(sum.factors, "[[", i=2))
+design <- model.matrix(~0 + sum.clust + sum.plate)
+y <- estimateDisp(y, design)
+
+fit <- glmQLFit(y, design, robust=TRUE)
+res <- glmQLFTest(fit, contrast=c(1, -1, 0, 0, 0, 0))
+topTags(res)
+summary(decideTests(res))
+```
+
+Note that summation only ensures that sample-level variability is modelled correctly.
+The data dredging problem mentioned previously is an orthogonal issue that will not be resolved by performing summation on data with empirically defined clusters.
+That said, the summation approach can easily be used for _a priori_ defined groups for which data dredging is not a problem.
+
+Summation will alter the ranking of DE genes as it does not explicitly penalize DE genes that are highly variable across cells within each sample.
+One might argue that this is problematic as DE genes with low variance across cells are more discriminative and thus more useful as markers.
+In practice, this is less of an issue than expected.
+The effect size will naturally be smaller when cell-to-cell expression is highly variable, simply because the means of each group must be closer together when the distributions mix.
+The standard error of each sum will also be naturally higher, which contributes to increased variability across sums.
+These effects implicitly favour DE genes with low cell-to-cell variance.
+
 # References
