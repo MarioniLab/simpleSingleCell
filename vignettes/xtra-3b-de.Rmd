@@ -80,52 +80,64 @@ All cells from one plate with the same oncogene induction status were obtained f
 library(SingleCellExperiment)
 sce.416b <- readRDS("416B_data.rds")
 combos <- with(colData(sce.416b), paste(cluster, Plate, sep="."))
-table(combos)
+(num <- table(combos))
 ```
 
-We sum the count profiles for all cells in each level of `combos`.
+We sum the count profiles for all cells in each level of `combos`^[After dividing by size factors in `sce.416b`, to avoid unnecessary variability due to technical scaling biases.].
 This yields a set of pseudo-bulk samples that are more amenable to standard DE analysis as the counts are higher and per-observation variance is lower.
 It also ensures that the variance is modelled across samples rather than across cells.
 Each sample is represented no more than once for each condition in the `summed` matrix, avoiding problems from unmodelled correlations between samples. 
 
 ```{r}
-library(edgeR)
-summed <- sumTechReps(counts(sce.416b), combos) # need a more efficient method here.
+library(scater)
+sce.416b <- normalize(sce.416b, return_log=FALSE)
+
+library(DelayedMatrixStats) 
+summed <- colsum(normcounts(sce.416b), group=combos)
 head(summed)
 ```
 
 Finally, we perform a standard `r Biocpkg("edgeR")` analysis using the quasi-likelihood framework [@chen2016from].
 We ignore spike-in transcripts and low-abundance genes;
 set up the design matrix so that the plate of origin is an additive effect;
+weight each pseudo-bulk count by the number of cells used to compute it; 
 and test for DE between the first two clusters.
-This strategy yields more accurate $p$-values and fewer false positives than the naive approach.
 
 ```{r}
+library(edgeR)
 y <- DGEList(summed)
 y <- y[aveLogCPM(y) > 1 & !isSpike(sce.416b),]
 y <- calcNormFactors(y)
 
+# Adding a matrix of sample weights.
+w <- as.numeric(num)[match(colnames(y), names(num))]
+y$weights <- makeCompressedMatrix(w, dim(y), byrow=TRUE)
+
+# Building the design matrix.
 sum.factors <- strsplit(colnames(summed), split="\\.")
 sum.clust <- unlist(lapply(sum.factors, "[[", i=1))
 sum.plate <- unlist(lapply(sum.factors, "[[", i=2))
 design <- model.matrix(~0 + sum.clust + sum.plate)
-y <- estimateDisp(y, design)
 
+# Running through the remaining edgeR functions.
+y <- estimateDisp(y, design)
 fit <- glmQLFit(y, design, robust=TRUE)
 res <- glmQLFTest(fit, contrast=c(1, -1, 0, 0, 0, 0))
 topTags(res)
 summary(decideTests(res))
 ```
 
-Note that summation only ensures that sample-level variability is modelled correctly.
-The data dredging problem mentioned previously is an orthogonal issue that will not be resolved by performing summation on data with empirically defined clusters.
-That said, the summation approach can easily be used for _a priori_ defined groups for which data dredging is not a problem.
-
-Summation will alter the ranking of DE genes as it does not explicitly penalize DE genes that are highly variable across cells within each sample.
-One might argue that this is problematic as DE genes with low variance across cells are more discriminative and thus more useful as markers.
-In practice, this is less of an issue than expected.
+DE analysis on summed pseudo-bulk counts does not explicitly penalize DE genes that are highly variable across cells within each sample.
+One could argue that this is undesirable as DE genes with low expression variance across cells are more discriminative and should be more highly ranked.
+In practice, this is less of an issue than might be expected.
 The effect size will naturally be smaller when cell-to-cell expression is highly variable, simply because the means of each group must be closer together when the distributions mix.
 The standard error of each sum will also be naturally higher, which contributes to increased variability across sums.
-These effects implicitly favour DE genes with low cell-to-cell variance.
+These effects mean that the analysis on summed counts implicitly favours DE genes with low cell-to-cell variance.
+
+**Comments from Aaron:**
+
+- Note that the data dredging problem mentioned previously is an orthogonal issue to variance modelling.
+This will not be resolved by performing summation on data with empirically defined clusters.
+Of course, the summation approach can also be easily used with _a priori_ defined groups for which data dredging is not a problem.
 
 # References

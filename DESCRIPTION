@@ -32,7 +32,8 @@ Depends: R (>= 3.3.0),
         DropletUtils,
         BiocFileCache,
         BiocNeighbors,
-        TENxBrainData
+        TENxBrainData,
+        DelayedMatrixStats
 License: Artistic-2.0
 Encoding: UTF-8
 LazyData: true
