@@ -518,7 +518,7 @@ This is inappropriate for various reasons:
 # Concluding remarks
 
 We save the `SingleCellExperiment` object for use elsewhere.
-This avoids then need to repeat all of the processing steps described above.
+This avoids the need to repeat all of the processing steps described above.
 
 ```{r}
 saveRDS(file="pancreas_data.rds", sce)
