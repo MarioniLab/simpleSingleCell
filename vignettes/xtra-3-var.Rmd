@@ -157,7 +157,7 @@ head(hvg.out)
 ```
 
 We check the distribution of expression values for the genes with the largest biological components.
-This ensures that the variance estimate is not driven by one or two outlier cells (Figure \@ref(fig:hvgvioplothsc)).
+We see that the variance estimate is not driven by one or two outlier cells (Figure \@ref(fig:hvgvioplothsc)).
 
 ```{r hvgvioplothsc, fig.cap="Violin plots of normalized log-expression values for the top 10 genes with the largest biological components in the HSC dataset. Each point represents the log-expression value in a single cell."}
 fontsize <- theme(axis.text=element_text(size=12), axis.title=element_text(size=16))
@@ -173,7 +173,7 @@ There are many other strategies for defining HVGs, based on a variety of metrics
 - a proportion of total variability, using methods in the `r Biocpkg("BASiCS")` package [@vallejos2015basics].
 
 Here, we used the variance of the log-expression values because the log-transformation protects against genes with strong expression in only one or two cells.
-This ensures that the set of top HVGs is not dominated by genes with (mostly uninteresting) outlier expression patterns.
+This reduces the risk that the set of top HVGs is not dominated by genes with (mostly uninteresting) outlier expression patterns.
 
 We also save the HSC dataset to file for later use, using `saveRDS()` as previously described.
 
@@ -269,7 +269,7 @@ curve(var.fit$trend(x), add=TRUE, col="red")
 ```
 
 The use of `block=` also assumes that the average size factor within each plate is close to unity for both endogenous genes and spike-in transcripts.
-This ensures that scaling normalization preserves the magnitude of the counts, allowing genes of the same average abundance to be compared within and across plates.
+This means that scaling normalization will preserve the magnitude of the counts, allowing genes of the same average abundance to be compared within and across plates.
 Here, the distributions of size factors exhibit only modest deviations from unity in the averages for the endogenous genes and spike-in transcripts (Figure \@ref(fig:sizefacplot-416b)), indicating that our assumption is again reasonable.
 
 ```{r sizefacplot-416b, fig.width=10, fig.asp=0.5, fig.cap="Plate-specific distribution of the size factors for endogenous genes (left) and spike-in transcripts (right)."}
@@ -328,7 +328,7 @@ We recommend using `block=` as the default unless there is clear evidence for di
 **Comments from Aaron:**
 
 - We run `multiBlockNorm()` to adjust the size factors within each level of the blocking factor.
-This ensures that the mean of the spike-in size factors across cells in each batch is equal to that of the gene-based size factors. 
+Specifically, the spike-in size factors across cells in a given batch is scaled so that the mean is equal to that of the gene-based size factors for the same set of cells.
 Log-normalized expression values are then recalculated using these centred size factors.
 This procedure ensures that the average abundances of the spike-in transcripts are comparable to the endogenous genes,
 avoiding problems due to differences in the quantity of spike-in RNA between batches.
