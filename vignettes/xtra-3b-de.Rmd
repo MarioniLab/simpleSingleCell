@@ -42,12 +42,12 @@ It will then combine $p$-values from different plates using Stouffer's Z method 
 library(SingleCellExperiment)
 sce.pancreas <- readRDS("pancreas_data.rds") 
 
-# Same code as in pancreas MNN correection workflow.
+# Same code as in pancreas MNN correction workflow.
 library(scran)
-m.out <- findMarkers(sce.pancreas, sce.pancreas$cluster, 
+m.out <- findMarkers(sce.pancreas, sce.pancreas$Cluster, 
     block=sce.pancreas$Batch, direction="up") 
 demo <- m.out[["1"]] 
-demo[demo$Top <= 5,]
+as.data.frame(demo[demo$Top <= 5,1:3])
 ```
 
 Intra-batch comparisons with `block=` are robust to difference in the log-fold changes or variance between batches.
@@ -67,10 +67,10 @@ There is also a slight increase in power when information is shared across clust
 design <- model.matrix(~sce.pancreas$Batch)
 design <- design[,-1,drop=FALSE]
 
-m.alt <- findMarkers(sce.pancreas, sce.pancreas$clusters, 
+m.alt <- findMarkers(sce.pancreas, sce.pancreas$Cluster, 
     design=design, direction="up")
 demo <- m.alt[["1"]]
-demo[demo$Top <= 5,]
+as.data.frame(demo[demo$Top <= 5,1:3])
 ```
 
 The use of a linear model makes a few some strong assumptions, necessitating some caution when interpreting the results.
