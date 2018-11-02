@@ -422,6 +422,13 @@ omat <- do.call(cbind, original)
 sce <- SingleCellExperiment(list(logcounts=omat))
 reducedDim(sce, "MNN") <- mnn.out$corrected
 sce$Batch <- as.character(mnn.out$batch)
+
+# Adjusting the rownames for easier reading.
+rowData(sce)$ENSEMBL <- rownames(sce)    
+rowData(sce)$SYMBOL <- mapIds(org.Hs.eg.db, keytype="ENSEMBL", 
+    keys=rownames(sce), column="SYMBOL")
+rownames(sce) <- uniquifyFeatureNames(rownames(sce), rowData(sce)$SYMBOL)
+
 sce
 ```
 
@@ -432,14 +439,16 @@ Note that the E-MTAB-5601 dataset still displays some separation, which is proba
 
 ```{r tsne-batch, fig.width=10, fig.asp=0.6, fig.cap="t-SNE plots of the pancreas datasets, before and after MNN correction. Each point represents a cell and is coloured by the batch of origin."}
 set.seed(100)
+
 # Using irlba to set up the t-SNE, for speed.
 osce <- runPCA(sce, ntop=Inf, method="irlba")
 osce <- runTSNE(osce, use_dimred="PCA")
 ot <- plotTSNE(osce, colour_by="Batch") + ggtitle("Original")
 
+# Corrected.
 set.seed(100)
-csce <- runTSNE(sce, use_dimred="MNN")
-ct <- plotTSNE(csce, colour_by="Batch") + ggtitle("Corrected")
+sce <- runTSNE(sce, use_dimred="MNN")
+ct <- plotTSNE(sce, colour_by="Batch") + ggtitle("Corrected")
 
 multiplot(ot, ct, cols=2)
 ```
@@ -448,14 +457,10 @@ We colour by the expression of marker genes for known pancreas cell types to det
 Cells in the same visual cluster express the same marker genes (Figure \@ref(fig:tsne-markers)), indicating that the correction maintains separation of cell types.
 
 ```{r tsne-markers, fig.width=10, fig.height=10, fig.cap="t-SNE plots after MNN correction, where each point represents a cell and is coloured by its corrected expression of key marker genes for known cell types in the pancreas."}
-ct.gcg <- plotTSNE(csce, colour_by="ENSG00000115263") + 
-    ggtitle("Alpha cells (GCG)")
-ct.ins <- plotTSNE(csce, colour_by="ENSG00000254647") + 
-    ggtitle("Beta cells (INS)")
-ct.sst <- plotTSNE(csce, colour_by="ENSG00000157005") + 
-    ggtitle("Delta cells (SST)")
-ct.ppy <- plotTSNE(csce, colour_by="ENSG00000108849") + 
-    ggtitle("PP cells (PPY)")
+ct.gcg <- plotTSNE(sce, colour_by="GCG") + ggtitle("Alpha cells")
+ct.ins <- plotTSNE(sce, colour_by="INS") + ggtitle("Beta cells")
+ct.sst <- plotTSNE(sce, colour_by="SST") + ggtitle("Delta cells")
+ct.ppy <- plotTSNE(sce, colour_by="PPY") + ggtitle("PP cells")
 multiplot(ct.gcg, ct.ins, ct.sst, ct.ppy, cols=2)
 ```
 
@@ -473,56 +478,29 @@ table(clusters$membership, sce$Batch)
 Figure \@ref(fig:tsne-cluster) shows strong correspondence between the cluster labels and separation in _t_-SNE space.
 
 ```{r tsne-cluster, fig.cap="t-SNE plot after MMN correction, where each point represents a cell and is coloured by its cluster identity."}
-csce$Cluster <- factor(clusters$membership)
-plotTSNE(csce, colour_by="Cluster")
+sce$Cluster <- factor(clusters$membership)
+plotTSNE(sce, colour_by="Cluster")
 ```
 
 Differential expression analyses should be performed on the **original** log-expression values or counts.
 We do not use the corrected values here (which no longer correspond to genes anyway) except to obtain the clusters or trajectories to be characterized.
 To model the batch effect, we set the batch of origin as the `block=` argument in `findMarkers()`.
-This will perform all comparisons between clusters _within_ each batch, and then combine the _p_-values with Stouffer's Z method to consolidate results across batches.
-Intra-batch comparisons are robust to differences between batches but assume that each pair of clusters is present in at least one batch.
+This will perform all comparisons between clusters _within_ each batch, and then combine the _p_-values to consolidate results across batches.
 
 ```{r}
 m.out <- findMarkers(sce, clusters$membership, block=sce$Batch,
     direction="up")        
 demo <- m.out[["4"]] # looking at cluster 4 (probably alpha cells).
 demo <- demo[demo$Top <= 5,]
-
-library(org.Hs.eg.db)
-data.frame(row.names=rownames(demo),
-    Symbol=mapIds(org.Hs.eg.db, keytype="ENSEMBL", 
-        keys=rownames(demo), column="SYMBOL"),
-    Top=demo$Top, FDR=demo$FDR)
+as.data.frame(demo[,1:3]) # only first three columns for brevity.
 ```
 
 ```{r, echo=FALSE, results="hide"}
 # Checking that cluster 4 is what we think it is.
-stopifnot(all(sapply(demo["ENSG00000115263",-(1:3)], sign)==1))
+stopifnot(all(sapply(demo["GCG",-(1:3)], sign)==1))
 ```
 
-Another approach is to define a design matrix containing the batch of origin as the sole factor.
-`findMarkers()` will then fit a linear model to the log-expression values, similar to the use of `r Biocpkg("limma")` for bulk RNA sequencing data [@ritchie2015limma].
-This handles situations where multiple batches contain unique clusters, whereby comparisons can be implicitly performed between shared cell types.
-However, the use of a linear model makes some strong assumptions about the homogeneity of the batch effect across cell types and the equality of variances.
-
-```{r}
-# Setting up the design matrix (we remove intercept for full rank
-# in the final design matrix with the cluster-specific terms).
-design <- model.matrix(~sce$Batch)
-design <- design[,-1,drop=FALSE]
-
-m.alt <- findMarkers(sce, clusters$membership, design=design,
-    direction="up")
-demo <- m.alt[["4"]]
-demo <- demo[demo$Top <= 5,]
-
-data.frame(row.names=rownames(demo),
-    Symbol=mapIds(org.Hs.eg.db, keytype="ENSEMBL", 
-        keys=rownames(demo), column="SYMBOL"),
-    Top=demo$Top, FDR=demo$FDR)
-```
-
+Other approaches for handling batch effects during marker gene detection are discussed `r Biocpkg("simpleSingleCell", "xtra-3b-de.html#blocking-on-uninteresting-factors-of-variation", label="elsewhere")`.
 It is similarly possible to perform these analyses with standard Bioconductor packages for DE analysis such as `r Biocpkg("edgeR")` or `r Biocpkg("limma")`.
 Note that the use of `block=` is roughly similar to the use of a batch-cluster interaction model and testing whether the average log-fold change across batches is equal to zero.
 
@@ -538,6 +516,13 @@ This is inappropriate for various reasons:
     - The correction does _not_ preserve the mean-variance relationship.
 
 # Concluding remarks
+
+We save the `SingleCellExperiment` object for use elsewhere.
+This avoids then need to repeat all of the processing steps described above.
+
+```{r}
+saveRDS(file="pancreas_data.rds", sce)
+```
 
 All software packages used in this workflow are publicly available from the Comprehensive R Archive Network (https://cran.r-project.org) or the Bioconductor project (http://bioconductor.org).
 The specific version numbers of the packages used are shown below, along with the version of the R installation.
