@@ -24,21 +24,73 @@ opts_chunk$set(fig.asp=1)
 
 # Overview
 
-The `findMarkers()` function recommended in previous workflows uses Welch t-tests
+Here, we describe some of the more theoretical aspects of detecting differential expression (DE) from single-cell RNA sequencing (scRNA-seq) data.
+This includes the basis of blocking on uninteresting factors of variation in `findMarkers()`;
+     the use of Wilcoxon rank sum tests in `overlapExprs()`;
+     incorporating other DE analysis results with `combineMarkers()`;
+     and some caveats on the interpretation of DE $p$-values in scRNA-seq contexts.
+
+# Blocking on uninteresting factors of variation
+
+## Using the `block=` argument
+
+Previous workflows (`r Biocpkg("simpleSingleCell", "work-1-reads.html#detecting-marker-genes-between-clusters", label="here")` and `r Biocpkg("simpleSingleCell", "work-5-mnn.html#using-the-corrected-values-in-downstream-analyses", "here")`) used the `block=` argument in `findMarkers()` to account for uninteresting factors of variation.
+This will instruct `findMarkers()` to perform pairwise $t$-tests between clusters using only cells on the same level of the blocking factor. 
+It will then combine $p$-values from different plates using Stouffer's Z method to obtain a single $p$-value per gene.
+
+```{r}
+library(SingleCellExperiment)
+sce.pancreas <- readRDS("pancreas_data.rds") 
+
+# Same code as in pancreas MNN correection workflow.
+library(scran)
+m.out <- findMarkers(sce.pancreas, sce.pancreas$cluster, 
+    block=sce.pancreas$Batch, direction="up") 
+demo <- m.out[["1"]] 
+demo[demo$Top <= 5,]
+```
+
+Intra-batch comparisons with `block=` are robust to difference in the log-fold changes or variance between batches.
+However, we need to assume that each pair of clusters is present in at least one batch.
+In scenarios where cells from two clusters never co-occur in the same batch, the comparison will be impossible and `NA`s will be reported in the output.
+
+## Using the `design=` argument
+
+Another approach is to define a design matrix containing the batch of origin as the sole factor.
+`findMarkers()` will then fit a linear model to the log-expression values, similar to the use of `r Biocpkg("limma")` for bulk RNA sequencing data [@ritchie2015limma].
+This handles situations where multiple batches contain unique clusters, as comparisons can be implicitly performed via shared cell types in each batch.
+There is also a slight increase in power when information is shared across clusters for variance estimation.
+
+```{r}
+# Setting up the design matrix (we remove intercept for full rank
+# in the final design matrix with the cluster-specific terms).
+design <- model.matrix(~sce.pancreas$Batch)
+design <- design[,-1,drop=FALSE]
+
+m.alt <- findMarkers(sce.pancreas, sce.pancreas$clusters, 
+    design=design, direction="up")
+demo <- m.alt[["1"]]
+demo[demo$Top <= 5,]
+```
+
+The use of a linear model makes a few some strong assumptions, necessitating some caution when interpreting the results.
+The batch effect across cell types is assumed to be homogeneous.
+If this is not the case, the variance will be inflated and the log-fold change estimates will be distorted.
+Variances are also assumed to be equal across groups, which is not true in general.
+In particular, the presence of clusters in which a gene is silent will shrink the residual variance towards zero, 
+preventing the model from penalizing genes with high variance in other clusters.
+Thus, we generally recommend the use of `block=` where possible.
 
 # Using the Wilcoxon rank sum test
 
-The `overlapExprs()` uses the Wilcoxon rank sum test to detect uneven mixing of the distributions of expression values between clusters.
+The `overlapExprs()` function uses the Wilcoxon rank sum test to detect uneven mixing of the distributions of expression values between clusters.
 The effect size is reported as the probability of randomly sampling one observation in one cluster that is greater than a random observation in another cluster.
 This prioritizes genes where there is clear separation between the distributions of expression values of different clusters.
 We demonstrate the use of `overlapExprs()` on the 416B data set from the `r Biocpkg("simpleSingleCell", vignette="work-1-reads.html", label="previous workflow")`,
 detecting DE genes between clusters while blocking on the plate of origin.
 
 ```{r}
-library(SingleCellExperiment)
 sce.416b <- readRDS("416B_data.rds")
-
-library(scran)
 o.out <- overlapExprs(sce.416b, group=sce.416b$cluster, block=sce.416b$Plate)
 head(o.out[["1"]]) # top DEGs for cluster 1 against the others.
 ```
@@ -74,7 +126,6 @@ Testing for DE genes between clusters will inevitably yield some significant res
 
 ```{r pval-dist, fig.cap="Distribution of p-values from a DE analysis between two clusters in a simulation with no true subpopulation structure."}
 set.seed(0)
-library(scran)
 y <- matrix(rnorm(100000), ncol=200)
 clusters <- kmeans(t(y), centers=2)$cluster
 out <- findMarkers(y, clusters)
