@@ -68,8 +68,8 @@ Indeed, the use of cells as replicates only masks the fact that the sample size 
 
 The "most correct" strategy for accommodating two levels of replication is to use a (generalized) linear mixed model.
 However, these are difficult to implement from both a theoretical and practical perspective - see [here](https://bbolker.github.io/mixedmodels-misc/glmmFAQ.html) for an in-depth discussion.
-A faster approach is to use a summation strategy [@lun2017overcoming], where all cells in each combination of batch and condition/cluster are summed together.
-This yields a single pseudo-bulk sample per combination for which standard methods like `r Biocpkg("edgeR")` or `r Biocpkg("limma")` can be applied.
+A faster approach is to use a summation strategy [@lun2017overcoming], where all cells in each combination of sample and condition (or cluster) are summed together.
+This yields a single pseudo-bulk count profile per combination, to which standard methods like `r Biocpkg("edgeR")` or `r Biocpkg("limma")` can be applied.
 
 We demonstrate this procedure on the 416B data set from the `r Biocpkg("simpleSingleCell", vignette="work-1-reads.html", label="previous workflow")`.
 We first create a factor containing all combinations of the per-cell factors of interest.
@@ -83,18 +83,20 @@ combos <- with(colData(sce.416b), paste(cluster, Plate, sep="."))
 (num <- table(combos))
 ```
 
-We sum the count profiles for all cells in each level of `combos`^[After dividing by size factors in `sce.416b`, to avoid unnecessary variability due to technical scaling biases.].
+We average the count profiles for all cells in each level of `combos`^[After dividing by size factors in `sce.416b`, to avoid unnecessary variability due to technical scaling biases.].
 This yields a set of pseudo-bulk samples that are more amenable to standard DE analysis as the counts are higher and per-observation variance is lower.
 It also ensures that the variance is modelled across samples rather than across cells.
-Each sample is represented no more than once for each condition in the `summed` matrix, avoiding problems from unmodelled correlations between samples. 
+Each sample is represented no more than once for each condition in the `averaged` matrix, avoiding problems from unmodelled correlations between samples. 
 
 ```{r}
 library(scater)
 sce.416b <- normalize(sce.416b, return_log=FALSE)
 
 library(DelayedMatrixStats) 
-summed <- colsum(normcounts(sce.416b), group=combos)
-head(summed)
+averaged <- colsum(normcounts(sce.416b), group=combos)
+num <- num[match(colnames(averaged), names(num))]
+averaged <- sweep(averaged, 2, num, "/")
+head(averaged)
 ```
 
 Finally, we perform a standard `r Biocpkg("edgeR")` analysis using the quasi-likelihood framework [@chen2016from].
@@ -105,34 +107,40 @@ and test for DE between the first two clusters.
 
 ```{r}
 library(edgeR)
-y <- DGEList(summed)
+y <- DGEList(averaged)
 y <- y[aveLogCPM(y) > 1 & !isSpike(sce.416b),]
 y <- calcNormFactors(y)
 
 # Adding a matrix of sample weights.
-w <- as.numeric(num)[match(colnames(y), names(num))]
+w <- as.numeric(num)
 y$weights <- makeCompressedMatrix(w, dim(y), byrow=TRUE)
 
 # Building the design matrix.
-sum.factors <- strsplit(colnames(summed), split="\\.")
-sum.clust <- unlist(lapply(sum.factors, "[[", i=1))
-sum.plate <- unlist(lapply(sum.factors, "[[", i=2))
-design <- model.matrix(~0 + sum.clust + sum.plate)
+ave.factors <- strsplit(colnames(y), split="\\.")
+ave.clust <- unlist(lapply(ave.factors, "[[", i=1))
+ave.plate <- unlist(lapply(ave.factors, "[[", i=2))
+design <- model.matrix(~0 + ave.clust + ave.plate)
 
 # Running through the remaining edgeR functions.
 y <- estimateDisp(y, design)
 fit <- glmQLFit(y, design, robust=TRUE)
 res <- glmQLFTest(fit, contrast=c(1, -1, 0, 0, 0, 0))
-topTags(res)
+(top <- topTags(res))
 summary(decideTests(res))
 ```
 
-DE analysis on summed pseudo-bulk counts does not explicitly penalize DE genes that are highly variable across cells within each sample.
+The DE analysis on pseudo-bulk counts does not explicitly penalize DE genes that are highly variable across cells within each sample.
 One could argue that this is undesirable as DE genes with low expression variance across cells are more discriminative and should be more highly ranked.
-In practice, this is less of an issue than might be expected.
+In practice, this is less of an issue than might be expected (Figure \@ref(fig:violde)).
 The effect size will naturally be smaller when cell-to-cell expression is highly variable, simply because the means of each group must be closer together when the distributions mix.
-The standard error of each sum will also be naturally higher, which contributes to increased variability across sums.
-These effects mean that the analysis on summed counts implicitly favours DE genes with low cell-to-cell variance.
+This means that the analysis still implicitly favours DE genes with low cell-to-cell variance.
+Summation also avoids harshly penalizing genes for high technical variability, which might otherwise reduce the ranking of good low-abundance markers. 
+
+```{r violde, fig.height=10, fig.asp=1.5, fig.cap="Distribution of log-normalized expression values for the top 10 DE genes between clusters 1 and 2, stratified by cluster assignment and coloured by the plate of origin for each cell."}
+sub.sce <- sce.416b[,sce.416b$cluster %in% c("1", "2")]
+plotExpression(sub.sce, x="cluster", colour_by="Plate",
+    features=rownames(top)[1:10])
+```
 
 **Comments from Aaron:**
 
