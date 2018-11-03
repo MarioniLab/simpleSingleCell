@@ -404,13 +404,171 @@ However, the MNN approach is not limited to two batches, and inclusion of more b
 This should be interpreted as the minimum frequency of each cell type or state in each batch.
 Larger values will improve the precision of the correction by increasing the number of MNN pairs, 
 at the cost of reducing accuracy by allowing MNN pairs to form between cells of different type.
-- The order of the supplied batches does matter, as all batches are corrected towards the first.
-We suggest setting the largest and/or most heterogeneous batch as the first.
-This ensures that sufficient MNN pairs will be identified between the first and other batches for stable correction.
-In situations where the nature of each batch is unknown, users can set `auto.order=TRUE` to allow `fastMNN()` to empirically choose which batches to merge at each step.
-Batches are chosen to maximize the number of MNN pairs in order to provide a stable correction.
 - When `approximate=TRUE`, `fastMNN()` uses methods from the `r CRANpkg("irlba")` package to perform the principal components analysis quickly.
 While the run-to-run differences should be minimal, it does mean that `set.seed()` is required to obtain fully reproducible results.
+
+
+```{r, echo=FALSE, results="hide"}
+gc()
+```
+
+# Controlling the merge order
+
+## Manual specification 
+
+The order of the supplied batches will affect the result as the first batch is used to define the reference space to which all other batches are corrected.
+Specifically, the first batch is defined as the reference batch;
+the second batch is corrected to and merged with the current reference batch, yielding a new reference batch;
+and so on for all batches in the supplied order, with an increasingly large reference batch at each step.
+The use of a merged reference ensures that information from batches other than the first are used to identify MNN pairs in later batches.
+
+The order of batches to merge can be manually specified in the `auto.order=` argument to `fastMNN()`.
+In the example shown below, batch 2 is treated as the reference as it is the first specified batch in `auto.order=`.
+The first batch is then corrected to the second batch to obtain a new reference batch - and so on, if more than two batches were present.
+
+```{r}
+mnn.out2 <- do.call(fastMNN, c(original, 
+    list(k=20, d=50, approximate=TRUE, auto.order=c(2,1))
+))
+mnn.out2$order # batch 2 (GSE85241) is first in the order.
+mnn.out2$pairs # 'first' cells now come from GSE85241.
+```
+
+Using `auto.order=` will change the merge order without requiring a change to the supplied order of batches in `original`.
+Similarly, the order of batches (and cells) in the output will not be altered.
+This makes it easy to explore different merge orders without altering the surrounding code.
+
+```{r}
+mnn.out2$batch # same as mnn.out$batch
+```
+
+If very different batches (in terms of cell composition) are present, we suggest setting the largest and/or most heterogeneous batch as the first.
+This ensures that sufficient MNN pairs will be identified between the first and other batches for stable correction.
+
+```{r, echo=FALSE, results="hide"}
+gc()
+```
+
+## Hierarchical merging 
+
+In more complex experiments, we may know beforehand that certain sets of batches are more similar to each other.
+For example, we might want to merge batches that represent replicate experiments from the same condition, prior to merging across conditions.
+We might also want to merge batches generated with the same scRNA-seq technology prior to merging across technologies.
+This can be done by multiple calls to `fastMNN()` with progressively merged batches.
+
+To illustrate, assume that we want to remove `Donor` effects within each batch prior to merging across batches.
+The first step is to use the `multiBatchPCA()` function to perform a PCA across _all_ batches to be merged.
+This ensures that all cells are placed onto the same coordinate space, which would obviously not be possible if a PCA was performed for each batch separately.
+
+```{r}
+set.seed(1000) # for irlba.
+scaled <- lapply(original, cosineNorm) # for consistency with fastMNN() defaults.
+output <- do.call(multiBatchPCA, c(scaled, list(d=50, approximate=TRUE)))
+names(output)
+dim(output$GSE85241)
+dim(output$GSE81076)
+```
+
+We split the cells in GSE85241 by the donor of origin, yielding one matrix of PC scores per donor in `by.donor`.
+
+```{r}
+all.donors <- unique(rescaled.gse85241$Donor)
+table(rescaled.gse85241$Donor)
+by.donor <- vector("list", length(all.donors))
+names(by.donor) <- sort(all.donors)
+for (x in all.donors) {
+    by.donor[[x]] <- output$GSE85241[rescaled.gse85241$Donor==x,]
+}
+```
+
+We pass these matrices to `fastMNN()`, setting `pc.input=TRUE` to indicate that dimensionality reduction has already been performed.
+This uses the first donor to define the reference space^[Which can be changed with `auto.order=`, if so desired.] and merges cells from all other donors to the first.
+In this manner, we can remove donor effects within the GSE85241 batch.
+
+```{r}
+mnn.out.85241 <- do.call(fastMNN, c(by.donor, list(pc.input=TRUE)))
+mnn.out.85241$batch
+```
+
+We repeat this process for GSE86071.
+For demonstration purposes, we will aggregate some of the donors together to ensure that there are enough cells in each level for MNN detection.
+
+```{r}
+adj.donors <- c(D101="A", D102="A", D10631="A",
+    D17="B", D1713="B", D172444="B",
+    D2="C", D3="C",
+    D71="D", D72="D", D73="D", D74="D")[rescaled.gse81076$Donor]
+table(adj.donors)
+
+all.donors <- unique(adj.donors)
+by.donor <- vector("list", length(all.donors))
+names(by.donor) <- sort(all.donors)
+for (x in all.donors) {
+    by.donor[[x]] <- output$GSE81076[adj.donors==x,]
+}
+
+mnn.out.81076 <- do.call(fastMNN, c(by.donor, list(pc.input=TRUE)))
+mnn.out.81076$batch
+```
+
+The next step is to merge the two batches together.
+To do this, we simply repeat the `fastMNN()` call with the donor-corrected values for each batch.
+Again, we need to set `pc.input=TRUE` to prevent the function from unnecessarily (and incorrectly) repeating the cosine normalization and PCA steps on the corrected values.
+This yields a final corrected expression matrix where both within-batch donor effects and batch effects have been corrected.
+
+```{r}
+mnn.out3 <- fastMNN(GSE81076=mnn.out.81076$corrected,
+    GSE85241=mnn.out.85241$corrected, pc.input=TRUE)
+mnn.out3$batch
+c(mnn.out.85241$batch, mnn.out.81076$batch) # by donor
+```
+
+**Comments from Aaron:**
+
+- `multiBatchPCA()` will ensure that each supplied matrix contributes equally to the definition of the PC space.
+This avoids problems with imbalances in the number of cells across batches.
+In particular, it ensures that smaller batches (possibly with unique cell types) can affect the rotation vectors.
+Here, we have applied `multiBatchPCA()` to the batch-level inputs for convenience, though it is also possible to supply donor-level matrices to equalize contributions across donors.
+- In this specific example, cells from the same donor will occupy contiguous rows in the `mnn.out3$corrected` matrix.
+However, this may not have been the case for the original ordering of cells in each `SingleCellExperiment`.
+This requires some extra account-keeping to match up the final corrected matrix to the original ordering, e.g., when cross-referencing to metadata.
+
+    ```{r}
+    original.plate <- c(rescaled.gse81076$Plate,
+        rescaled.gse85241$Plate)
+    original.names <- c(colnames(rescaled.gse81076),
+        colnames(rescaled.gse85241))
+    
+    m <- match(rownames(mnn.out3$corrected), original.names)
+    new.plate <- original.plate[m]
+    ```
+
+```{r, echo=FALSE, results="hide"}
+gc()
+```
+
+## Automatic specification
+
+In situations where the nature of each batch is unknown, users can set `auto.order=TRUE` to allow `fastMNN()` to empirically choose which batches to merge at each step.
+The first merge is performed between the pair of batches with the most MNN pairs.
+Progressive merges are performed with the remaining batch that has the most MNN pairs with the current reference batch.
+The aim is to maximize the number of MNN pairs at each step to provide a stable correction.
+
+```{r}
+# On 'by.donor', as 'original' only has 2 batches.
+mnn.out.auto <- do.call(fastMNN, c(by.donor, 
+    list(pc.input=TRUE, auto.order=TRUE)))
+names(by.donor) # supplied order 
+mnn.out.auto$order # automatically defined order
+```
+
+The obvious cost is that of computation time. 
+Nearest-neighbour searches need to be performed between all pairs of batches, and then between each remaining batch and the reference at each merge step.
+As such, we prefer manual definition of a merge order that makes better use of prior knowledge about the experiment design.
+
+```{r, echo=FALSE, results="hide"}
+gc()
+```
 
 # Examining the effect of correction
 
