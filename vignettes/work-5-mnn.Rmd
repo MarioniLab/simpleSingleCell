@@ -573,6 +573,8 @@ gc()
 
 # Examining the effect of correction
 
+## By visualization
+
 We create a new `SingleCellExperiment` object containing log-expression values for all cells, along with information regarding the batch of origin.
 The MNN-corrected values are stored as dimensionality reduction results, befitting the principal components analysis performed within `fastMNN()`. 
 
@@ -621,6 +623,40 @@ ct.ins <- plotTSNE(sce, colour_by="INS") + ggtitle("Beta cells")
 ct.sst <- plotTSNE(sce, colour_by="SST") + ggtitle("Delta cells")
 ct.ppy <- plotTSNE(sce, colour_by="PPY") + ggtitle("PP cells")
 multiplot(ct.gcg, ct.ins, ct.sst, ct.ppy, cols=2)
+```
+
+## With diagnostics
+
+One useful diagnostic is the proportion of variance within each batch that is lost during MNN correction.
+Specifically, this refers to the within-batch variance that is removed during orthogonalization with respect to the average correction vector at each merge step. 
+We set `compute.variances=TRUE` to indicate to `fastMNN()` that the variance loss should be computed and returned.
+
+```{r}
+set.seed(1000)
+with.var <- do.call(fastMNN, c(original, 
+    list(k=20, d=50, approximate=TRUE, 
+        compute.variances=TRUE)
+))
+with.var$lost.var
+```
+
+Large proportions of lost variance suggest that correction is removing genuine biological heterogeneity.
+This would occur due to violations of the assumption of orthogonality between the batch effect and the biological subspace [@haghverdi2018batch].
+In this case, the proportion of lost variance is small, indicating that non-orthogonality is not a major concern.
+
+Another approach is to compute the inter-batch "shift" at each cell with the `getBatchShift()` function.
+This quantifies the separation between batches in the local neighbourhood around each cell.
+Specifically, values close to or greater than 1 represent strong separation between batches (or the presence of cell types that are unique to a particular batch).
+Figure \@ref(fig:shift-hist) shows that most cells have shift values close to zero, suggesting that the batch correction worked as expected. 
+
+```{r shift-hist, fig.cap="Distribution of inter-batch shift values for every cell in the pancreas data set."}
+set.seed(1001) # for some variety...
+shifts <- getBatchShift(mnn.out$corrected, with.var$batch)
+hist(shifts, col="grey80", breaks=50)
+```
+
+```{r, echo=FALSE, results="hide"}
+gc()
 ```
 
 # Using the corrected values in downstream analyses
