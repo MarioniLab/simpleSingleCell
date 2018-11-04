@@ -520,7 +520,7 @@ This yields a final corrected expression matrix where both within-batch donor ef
 mnn.out3 <- fastMNN(GSE81076=mnn.out.81076$corrected,
     GSE85241=mnn.out.85241$corrected, pc.input=TRUE)
 mnn.out3$batch
-c(mnn.out.85241$batch, mnn.out.81076$batch) # by donor
+c(mnn.out.81076$batch, mnn.out.85241$batch) # by donor
 ```
 
 **Comments from Aaron:**
@@ -534,11 +534,12 @@ However, this may not have been the case for the original ordering of cells in e
 This requires some extra account-keeping to match up the final corrected matrix to the original ordering, e.g., when cross-referencing to metadata.
 
     ```{r}
-    original.plate <- c(rescaled.gse81076$Plate,
-        rescaled.gse85241$Plate)
-    original.names <- c(colnames(rescaled.gse81076),
-        colnames(rescaled.gse85241))
+    original.plate <- unlist(lapply(rescaled, "[[", i="Plate"))
+    original.names <- unlist(lapply(rescaled, colnames))
     
+    # Needs unique names: trigger error otherwise.
+    stopifnot(anyDuplicated(original.names)==0L)
+
     m <- match(rownames(mnn.out3$corrected), original.names)
     new.plate <- original.plate[m]
     ```
