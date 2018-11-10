@@ -124,7 +124,7 @@ sce.islam <- normalize(sce.islam)
 For comparison, we also compute the deconvolution size factors for this data set [@lun2016pooling].
 
 ```{r}
-deconv.sf <- computeSumFactors(sce.islam, sf.out=TRUE, cluster=sce.islam$grouping)
+deconv.sf <- simpleSumFactors(sce.islam, sf.out=TRUE)
 head(deconv.sf)
 ```
 
@@ -149,8 +149,6 @@ Spike-in normalization will preserve these differences in total RNA content such
 
 __Comments from Aaron:__
 
-- We only use genes with average counts greater than 1 (as specified in `min.mean`) to compute the deconvolution size factors.
-This avoids problems with discreteness as mentioned in our previous uses of `computeSumFactors`.
 - Setting `sf.out=TRUE` will directly return the size factors, rather than a `SingleCellExperiment` object containing those factors.
 This is more convenient when only the size factors are required for further analysis.
 
