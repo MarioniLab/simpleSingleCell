@@ -126,15 +126,12 @@ sce.gse81076 <- sce.gse81076[,!discard]
 summary(discard)
 ```
 
-We compute size factors for the endogenous genes using the deconvolution method [@lun2016pooling].
-This is done with pre-clustering through `quickCluster()` to avoid pooling together very different cells.
+We compute size factors for the endogenous genes using the pooling method [@lun2016pooling].
 
 ```{r}
 library(scran)
 set.seed(1000)    
-clusters <- quickCluster(sce.gse81076, method="igraph", min.mean=0.1)
-table(clusters)
-sce.gse81076 <- computeSumFactors(sce.gse81076, min.mean=0.1, clusters=clusters)
+sce.gse81076 <- simpleSumFactors(sce.gse81076, min.mean=0.1, approximate=TRUE)
 summary(sizeFactors(sce.gse81076))
 ```
 
@@ -270,9 +267,7 @@ We compute size factors for the endogenous genes and spike-in transcripts, and u
 
 ```{r}
 set.seed(1000)
-clusters <- quickCluster(sce.gse85241, min.mean=0.1, method="igraph")
-table(clusters)
-sce.gse85241 <- computeSumFactors(sce.gse85241, min.mean=0.1, clusters=clusters)
+sce.gse85241 <- simpleSumFactors(sce.gse85241, min.mean=0.1, approximate=TRUE)
 summary(sizeFactors(sce.gse85241))
 sce.gse85241 <- computeSpikeFactors(sce.gse85241, general.use=FALSE)
 summary(sizeFactors(sce.gse85241, "ERCC"))
@@ -644,17 +639,6 @@ Large proportions of lost variance suggest that correction is removing genuine b
 This would occur due to violations of the assumption of orthogonality between the batch effect and the biological subspace [@haghverdi2018batch].
 In this case, the proportion of lost variance is small, indicating that non-orthogonality is not a major concern.
 
-Another approach is to compute the inter-batch "shift" at each cell with the `getBatchShift()` function.
-This quantifies the separation between batches in the local neighbourhood around each cell.
-Specifically, values close to or greater than 1 represent strong separation between batches (or the presence of cell types that are unique to a particular batch).
-Figure \@ref(fig:shift-hist) shows that most cells have shift values close to zero, suggesting that the batch correction worked as expected. 
-
-```{r shift-hist, fig.cap="Distribution of inter-batch shift values for every cell in the pancreas data set."}
-set.seed(1001) # for some variety...
-shifts <- getBatchShift(mnn.out$corrected, with.var$batch)
-hist(shifts, col="grey80", breaks=50)
-```
-
 ```{r, echo=FALSE, results="hide"}
 gc()
 ```
@@ -685,13 +669,13 @@ This will perform all comparisons between clusters _within_ each batch, and then
 ```{r}
 m.out <- findMarkers(sce, clusters$membership, block=sce$Batch,
     direction="up")        
-demo <- m.out[["4"]] # looking at cluster 4 (probably alpha cells).
+demo <- m.out[["3"]] # looking at cluster 3 (probably alpha cells).
 demo <- demo[demo$Top <= 5,]
 as.data.frame(demo[,1:3]) # only first three columns for brevity.
 ```
 
 ```{r, echo=FALSE, results="hide"}
-# Checking that cluster 4 is what we think it is.
+# Checking that cluster 3 is what we think it is.
 stopifnot(all(sapply(demo["GCG",-(1:3)], sign)==1))
 ```
 
