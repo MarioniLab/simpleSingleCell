@@ -252,30 +252,24 @@ gc()
 
 # Normalization of cell-specific biases
 
-For endogenous genes, normalization is performed using the `computeSumFactors` function as previously described.
-Here, we cluster similar cells together and normalize the cells in each cluster using the deconvolution method [@lun2016pooling].
-This improves normalization accuracy by reducing the number of DE genes between cells in the same cluster.
-Scaling is then performed to ensure that size factors of cells in different clusters are comparable.
+For endogenous genes, normalization is performed using the `simpleSumFactors()` function as `r Biocpkg("simpleSingleCell", "work-1-reads.html#normalization-of-cell-specific-biases", label="previously described")` with some modifications:
+
+- We use a average count threshold of 0.1 to define high-abundance genes to use during normalization.
+This is lower than the default threshold of `min.mean=1`, reflecting the fact that UMI counts are generally smaller than read counts.
+- We set `approximate=TRUE` to speed up the dimensionality reduction preceding the nearest-neighbour search.
+This uses methods from the `r CRANpkg("irlba")` package, which require setting the random seed - see below for more detail.
 
 ```{r}
 set.seed(1000)
-clusters <- quickCluster(sce, min.mean=0.1, method="igraph")
-sce <- computeSumFactors(sce, cluster=clusters, min.mean=0.1)
+sce <- simpleSumFactors(sce, min.mean=0.1, approximate=TRUE)
 summary(sizeFactors(sce))
-```
-
-We use a average count threshold of 0.1 to define high-abundance genes to use during normalization.
-This is lower than the default threshold of `min.mean=1` in `computeSumFactors`, reflecting the fact that UMI counts are generally smaller than read counts.
-
-```{r echo=FALSE, results='hide'}
-gc()
 ```
 
 Compared to the 416B analysis, more scatter is observed around the trend between the total count and size factor for each cell (Figure \@ref(fig:normplotbrain)).
 This is consistent with an increased amount of DE between cells of different types, which compromises the accuracy of library size normalization [@robinson2010scaling].
 In contrast, the size factors are estimated based on median ratios and are more robust to the presence of DE between cells.
 
-```{r normplotbrain, fig.cap="Size factors from deconvolution, plotted against library sizes for all cells in the brain dataset. Axes are shown on a log-scale."}
+```{r normplotbrain, fig.cap="Size factors from pooling, plotted against library sizes for all cells in the brain dataset. Axes are shown on a log-scale."}
 plot(sizeFactors(sce), sce$total_counts/1e3, log="xy",
     ylab="Library size (thousands)", xlab="Size factor")
 ```
@@ -296,27 +290,9 @@ sce <- normalize(sce)
 gc()
 ```
 
-__Comments from Aaron:__
-
-- Only a rough clustering is required to avoid pooling together very different cell types in `computeSumFactors()`.
-This reduces the chance of violating the non-DE assumption that is made during any gene-based scaling normalization.
-We stress that there is no need for precise clustering at this step, as we will not be interpreting these clusters at all.
-Our normalization strategy is also robust to a moderate level of differential expression between cells in the same cluster, so careful definition of subclusters is not required.
-We do ask that there are sufficient cells in each cluster for pooling, which can be guaranteed with the `min.size=` argument in `quickCluster()`.
-- `quickCluster` uses distances based on Spearman's rank correlation for clustering.
-This ensures that scaling biases in the counts do not affect clustering, but yields very coarse clusters and is not recommended for biological interpretation.
-However, for the purposes of breaking up distinct cell types, this is more than sufficient.
-- For large datasets, using `method="igraph"` in `quickCluster` will speed up clustering. 
-This uses a graph-based clustering algorithm with a randomization step, hence the need for `set.seed()`.
-See `?buildSNNGraph` for more details.
-
 # Modelling and removing technical noise
 
-We model the technical noise by fitting a mean-variance trend to the spike-in transcripts, as previously described.
-In theory, we should block on the plate of origin for each cell.
-However, only 20-40 cells are available on each plate, and the population is also highly heterogeneous.
-This means that we cannot assume that the distribution of sampled cell types on each plate is the same.
-Thus, to avoid regressing out potential biology, we will not block on any factors in this analysis.
+We model the technical noise by fitting a mean-variance trend to the spike-in transcripts with the `trendVar()` function.
 
 ```{r}
 var.fit <- trendVar(sce, parametric=TRUE, loess.args=list(span=0.4))
@@ -358,6 +334,10 @@ ncol(reducedDim(sce, "PCA"))
 
 **Comments from Aaron:**
 
+- In theory, we should block on the plate of origin for each cell.
+However, only 20-40 cells are available on each plate, and the population is also highly heterogeneous.
+This means that we cannot assume that the distribution of sampled cell types on each plate is the same.
+Thus, to avoid regressing out potential biology, we will not block on any factors in this analysis.
 - The upper limit of PCs to retain in `denoisePCA()` is specified by the `max.rank=` argument.
 This is set to 100 by default to ensure that the approximate SVD runs quickly.
 A higher `max.rank` may be more appropriate for extremely heterogeneous populations, though the default setting is generally satisfactory for dimensionality reduction.
