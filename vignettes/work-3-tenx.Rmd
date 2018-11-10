@@ -218,22 +218,13 @@ plotHighestExprs(sce)
 
 # Normalizing for cell-specific biases
 
-We perform some pre-clustering to break up obvious clusters, as described `r Biocpkg("simpleSingleCell", vignette="work-2-umis.html#normalization-of-cell-specific-biases", label="previously")`.
-Recall that we need to set the seed when using `method="igraph"`.
+We apply the pooling method to compute size factors for all cells [@lun2016pooling].
+Refer to the `r Biocpkg("simpleSingleCell", "work-2-umis.html#normalization-of-cell-specific-biases", label="previous workflow")` for an explanation of the arguments.
 
 ```{r}
 library(scran)
 set.seed(1000)
-clusters <- quickCluster(sce, method="igraph", min.mean=0.1,
-    irlba.args=list(maxit=1000)) # for convergence.
-table(clusters)
-```
-
-We apply the deconvolution method to compute size factors for all cells [@lun2016pooling].
-The specification of `cluster=` ensures that we do not pool cells that are very different.
-
-```{r}
-sce <- computeSumFactors(sce, min.mean=0.1, cluster=clusters)
+sce <- simpleSumFactors(sce, min.mean=0.1, approximate=TRUE)
 summary(sizeFactors(sce))
 ```
 
@@ -253,15 +244,12 @@ sce <- normalize(sce)
 **Comments from Aaron:**
 
 - Larger droplet-based datasets will often be generated in separate batches or runs.
-In such cases, we can set `block=` in `quickCluster()` to cluster cells within each batch or run.
-This reduces computational work considerably without compromising performance, provided that the clusters within each batch are sufficiently large 
-(see comments `r Biocpkg("simpleSingleCell", vignette="work-2-umis.html#6_normalization_of_cell-specific_biases", label="here")`) for a discussion of the considerations involved in pre-clustering for normalization).
-- Even in the absence of any known batch structure, we can improve speed by setting an arbitrary factor, e.g., using `block=cut(seq_len(ncol(sce)), 10)` to split the cells into ten "batches" of roughly equal size.
-Recall that we are not interpreting the clusters themselves, so it is not a problem to have multiple redundant cluster labels.
-Again, this assumes that each cluster is large enough to support deconvolution.
-- On a similar note, both `quickCluster()` and `computeSumFactors()` can process blocks or clusters in parallel.
-This is achieved using the `r Biocpkg("BiocParallel")` framework, which accommodates a range of parallelization strategies.
+In such cases, we can set `block=` in `simpleSumFactors()` to cluster cells within each batch or run.
+This reduces computational work considerably without compromising performance, provided that there are enough cells within each batch.
+Even in the absence of any known batch structure, we can improve speed by setting an arbitrary factor, e.g., using `block=cut(seq_len(ncol(sce)), 10)` to split the cells into ten "batches" of roughly equal size.
+- `simpleSumFactors()` can process batches in parallel via the `r Biocpkg("BiocParallel")` framework.
 In this manner, size factors for large datasets can be computed in a scalable manner.
+Users can specify their desired parallelization strategy via the `BPPARAM` argument.
 
 # Modelling the mean-variance trend
 
@@ -339,7 +327,7 @@ This is recapitulated with a _t_-SNE plot (Figure \@ref(fig:tsneplot-init)).
 Again, note that we set `use_dimred=` to perform _t_-SNE on the denoised expression matrix.
 
 ```{r tsneplot-init, fig.cap="_t_-SNE plots constructed from the denoised PCs of the PBMC dataset. Each point represents a cell and is coloured according to the log-number of expressed features."}
-set.seed(100)
+set.seed(1000)
 sce <- runTSNE(sce, use_dimred="PCA", perplexity=30)
 plotTSNE(sce, colour_by="log10_total_features_by_counts")
 ```
@@ -383,11 +371,11 @@ Again, we only look at upregulated genes in each cluster, as these are more usef
 markers <- findMarkers(sce, clusters=sce$Cluster, direction="up")
 ```
 
-We examine the markers for cluster 8 in more detail.
+We examine the markers for cluster 7 in more detail.
 The upregulation of genes such as _PF4_ and _PPBP_ suggests that this cluster contains platelets or their precursors.
 
 ```{r}
-marker.set <- markers[["8"]]
+marker.set <- markers[["7"]]
 head(marker.set[,1:8], 10) # only first 8 columns, for brevity
 ```
 
