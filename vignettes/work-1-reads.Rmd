@@ -447,7 +447,7 @@ summary(to.keep)
 
 # Normalization of cell-specific biases
 
-## Using the pooling method to deal with zeroes
+## Using the deconvolution method to deal with zero counts
 
 Read counts are subject to differences in capture efficiency and sequencing depth between cells [@stegle2015computational].
 Normalization is required to eliminate these cell-specific biases prior to downstream quantitative analyses.
@@ -458,10 +458,10 @@ More specifically, "size factors" are calculated that represent the extent to wh
 Size factors can be computed with several different approaches, e.g., using the `estimateSizeFactorsFromMatrix` function in the `r Biocpkg("DESeq2")` package [@anders2010differential;@love2014moderated], or with the `calcNormFactors` function [@robinson2010scaling] in the `r Biocpkg("edgeR")` package.
 However, single-cell data can be problematic for these bulk data-based methods due to the dominance of low and zero counts.
 To overcome this, we pool counts from many cells to increase the size of the counts for accurate size factor estimation [@lun2016pooling].
-The `simpleSumFactors()` function will compute a size factor for each cell by sharing information with its neighbouring cells in expression space.
+Pool-based size factors are then "deconvolved" into cell-based factors for normalization of each cell's expression profile.
 
 ```{r}
-sce <- simpleSumFactors(sce)
+sce <- computeSumFactors(sce)
 summary(sizeFactors(sce))
 ```
 
@@ -471,7 +471,7 @@ Any DE between cells would yield a non-linear trend between the total count and 
 We observe some evidence of this after oncogene induction, where the size factors after induction are systematically lower.
 This is consistent with composition biases [@robinson2010scaling] introduced by upregulation of genes after induction.
 
-```{r normplot416b, fig.cap="Size factors from pooling, plotted against library sizes for all cells in the 416B dataset. Axes are shown on a log-scale. Wild-type cells are shown in black and oncogene-induced cells are shown in red."}
+```{r normplot416b, fig.cap="Size factors from deconvolution, plotted against library sizes for all cells in the 416B dataset. Axes are shown on a log-scale. Wild-type cells are shown in black and oncogene-induced cells are shown in red."}
 plot(sce$total_counts/1e6, sizeFactors(sce), log="xy",
     xlab="Library size (millions)", ylab="Size factor",
     col=c("red", "black")[sce$Oncogene], pch=16)
@@ -481,18 +481,22 @@ legend("bottomright", col=c("red", "black"), pch=16, cex=1.2,
 
 __Comments from Aaron:__
 
-- Older versions of this workflow used the `computeSumFactors()` function, which implements the method described by @lun2016pooling exactly.
-`simpleSumFactors()` provides some advantages over the original method in that it does not require a pre-clustering step; will not yield negative size factors; 
-and is more accurate, provided there are at least `k` cells (default 20) in each local neighbourhood around each cell.
-- While the pooling approach is robust to the high frequency of zeroes in scRNA-seq data, it will eventually fail if too many counts are zero.
+- While the deconvolution approach is robust to the high frequency of zeroes in scRNA-seq data, it will eventually fail if too many counts are zero.
 This manifests as negative size factors that are obviously nonsensical.
-To avoid this, the `simpleSumFactors()` function will automatically remove low-abundance genes prior to the calculation of size factors.
+To avoid this, the `computeSumFactors` function will automatically remove low-abundance genes prior to the calculation of size factors.
 Genes with a library size-adjusted average count below a specified threshold (`min.mean`) are ignored.
 For read count data, the default value of 1 is usually satisfactory.
 - Cell-based QC should always be performed prior to normalization, to remove cells with very low numbers of expressed genes.
-Otherwise, `simpleSumFactors()` may yield size factors of zero for low-quality cells.
+Otherwise, `computeSumFactors()` may yield negative size factors for low-quality cells.
 This is because too many zeroes are present in these cells, reducing the effectiveness of pooling to eliminate zeroes.
-Indeed, for some low-quality cells, the effect of cell damage on the transcriptome may already violate the non-DE assumption.
+See `?computeSumFactors` for more details on how the function resolves negative size factors.
+- The `sizes` argument can be used to specify the number of pool sizes to use to compute the size factors.
+More `sizes` yields more precise estimates at the cost of some computational time and memory.
+In general, all `sizes` should be above 20 cells to ensure that there are sufficient non-zero expression values in each pool.
+The total number of cells should also be at least 100 for effective pooling.
+- For highly heterogeneous datasets, it is advisable to perform a rough clustering of the cells to weaken the non-DE assumption.
+This can be done with the `quickCluster()` function and the results passed to `computeSumFactors()` via the `clusters` argument.
+We demonstrate this approach with a larger data set in the next `r Biocpkg("simpleSingleCell", vignette="work-2-umis.html#6_normalization_of_cell-specific_biases", label="workflow")`.
 
 ## Computing separate size factors for spike-in transcripts
 
