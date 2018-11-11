@@ -252,16 +252,20 @@ gc()
 
 # Normalization of cell-specific biases
 
-For endogenous genes, normalization is performed using the `simpleSumFactors()` function as `r Biocpkg("simpleSingleCell", "work-1-reads.html#normalization-of-cell-specific-biases", label="previously described")` with some modifications:
+We normalize endogenous genes using the `computeSumFactors()` function with an additional pre-clustering step [@lun2016pooling].
+Cells in each cluster are normalized separately, and the size factors are rescaled to be comparable across clusters.
+This avoids the need to assume that most genes are non-DE across the entire population - only a non-DE majority is required between pairs of clusters.
+Scaling is then performed to ensure that size factors of cells in different clusters are comparable.
 
 - We use a average count threshold of 0.1 to define high-abundance genes to use during normalization.
 This is lower than the default threshold of `min.mean=1`, reflecting the fact that UMI counts are generally smaller than read counts.
-- We set `approximate=TRUE` to speed up the dimensionality reduction preceding the nearest-neighbour search.
+- We set `pc.approx=TRUE` to speed up the dimensionality reduction preceding the nearest-neighbour search.
 This uses methods from the `r CRANpkg("irlba")` package, which require setting the random seed - see below for more detail.
 
 ```{r}
 set.seed(1000)
-sce <- simpleSumFactors(sce, min.mean=0.1, approximate=TRUE)
+clusters <- quickCluster(sce, pc.approx=TRUE)
+sce <- computeSumFactors(sce, cluster=clusters, min.mean=0.1)
 summary(sizeFactors(sce))
 ```
 
@@ -285,6 +289,18 @@ Finally, normalized log-expression values are computed for each endogenous gene 
 ```{r}
 sce <- normalize(sce)
 ```
+
+__Comments from Aaron:__
+
+- Only a rough clustering is required to avoid pooling together very different cell types in `computeSumFactors()`.
+This reduces the chance of violating the non-DE assumption that is made during any gene-based scaling normalization.
+There is no need for precise clustering at this step, as we will not be interpreting the `clusters` at all, 
+`computeSumFactors()` is robust to a moderate level of differential expression between cells in the same cluster, so careful definition of subclusters is not required.
+That said, there does need to be sufficient cells in each cluster for pooling, which can be guaranteed with the `min.size=` argument in `quickCluster()`.
+- Older versions of `quickCluster()` performed clustering based on rank correlations between cells.
+The current version uses graph-based clustering on principal components obtained from log-expression values.
+This is faster and yields higher resolution clusters than before.
+Nonetheless, the previous behaviour can be recovered by setting the arguments appropriately, see `?quickCluster` for more details.
 
 ```{r echo=FALSE, results='hide'}
 gc()
@@ -480,7 +496,7 @@ We use the ratio instead as this is guaranteed to be positive and does not exhib
 
 We use the `findMarkers` function with `direction="up"` to identify upregulated marker genes for each cluster.
 As previously mentioned, we focus on upregulated genes as these can quickly provide positive identification of cell type in a heterogeneous population.
-We examine the table for cluster 1, in which log-fold changes are reported between cluster 1 and every other cluster.
+We examine the table for cluster 2, in which log-fold changes are reported between cluster 2 and every other cluster.
 The same output is provided for each cluster in order to identify genes that discriminate between clusters.
 
 ```{r, echo=FALSE, results="hide"}
@@ -490,19 +506,20 @@ options(digits=3)
 
 ```{r}
 markers <- findMarkers(sce, my.clusters, direction="up")
-marker.set <- markers[["1"]]
+marker.set <- markers[["2"]]
 head(marker.set[,1:8], 10) # only first 8 columns, for brevity
 ```
 
 ```{r, echo=FALSE, results="hide"}
-# Checking the cluster is what we wanted, along with cluster 10 (=9 in marker.set).
+# Checking the cluster is what we wanted, along with cluster 12 (=11 in marker.set).
+other.inter <- 11
 gad1 <- sapply(marker.set["Gad1",-(1:3)], sign)
-stopifnot(gad1[9]==-1)
-stopifnot(all(gad1[-9]==1))
+stopifnot(gad1[other.inter]==-1)
+stopifnot(all(gad1[-other.inter]==1))
 
 gad2 <- sapply(marker.set["Gad2",-(1:3)], sign)
-stopifnot(gad2[9]==-1)
-stopifnot(all(gad2[-9]==1))
+stopifnot(gad2[other.inter]==-1)
+stopifnot(all(gad2[-other.inter]==1))
 
 stopifnot(all(sapply(marker.set["Synpr",-(1:3)], sign)==1))
 
@@ -518,12 +535,12 @@ write.table(marker.set, file=gzout, sep="\t", quote=FALSE, col.names=NA)
 close(gzout)
 ```
 
-Figure \@ref(fig:heatmapmarkerbrain) indicates that most of the top markers are strongly DE in cells of cluster 1 compared to some or all of the other clusters.
-We can use these markers to identify cells from cluster 1 in validation studies with an independent population of cells.
-A quick look at the markers suggest that cluster 1 represents interneurons based on expression of *Gad1* and *Slc6a1* [@zeng2012largescale],
-differing from closely related cells in cluster 10 by virtue of high *Synpr* expression.
+Figure \@ref(fig:heatmapmarkerbrain) indicates that most of the top markers are strongly DE in cells of cluster 2 compared to some or all of the other clusters.
+We can use these markers to identify cells from cluster 2 in validation studies with an independent population of cells.
+A quick look at the markers suggest that cluster 2 represents interneurons based on expression of *Gad1* and *Slc6a1* [@zeng2012largescale],
+differing from closely related cells in cluster 12 by virtue of high *Synpr* expression.
 
-```{r heatmapmarkerbrain, fig.wide=TRUE, fig.cap="Heatmap of mean-centred and normalized log-expression values for the top set of markers for cluster 1 in the brain dataset. Column colours represent the cluster to which each cell is assigned, as indicated by the legend."}
+```{r heatmapmarkerbrain, fig.wide=TRUE, fig.cap="Heatmap of mean-centred and normalized log-expression values for the top set of markers for cluster 2 in the brain dataset. Column colours represent the cluster to which each cell is assigned, as indicated by the legend."}
 top.markers <- rownames(marker.set)[marker.set$Top <= 10]
 plotHeatmap(sce, features=top.markers, columns=order(my.clusters),
     colour_columns_by="cluster", cluster_cols=FALSE, 
