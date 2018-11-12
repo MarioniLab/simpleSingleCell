@@ -124,12 +124,14 @@ sce <- sce[,!discard]
 
 ## Normalization for cell-specific biases
 
-We apply the pooling method [@lun2016pooling] to compute size factors for scaling normalization of cell-specific biases.
+ We apply the deconvolution method with pre-clustering [@lun2016pooling] to compute size factors for scaling normalization of cell-specific biases.
 
 ```{r}
 library(scran)
 set.seed(1000)
-sce <- simpleSumFactors(sce, min.mean=0.1, approximate=TRUE)
+clusters <- quickCluster(sce, pc.approx=TRUE)
+table(clusters)
+sce <- computeSumFactors(sce, clusters=clusters, min.mean=0.1) 
 summary(sizeFactors(sce))
 ```
 
@@ -205,9 +207,9 @@ dbl.out
 Examination of the output of `doubletCluster()` indicates that cluster 6 has the fewest unique genes and library sizes that are comparable to or greater than its parents.
 We see that every gene detected in this cluster is also expressed in either of the two proposed parent clusters (Figure \@ref(fig:heatclust)).
 
-```{r heatclust, fig.cap="Heatmap of mean-centred and normalized log-expression values for the top set of markers for cluster 6 in the mammary gland dataset. Column colours represent the cluster to which each cell is assigned, as indicated by the legend."}
+```{r heatclust, fig.cap="Heatmap of mean-centred and normalized log-expression values for the top set of markers for cluster 7 in the mammary gland dataset. Column colours represent the cluster to which each cell is assigned, as indicated by the legend."}
 markers <- findMarkers(sce, sce$Cluster, direction="up")
-dbl.markers <- markers[["6"]]
+dbl.markers <- markers[["7"]]
 chosen <- rownames(dbl.markers)[dbl.markers$Top <= 10]
 plotHeatmap(sce, columns=order(sce$Cluster), colour_columns_by="Cluster", 
     features=chosen, cluster_cols=FALSE, center=TRUE, symmetric=TRUE, 
