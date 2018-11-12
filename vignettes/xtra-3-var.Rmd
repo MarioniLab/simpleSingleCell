@@ -115,7 +115,7 @@ We then calculate log-transformed normalized expression values for further use.
 
 ```{r, warning=FALSE}
 library(scran)
-sce.hsc <- simpleSumFactors(sce.hsc)
+sce.hsc <- computeSumFactors(sce.hsc)
 summary(sizeFactors(sce.hsc))
 sce.hsc <- computeSpikeFactors(sce.hsc, type="ERCC", general.use=FALSE)
 summary(sizeFactors(sce.hsc, "ERCC"))

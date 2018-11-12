@@ -124,7 +124,8 @@ sce.islam <- normalize(sce.islam)
 For comparison, we also compute the deconvolution size factors for this data set [@lun2016pooling].
 
 ```{r}
-deconv.sf <- simpleSumFactors(sce.islam, sf.out=TRUE)
+deconv.sf <- computeSumFactors(sce.islam, sf.out=TRUE, 
+    cluster=sce.islam$grouping)
 head(deconv.sf)
 ```
 
