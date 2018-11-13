@@ -674,13 +674,13 @@ This will perform all comparisons between clusters _within_ each batch, and then
 ```{r}
 m.out <- findMarkers(sce, clusters$membership, block=sce$Batch,
     direction="up")        
-demo <- m.out[["7"]] # looking at cluster 7 (probably alpha cells).
+demo <- m.out[["4"]] # probably alpha cells.
 demo <- demo[demo$Top <= 5,]
 as.data.frame(demo[,1:3]) # only first three columns for brevity.
 ```
 
 ```{r, echo=FALSE, results="hide"}
-# Checking that cluster 3 is what we think it is.
+# Checking that cluster 4 is what we think it is.
 stopifnot(all(sapply(demo["GCG",-(1:3)], sign)==1))
 ```
 

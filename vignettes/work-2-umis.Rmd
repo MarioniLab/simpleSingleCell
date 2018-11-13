@@ -496,7 +496,7 @@ We use the ratio instead as this is guaranteed to be positive and does not exhib
 
 We use the `findMarkers` function with `direction="up"` to identify upregulated marker genes for each cluster.
 As previously mentioned, we focus on upregulated genes as these can quickly provide positive identification of cell type in a heterogeneous population.
-We examine the table for cluster 2, in which log-fold changes are reported between cluster 2 and every other cluster.
+We examine the table for cluster 4, in which log-fold changes are reported between cluster 4 and every other cluster.
 The same output is provided for each cluster in order to identify genes that discriminate between clusters.
 
 ```{r, echo=FALSE, results="hide"}
@@ -506,13 +506,13 @@ options(digits=3)
 
 ```{r}
 markers <- findMarkers(sce, my.clusters, direction="up")
-marker.set <- markers[["2"]]
+marker.set <- markers[["4"]]
 head(marker.set[,1:8], 10) # only first 8 columns, for brevity
 ```
 
 ```{r, echo=FALSE, results="hide"}
-# Checking the cluster is what we wanted, along with cluster 12 (=11 in marker.set).
-other.inter <- 11
+# Checking the cluster is what we wanted, along with cluster 11 (=10 in marker.set).
+other.inter <- 11 - 1
 gad1 <- sapply(marker.set["Gad1",-(1:3)], sign)
 stopifnot(gad1[other.inter]==-1)
 stopifnot(all(gad1[-other.inter]==1))
@@ -535,12 +535,12 @@ write.table(marker.set, file=gzout, sep="\t", quote=FALSE, col.names=NA)
 close(gzout)
 ```
 
-Figure \@ref(fig:heatmapmarkerbrain) indicates that most of the top markers are strongly DE in cells of cluster 2 compared to some or all of the other clusters.
-We can use these markers to identify cells from cluster 2 in validation studies with an independent population of cells.
-A quick look at the markers suggest that cluster 2 represents interneurons based on expression of *Gad1* and *Slc6a1* [@zeng2012largescale],
-differing from closely related cells in cluster 12 by virtue of high *Synpr* expression.
+Figure \@ref(fig:heatmapmarkerbrain) indicates that most of the top markers are strongly DE in cells of cluster 4 compared to some or all of the other clusters.
+We can use these markers to identify cells from cluster 4 in validation studies with an independent population of cells.
+A quick look at the markers suggest that cluster 4 represents interneurons based on expression of *Gad1* and *Slc6a1* [@zeng2012largescale],
+differing from closely related cells in cluster 11 by virtue of high *Synpr* expression.
 
-```{r heatmapmarkerbrain, fig.wide=TRUE, fig.cap="Heatmap of mean-centred and normalized log-expression values for the top set of markers for cluster 2 in the brain dataset. Column colours represent the cluster to which each cell is assigned, as indicated by the legend."}
+```{r heatmapmarkerbrain, fig.wide=TRUE, fig.cap="Heatmap of mean-centred and normalized log-expression values for the top set of markers for cluster 4 in the brain dataset. Column colours represent the cluster to which each cell is assigned, as indicated by the legend."}
 top.markers <- rownames(marker.set)[marker.set$Top <= 10]
 plotHeatmap(sce, features=top.markers, columns=order(my.clusters),
     colour_columns_by="cluster", cluster_cols=FALSE, 
