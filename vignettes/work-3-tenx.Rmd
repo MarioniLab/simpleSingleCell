@@ -374,6 +374,12 @@ plotTSNE(sce, colour_by="Cluster")
 
 # Marker gene detection
 
+```{r, echo=FALSE, results="hide"}
+# Hidden variables for use in text or hidden chunks,
+# to avoid the need for manual changes.
+chosen.platelets <- 9
+```
+
 We detect marker genes for each cluster using `findMarkers()`.
 Again, we only look at upregulated genes in each cluster, as these are more useful for positive identification of cell types in a heterogeneous population.
 
@@ -381,7 +387,7 @@ Again, we only look at upregulated genes in each cluster, as these are more usef
 markers <- findMarkers(sce, clusters=sce$Cluster, direction="up")
 ```
 
-We examine the markers for cluster 9 in more detail.
+We examine the markers for cluster `r chosen.platelets` in more detail.
 The upregulation of genes such as _PF4_ and _PPBP_ suggests that this cluster contains platelets or their precursors.
 
 ```{r}
@@ -395,9 +401,9 @@ pf4 <- sapply(marker.set["PF4",-(1:3)], sign)
 stopifnot(all(pf4==1))
 ```
 
-This is confirmed in Figure \@ref(fig:heatmap), where the transcriptional profile of cluster 9 is clearly distinct from the others.
+This is confirmed in Figure \@ref(fig:heatmap), where the transcriptional profile of cluster `r chosen.platelets` is clearly distinct from the others.
 
-```{r heatmap, fig.wide=TRUE, fig.cap="Heatmap of mean-centred and normalized log-expression values for the top set of markers for cluster 9 in the PBMC dataset. Column colours represent the cluster to which each cell is assigned, as indicated by the legend."}
+```{r heatmap, fig.wide=TRUE, fig.cap=sprintf("Heatmap of mean-centred and normalized log-expression values for the top set of markers for cluster %s in the PBMC dataset. Column colours represent the cluster to which each cell is assigned, as indicated by the legend.", chosen.platelets)}
 chosen <- rownames(marker.set)[marker.set$Top <= 10]
 plotHeatmap(sce, features=chosen, exprs_values="logcounts", 
     zlim=5, center=TRUE, symmetric=TRUE, cluster_cols=FALSE,

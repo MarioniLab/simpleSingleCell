@@ -204,10 +204,16 @@ dbl.out <- doubletCluster(sce, sce$Cluster)
 dbl.out
 ```
 
-Examination of the output of `doubletCluster()` indicates that cluster 6 has the fewest unique genes and library sizes that are comparable to or greater than its parents.
+```{r, echo=FALSE, results="hide"}
+# Hidden variables for use in text or hidden chunks,
+# to avoid the need for manual changes.
+chosen.doublet <- 7
+```
+
+Examination of the output of `doubletCluster()` indicates that cluster `r chosen.doublet` has the fewest unique genes and library sizes that are comparable to or greater than its parents.
 We see that every gene detected in this cluster is also expressed in either of the two proposed parent clusters (Figure \@ref(fig:heatclust)).
 
-```{r heatclust, fig.cap="Heatmap of mean-centred and normalized log-expression values for the top set of markers for cluster 7 in the mammary gland dataset. Column colours represent the cluster to which each cell is assigned, as indicated by the legend."}
+```{r heatclust, fig.cap=sprintf("Heatmap of mean-centred and normalized log-expression values for the top set of markers for cluster %i in the mammary gland dataset. Column colours represent the cluster to which each cell is assigned, as indicated by the legend.", chosen.doublet)}
 markers <- findMarkers(sce, sce$Cluster, direction="up")
 dbl.markers <- markers[["7"]]
 chosen <- rownames(dbl.markers)[dbl.markers$Top <= 10]
