@@ -457,40 +457,19 @@ We might also want to merge batches generated with the same scRNA-seq technology
 This can be done by multiple calls to `fastMNN()` with progressively merged batches.
 
 To illustrate, assume that we want to remove `Donor` effects within each batch prior to merging across batches.
-The first step is to use the `multiBatchPCA()` function to perform a PCA across _all_ batches to be merged.
-This ensures that all cells are placed onto the same coordinate space, which would obviously not be possible if a PCA was performed for each batch separately.
-
-```{r}
-set.seed(1000) # for irlba.
-scaled <- lapply(original, cosineNorm) # for consistency with fastMNN() defaults.
-output <- do.call(multiBatchPCA, c(scaled, list(d=50, approximate=TRUE)))
-names(output)
-dim(output$GSE85241)
-dim(output$GSE81076)
-```
-
-We split the cells in GSE85241 by the donor of origin, yielding one matrix of PC scores per donor in `by.donor`.
+We split up the cells in GSE85241 according to the donor of origin, creating one `SingleCellExperiment` object for each donor.
 
 ```{r}
 all.donors <- unique(rescaled.gse85241$Donor)
 table(rescaled.gse85241$Donor)
-by.donor <- vector("list", length(all.donors))
-names(by.donor) <- sort(all.donors)
+by.donor.85241 <- vector("list", length(all.donors))
+names(by.donor.85241) <- sort(all.donors)
 for (x in all.donors) {
-    by.donor[[x]] <- output$GSE85241[rescaled.gse85241$Donor==x,]
+    by.donor.85241[[x]] <- rescaled.GSE85241[,rescaled.gse85241$Donor==x]
 }
 ```
 
-We pass these matrices to `fastMNN()`, setting `pc.input=TRUE` to indicate that dimensionality reduction has already been performed.
-This uses the first donor to define the reference space^[Which can be changed with `auto.order=`, if so desired.] and merges cells from all other donors to the first.
-In this manner, we can remove donor effects within the GSE85241 batch.
-
-```{r}
-mnn.out.85241 <- do.call(fastMNN, c(by.donor, list(pc.input=TRUE)))
-mnn.out.85241$batch
-```
-
-We repeat this process for GSE86071.
+We repeat this process for GSE81076.
 For demonstration purposes, we will aggregate some of the donors together to ensure that there are enough cells in each level for MNN detection.
 
 ```{r}
@@ -501,13 +480,39 @@ adj.donors <- c(D101="A", D102="A", D10631="A",
 table(adj.donors)
 
 all.donors <- unique(adj.donors)
-by.donor <- vector("list", length(all.donors))
-names(by.donor) <- sort(all.donors)
+by.donor.81076 <- vector("list", length(all.donors))
+names(by.donor.81076) <- sort(all.donors)
 for (x in all.donors) {
-    by.donor[[x]] <- output$GSE81076[adj.donors==x,]
+    by.donor.81076[[x]] <- rescaled.GSE81076[,adj.donors==x]
 }
+```
 
-mnn.out.81076 <- do.call(fastMNN, c(by.donor, list(pc.input=TRUE)))
+We use the `multiBatchPCA()` function to perform a PCA across _all_ batches to be merged.
+This ensures that all cells are placed onto the same coordinate space, which would obviously not be possible if a PCA was performed for each batch separately.
+
+```{r}
+set.seed(1000) # for irlba.
+all.batches <- c(by.donor.85241, by.donor.81076)
+scaled <- lapply(all.batches, cosineNorm) # for consistency with fastMNN() defaults.
+output <- do.call(multiBatchPCA, c(scaled, list(d=50, approximate=TRUE)))
+names(output)
+```
+
+We pass the matrices corresponding to the donors in GSE85241 to `fastMNN()`, setting `pc.input=TRUE` to indicate that dimensionality reduction has already been performed.
+This uses the first donor to define the reference space^[Which can be changed with `auto.order=`, if so desired.] and merges cells from all other donors to the first.
+In this manner, we can remove donor effects within the GSE85241 batch.
+
+```{r}
+pcs.85241 <- output[seq_along(by.donor.85241)]
+mnn.out.85241 <- do.call(fastMNN, c(pcs.85241, list(pc.input=TRUE)))
+mnn.out.85241$batch
+```
+
+We repeat this for the donors in the GSE81076 batch.
+
+```{r}
+pcs.81076 <- tail(output, length(by.donor.81076))
+mnn.out.81076 <- do.call(fastMNN, c(pcs.81076, list(pc.input=TRUE)))
 mnn.out.81076$batch
 ```
 
@@ -519,7 +524,7 @@ This yields a final corrected expression matrix where both within-batch donor ef
 ```{r}
 mnn.out3 <- fastMNN(GSE81076=mnn.out.81076$corrected,
     GSE85241=mnn.out.85241$corrected, pc.input=TRUE)
-mnn.out3$batch
+mnn.out3$batch # by dataset
 c(mnn.out.81076$batch, mnn.out.85241$batch) # by donor
 ```
 
@@ -554,12 +559,12 @@ In situations where the nature of each batch is unknown, users can set `auto.ord
 The first merge is performed between the pair of batches with the most MNN pairs.
 Progressive merges are performed with the remaining batch that has the most MNN pairs with the current reference batch.
 The aim is to maximize the number of MNN pairs at each step to provide a stable correction.
+We demonstrate below using the within-donor subbatches in the GSE81076 data set.
 
 ```{r}
-# On 'by.donor', as 'original' only has 2 batches.
-mnn.out.auto <- do.call(fastMNN, c(by.donor, 
+mnn.out.auto <- do.call(fastMNN, c(by.donor.81076, 
     list(pc.input=TRUE, auto.order=TRUE)))
-names(by.donor) # supplied order 
+names(by.donor.81076) # supplied order 
 mnn.out.auto$order # automatically defined order
 ```
 
