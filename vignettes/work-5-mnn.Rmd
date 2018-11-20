@@ -402,8 +402,12 @@ However, the MNN approach is not limited to two batches, and inclusion of more b
 
 - The `k=` parameter specifies the number of nearest neighbours to consider when defining MNN pairs.
 This should be interpreted as the minimum frequency of each cell type or state in each batch.
-Larger values will improve the precision of the correction by increasing the number of MNN pairs, 
-at the cost of reducing accuracy by allowing MNN pairs to form between cells of different type.
+  - Larger values will improve the precision of the correction by increasing the number of MNN pairs.
+    It also provides some robustness to violations of the assumption that the batch vector is orthogonal to the biological subspace [@haghverdi2018batch],
+    by allowing the neighbour search to ignore biological variation in each batch to identify the correct MNN pairs.
+  - However, larger values of `k` can also reduce accuracy by allowing incorrect MNN pairs to form between cells of different types.
+    Thus, we suggest starting with the default `k` and increasing it if one is confident that the same cell types are not adequately merged across batches.
+    This is better than starting with a large `k` as incorrect merging is much harder to diagnose than insufficient merging.
 - When `approximate=TRUE`, `fastMNN()` uses methods from the `r CRANpkg("irlba")` package to perform the principal components analysis quickly.
 While the run-to-run differences should be minimal, it does mean that `set.seed()` is required to obtain fully reproducible results.
 
