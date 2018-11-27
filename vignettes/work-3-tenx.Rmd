@@ -224,7 +224,7 @@ Recall that we need to set the seed when using `pc.approx=TRUE` due to the rando
 ```{r}
 library(scran)
 set.seed(1000)
-clusters <- quickCluster(sce, pc.approx=TRUE)
+clusters <- quickCluster(sce, use.ranks=FALSE, pc.approx=TRUE)
 table(clusters)
 ```
 
