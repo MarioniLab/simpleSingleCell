@@ -68,10 +68,11 @@ Our first task is to load the count matrix into memory.
 In this case, some work is required to retrieve the data from the Gzip-compressed Excel format.
 
 ```{r}
-library(gdata)
-all.counts <- read.xls(wilson.name2, sheet=1, header=TRUE)
-rownames(all.counts) <- all.counts$ID
+library(readxl)
+all.counts <- read_excel(wilson.name2)
+gene.names <- all.counts$ID
 all.counts <- as.matrix(all.counts[,-1])
+rownames(all.counts) <- gene.names
 ```
 
 We store the results in a `SingleCellExperiment` object and identify the rows corresponding to the spike-ins based on the row names.
