@@ -182,7 +182,7 @@ hist(sce$pct_counts_Mito, breaks=20, col="grey80",
 	xlab="Proportion of reads in mitochondrial genes")
 ```
 
-Ideally, we would remove cells with low library sizes or total number of expressed features as described `r Biocpkg("simpleSingleCell", vignette="work-1-reads.html#quality-control-on-the-cells", label="previously")`.
+Ideally, we would remove cells with low library sizes or total number of expressed features as described `r simpleSingleCell:::.link("reads", "Quality control on the cells", "previously")`.
 However, this would likely remove cell types with low RNA content, especially in a heterogeneous PBMC population with many different cell types.
 Thus, we use a more relaxed strategy and only remove cells with large mitochondrial proportions, using it as a proxy for cell damage.
 (Keep in mind that droplet-based datasets usually do not have spike-in RNA.)
@@ -197,7 +197,7 @@ summary(high.mito)
 
 - The above justification for using a more relaxed filter is largely retrospective.
 In practice, we may not know _a priori_ the degree of population heterogeneity and whether it manifests in the QC metrics.
-We recommend performing the analysis first with a stringent QC filter, and then relaxing it based on further diagnostics (see `r Biocpkg("simpleSingleCell", vignette="xtra-1-qc.html#checking-for-discarded-cell-types", label="here")` for an example).
+We recommend performing the analysis first with a stringent QC filter, and then relaxing it based on further diagnostics (see `r simpleSingleCell:::.link("qc", "Checking for discarded cell types", "here")` for an example).
 
 # Examining gene expression
 
@@ -218,7 +218,7 @@ plotHighestExprs(sce)
 
 # Normalizing for cell-specific biases
 
-We perform some pre-clustering as described `r Biocpkg("simpleSingleCell", vignette="work-2-umis.html#normalization-of-cell-specific-biases", label="previously")`.
+We perform some pre-clustering as described `r simpleSingleCell:::.link("umis", "Normalization of cell-specific biases", label="previously")`.
 Recall that we need to set the seed when using `pc.approx=TRUE` due to the randomness of `r CRANpkg("irlba")`. 
 
 ```{r}
@@ -265,7 +265,7 @@ This is achieved using the `r Biocpkg("BiocParallel")` framework, which provides
 
 The lack of spike-in transcripts complicates the modelling of the technical noise.
 One option is to assume that most genes do not exhibit strong biological variation, and to fit a trend to the variances of endogenous genes
-(see `r Biocpkg("simpleSingleCell", vignette="xtra-3-var.html#32_when_spike-ins_are_unavailable", label="here")` for details).
+(see `r simpleSingleCell:::.link("var", "When spike-ins are unavailable", "here")` for details).
 However, this assumption is generally unreasonable for a heterogeneous population.
 Instead, we assume that the technical noise is Poisson and create a fitted trend on that basis using the `makeTechTrend()` function.
 
@@ -276,7 +276,7 @@ new.trend <- makeTechTrend(x=sce)
 We estimate the variances for all genes and compare the trend fits in Figure \@ref(fig:trendplot).
 The Poisson-based trend serves as a lower bound for the variances of the endogenous genes.
 This results in non-zero biological components for most genes, which is consistent with other UMI-based data sets 
-(see the `r Biocpkg("simpleSingleCell", vignette="work-2-umis.html#7_modelling_and_removing_technical_noise", label="corresponding analysis")` of the @zeisel2015brain data set).
+(see the `r simpleSingleCell:::.link("umis", "Modelling and removing technical_noise", "corresponding analysis")` of the @zeisel2015brain data set).
 
 ```{r trendplot, fig.cap="Variance of normalized log-expression values for each gene in the PBMC dataset, plotted against the mean log-expression. The blue line represents the mean-dependent trend fitted to the variances, while the red line represents the Poisson noise."}
 fit <- trendVar(sce, use.spikes=FALSE, loess.args=list(span=0.05))

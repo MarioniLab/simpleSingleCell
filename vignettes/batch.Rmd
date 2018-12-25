@@ -723,7 +723,7 @@ as.data.frame(demo[,1:3]) # only first three columns for brevity.
 stopifnot(all(sapply(demo["GCG",-(1:3)], sign)==1))
 ```
 
-Other approaches for handling batch effects during marker gene detection are discussed `r Biocpkg("simpleSingleCell", "xtra-3b-de.html#blocking-on-uninteresting-factors-of-variation", label="elsewhere")`.
+Other approaches for handling batch effects during marker gene detection are discussed `r simpleSingleCell:::.link("de", "Blocking on uninteresting factors of variation", "elsewhere")`.
 It is similarly possible to perform these analyses with standard Bioconductor packages for DE analysis such as `r Biocpkg("edgeR")` or `r Biocpkg("limma")`.
 Note that the use of `block=` is roughly similar to the use of a batch-cluster interaction model and testing whether the average log-fold change across batches is equal to zero.
 

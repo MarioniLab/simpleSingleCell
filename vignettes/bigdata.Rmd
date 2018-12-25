@@ -152,13 +152,13 @@ The default is to favour accuracy over speed by using an exact nearest neighbour
 However, for large data sets, it may be preferable to use a faster approximate approach.
 The `r Biocpkg("BiocNeighbors")` framework makes it easy to switch between search options.
 
-To demonstrate, we will use the PBMC data from the `r Biocpkg("simpleSingleCell", "work-3-tenx.html", "previous workflow")`:
+To demonstrate, we will use the PBMC data from the `r simpleSingleCell:::.link("tenx", NULL, "previous workflow")`:
 
 ```{r}
 sce.pbmc <- readRDS("pbmc_data.rds")
 ```
 
-We had `r Biocpkg("simpleSingleCell", "work-3-tenx.html#clustering-with-graph-based-methods", "previously")` generated a shared nearest neighbor graph with	an exact neighbour search.
+We had `r simpleSingleCell:::.link("tenx", "Clustering with graph-based methods", "previously")` generated a shared nearest neighbor graph with an exact neighbour search.
 We repeat this below using an approximate search, implemented using the [Annoy](https://github.com/spotify/Annoy) algorithm.
 This involves constructing a `BiocNeighborParam` object to specify the search algorithm, and passing it to the `buildSNNGraph()` function.
 

@@ -130,7 +130,7 @@ Large log-fold changes can also be driven by enrichment or depletion of mitochon
 ## In the PBMC data set
 
 For comparison, we consider the PBMC data set in which we previously identified a platelet population
-(see the `r Biocpkg("simpleSingleCell", vignette="work-3-tenx.html#marker-gene-detection", label="previous workflow")`).
+(see the `r simpleSingleCell:::.link("tenx", "Marker gene detection", "previous workflow")`).
 Recall that we relied on the use of the `emptyDrops()` method from the `r Biocpkg("DropletUtils")` package to retain the platelets.
 In contrast, if we had used a naive threshold on the total unique molecular identifier (UMI) count, we would have removed this population during the cell calling step.
 
