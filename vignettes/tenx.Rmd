@@ -111,19 +111,19 @@ legend("bottomleft", legend=c("Inflection", "Knee"),
 
 We use the `emptyDrops()` function to test whether the expression profile for each cell barcode is significantly different from the ambient RNA pool [@lun2018distinguishing].
 Any significant deviation indicates that the barcode corresponds to a cell-containing droplet.
-We call cells at a false discovery rate (FDR) of 1%, meaning that no more than 1% of our called barcodes should be empty droplets on average.
+We call cells at a false discovery rate (FDR) of 0.1%, meaning that no more than 0.1% of our called barcodes should be empty droplets on average.
 
 ```{r}
 set.seed(100)
 e.out <- emptyDrops(counts(sce))
-sum(e.out$FDR <= 0.01, na.rm=TRUE)
+sum(e.out$FDR <= 0.001, na.rm=TRUE)
 ```
 
 We then subset our `SingleCellExperiment` object to retain only the detected cells.
 
 ```{r}
 # using which() to automatically remove NAs.
-sce <- sce[,which(e.out$FDR <= 0.01)]
+sce <- sce[,which(e.out$FDR <= 0.001)]
 ```
 
 **Comments from Aaron:**
@@ -377,7 +377,7 @@ plotTSNE(sce, colour_by="Cluster")
 ```{r, echo=FALSE, results="hide"}
 # Hidden variables for use in text or hidden chunks,
 # to avoid the need for manual changes.
-chosen.platelets <- 9
+chosen.platelets <- 10
 ```
 
 We detect marker genes for each cluster using `findMarkers()`.
@@ -391,11 +391,14 @@ We examine the markers for cluster `r chosen.platelets` in more detail.
 The upregulation of genes such as _PF4_ and _PPBP_ suggests that this cluster contains platelets or their precursors.
 
 ```{r}
-marker.set <- markers[["9"]]
+marker.set <- markers[["10"]]
 head(marker.set[,1:8], 10) # only first 8 columns, for brevity
 ```
 
 ```{r, echo=FALSE, results="hide"}
+# Checking 'marker.set' and 'chosen.platelets' are consistent.
+stopifnot(identical(marker.set, markers[[chosen.platelets]]))
+
 # Checking the cluster is what we wanted.
 pf4 <- sapply(marker.set["PF4",-(1:3)], sign)
 stopifnot(all(pf4==1))
