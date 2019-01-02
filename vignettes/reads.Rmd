@@ -175,12 +175,8 @@ However, this requires some work to account for missing and duplicate symbols.
 The code below will replace missing symbols with the Ensembl identifier and concatenate duplicated symbols with the (unique) Ensembl identifiers.
 
 ```{r}
-new.names <- rowData(sce)$SYMBOL
-missing.name <- is.na(new.names)
-new.names[missing.name] <- rowData(sce)$ENSEMBL[missing.name]
-dup.name <- new.names %in% new.names[duplicated(new.names)]
-new.names[dup.name] <- paste0(new.names, "_", rowData(sce)$ENSEMBL)[dup.name]
-rownames(sce) <- new.names
+library(scater)
+rownames(sce) <- uniquifyFeatureNames(rowData(sce)$ENSEMBL, rowData(sce)$SYMBOL)
 head(rownames(sce))
 ```
 
@@ -220,7 +216,6 @@ For each cell, we calculate these quality control metrics using the `calculateQC
 These are stored in the row- and column-wise metadata of the `SingleCellExperiment` for future reference.
 
 ```{r}
-library(scater)
 mito <- which(rowData(sce)$CHR=="chrM")
 sce <- calculateQCMetrics(sce, feature_controls=list(Mt=mito))
 head(colnames(colData(sce)), 10)
