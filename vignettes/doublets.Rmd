@@ -318,7 +318,7 @@ Any systematic differences between simulated and real doublets will be removed, 
 This overcomes some of issues related to RNA content but is a rather aggressive strategy that may incorrectly inflate the reported doublet scores.
 - The issue of unknown combining proportions can be solved completely if spike-in information is available, e.g., in plate-based protocols.
 This will provide an accurate estimate of the total RNA content of each cell.
-To this end, size factors from `computeSpikeFactors()` (see `r Biocpkg("simpleSingleCell", vignette="xtra-2-spike", label="here")`) can be supplied to the `doubletCells()` function via the `size.factors.content=` argument.
+To this end, size factors from `computeSpikeFactors()` (see `r simpleSingleCell:::.link("spike", NULL, label="here")`) can be supplied to the `doubletCells()` function via the `size.factors.content=` argument.
 This will use the spike-in size factors to scale the contribution of each cell to a doublet library.
 
 # Concluding remarks
