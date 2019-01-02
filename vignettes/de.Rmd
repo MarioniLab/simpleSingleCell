@@ -15,11 +15,16 @@ output:
 bibliography: ref.bib
 ---
     
-```{r style, echo=FALSE, results='hide', message=FALSE}
+```{r style, echo=FALSE, results='hide', message=FALSE, cache=FALSE}
 library(BiocStyle)
 library(knitr)
-opts_chunk$set(error=FALSE, message=FALSE, warning=FALSE)
+opts_chunk$set(error=FALSE, message=FALSE, warning=FALSE, cache=TRUE)
 opts_chunk$set(fig.asp=1)
+```
+
+```{r, cache=FALSE, echo=FALSE, results="hide"}
+simpleSingleCell:::.compiler("reads") # 416B
+simpleSingleCell:::.compiler("batch") # pancreas
 ```
 
 # Overview
@@ -34,7 +39,7 @@ This includes the basis of blocking on uninteresting factors of variation in `fi
 
 ## Using the `block=` argument
 
-Previous workflows (`r Biocpkg("simpleSingleCell", "work-1-reads.html#detecting-marker-genes-between-clusters", label="here")` and `r Biocpkg("simpleSingleCell", "work-5-mnn.html#using-the-corrected-values-in-downstream-analyses", "here")`) used the `block=` argument in `findMarkers()` to account for uninteresting factors of variation.
+Previous workflows (`r simpleSingleCell:::.link("reads", "Detecting marker genes between clusters", "here")` and `r simpleSingleCell:::.link("batch", "Using the corrected values in downstream analyses", "here")`) used the `block=` argument in `findMarkers()` to account for uninteresting factors of variation.
 This will instruct `findMarkers()` to perform pairwise $t$-tests between clusters using only cells on the same level of the blocking factor. 
 It will then combine $p$-values from different plates using Stouffer's Z method to obtain a single $p$-value per gene.
 
@@ -86,7 +91,7 @@ Thus, we generally recommend the use of `block=` where possible.
 The `overlapExprs()` function uses the Wilcoxon rank sum test to detect uneven mixing of the distributions of expression values between clusters.
 The effect size is reported as the probability of randomly sampling one observation in one cluster that is greater than a random observation in another cluster.
 This prioritizes genes where there is clear separation between the distributions of expression values of different clusters.
-We demonstrate the use of `overlapExprs()` on the 416B data set from the `r Biocpkg("simpleSingleCell", vignette="work-1-reads.html", label="previous workflow")`,
+We demonstrate the use of `overlapExprs()` on the 416B data set from the `r simpleSingleCell:::.link("reads", NULL, "previous workflow")`,
 detecting DE genes between clusters while blocking on the plate of origin.
 
 ```{r}
@@ -157,7 +162,7 @@ for (x in seq_along(clust.terms)) {
 ```
 
 The results of this comparison are consolidated into a single marker list for each cluster with the `combineMarkers()` function.
-This yields an ordering of genes that can be interpreted in the same manner as discussed `r Biocpkg("simpleSingleCell", "work-1-reads.html#detecting-marker-genes-between-clusters", label="previously")` for `findMarkers()` output.
+This yields an ordering of genes that can be interpreted in the same manner as discussed `r simpleSingleCell:::.link("reads", "Detecting marker genes between clusters", "previously")` for `findMarkers()` output.
 
 ```{r}
 all.pairs <- do.call(rbind, all.pairs)
@@ -213,7 +218,7 @@ However, these are difficult to implement from both a theoretical and practical 
 A faster approach is to use a summation strategy [@lun2017overcoming], where all cells in each combination of sample and condition (or cluster) are summed together.
 This yields a single pseudo-bulk count profile per combination, to which standard methods like `r Biocpkg("edgeR")` or `r Biocpkg("limma")` can be applied.
 
-We demonstrate this procedure on the `r Biocpkg("simpleSingleCell", vignette="work-1-reads.html", label="416B data set")` again.
+We demonstrate this procedure on the `r simpleSingleCell:::.link("reads", NULL, "416B data set")` again.
 We first create a factor containing all combinations of the per-cell factors of interest.
 Here, the factors of interest are the assigned cluster and the plate of origin for each cell^[Cluster is nested in oncogene induction status so that latter will not be used here.].
 All cells from one plate with the same oncogene induction status were obtained from the same biological sample.

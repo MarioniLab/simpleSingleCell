@@ -24,10 +24,10 @@ output:
 bibliography: ref.bib
 ---
 
-```{r style, echo=FALSE, results='hide', message=FALSE}
+```{r style, echo=FALSE, results='hide', message=FALSE, cache=FALSE}
 library(BiocStyle)
 library(knitr)
-opts_chunk$set(error=FALSE, message=FALSE, warning=FALSE)
+opts_chunk$set(error=FALSE, message=FALSE, warning=FALSE, cache=TRUE)
 opts_chunk$set(fig.asp=1)
 ```
 
@@ -311,7 +311,7 @@ dim(sce)
 
 **Comments from Aaron:**
 
-- See `r Biocpkg("simpleSingleCell", vignette="xtra-1-qc.html#assumptions-of-outlier-identification", label="this section")` for a more detailed discussion of the assumptions underlying the outlier-based detection of low-quality cells.
+- See `r simpleSingleCell:::.link("qc", "Assumptions of outlier identification", "this section")` for a more detailed discussion of the assumptions underlying the outlier-based detection of low-quality cells.
 - `isOutlier()` will also return the exact filter thresholds for each metric (within each batch, if `batch=` is specified).
 These may be useful for checking whether the automatically selected thresholds are appropriate.
 
@@ -496,7 +496,7 @@ In general, all `sizes` should be above 20 cells to ensure that there are suffic
 The total number of cells should also be at least 100 for effective pooling.
 - For highly heterogeneous datasets, it is advisable to perform a rough clustering of the cells to weaken the non-DE assumption.
 This can be done with the `quickCluster()` function and the results passed to `computeSumFactors()` via the `clusters` argument.
-We demonstrate this approach with a larger data set in the next `r Biocpkg("simpleSingleCell", vignette="work-2-umis.html#6_normalization_of_cell-specific_biases", label="workflow")`.
+We demonstrate this approach with a larger data set in the next `r simpleSingleCell:::.link("umis", "Normalization of cell-specific biases", "workflow")`.
 
 ## Computing separate size factors for spike-in transcripts
 
@@ -584,9 +584,9 @@ plotExpression(sce, features=rownames(var.out)[chosen.genes]) + fontsize
 **Comments from Aaron:**
 
 - In practice, trend fitting is complicated by the small number of spike-in transcripts and the uneven distribution of their abundances.
-See `r Biocpkg("simpleSingleCell", vignette="xtra-3-var.html#details-of-trend-fitting-parameters", label="here")` for more details on how to refine the fit.
-- In the absence of spike-ins, users can set `use.spikes=FALSE` to fit a trend to the variances of the endogenous genes (see `r Biocpkg("simpleSingleCell", vignette="xtra-3-var.html#when-spike-ins-are-unavailable", label="here")`).
-Alternatively, we can create a trend based on the assumption of Poisson technical noise, as described `r Biocpkg("simpleSingleCell", vignette="work-3-tenx.html#modelling-the-mean-variance-trend", label="here")`.
+See `r simpleSingleCell:::.link("var", "Details of trend-fitting parameters", "here")` for more details on how to refine the fit.
+- In the absence of spike-ins, users can set `use.spikes=FALSE` to fit a trend to the variances of the endogenous genes (see `r simpleSingleCell:::.link("var", "Wwhen spike-ins are unavailable", "here")`).
+Alternatively, we can create a trend based on the assumption of Poisson technical noise, as described `r simpleSingleCell:::.link("tenx", "Modelling the mean-variance trend", "here")`.
 - Negative biological components are often obtained from `decomposeVar`. 
 These are intuitively meaningless as it is impossible for a gene to have total variance below technical noise.
 Nonetheless, such values occur due to imprecise estimation of the total variance, especially for low numbers of cells.
@@ -830,7 +830,7 @@ Of course, it is simple (and recommended) to try other approaches provided that 
 
 Once putative subpopulations are identified by clustering, we can identify marker genes for each cluster using the `findMarkers` function.
 This performs Welch $t$-tests on the log-expression values for every gene and between every pair of clusters [@soneson2018bias].
-The aim is to test for DE in each cluster compared to the others while blocking on uninteresting factors such as the plate of origin (see `r Biocpkg("simpleSingleCell", "xtra-3b-de.html#blocking-on-uninteresting-factors-of-variation", label="here")` for details).
+The aim is to test for DE in each cluster compared to the others while blocking on uninteresting factors such as the plate of origin (see `r simpleSingleCell:::.link("de", "Blocking on uninteresting factors of variation", "here")` for details).
 The top DE genes are likely to be good candidate markers as they can effectively distinguish between cells in different clusters.
 
 ```{r}
@@ -902,7 +902,7 @@ This should be done by setting `pval.type="all"`, which defines the p-value for 
 Combined with `direction="up"`, this can be used to identify unique markers for each cluster.
 However, this is sensitive to overclustering, as unique marker genes will no longer exist if a cluster is split into two smaller subclusters.
 - It must be stressed that the (adjusted) _p_-values computed here cannot be properly interpreted as measures of significance.
-This is because the clusters have been empirically identified from the data, see `r Biocpkg("simpleSingleCell", vignette="xtra-3b-de.html#misinterpretation-of-de-p-values")`.
+This is because the clusters have been empirically identified from the data, see `r simpleSingleCell:::.link("de", "Misinterpretation of DE p-values", "here")`.
 
 # Concluding remarks
 
