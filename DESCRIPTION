@@ -9,8 +9,8 @@ Description: This workflow implements a low-level analysis pipeline for scRNA-se
              It describes how to perform quality control on the libraries, normalization of cell-specific biases, basic data exploration 
              and cell cycle phase identification. Procedures to detect highly variable genes, significantly correlated genes and 
              subpopulation-specific marker genes are also shown. These analyses are demonstrated on a range of publicly available scRNA-seq data sets. 
-Imports: BiocStyle
-Suggests: knitr, rmarkdown,
+Imports: BiocStyle, callr, rmarkdown
+Suggests: knitr, 
         BiocParallel,
         Rtsne,
         readxl,
