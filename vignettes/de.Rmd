@@ -23,8 +23,8 @@ opts_chunk$set(fig.asp=1)
 ```
 
 ```{r, cache=FALSE, echo=FALSE, results="hide"}
-simpleSingleCell:::.compiler("reads") # 416B
-simpleSingleCell:::.compiler("batch") # pancreas
+simpleSingleCell:::.compile("reads") # 416B
+simpleSingleCell:::.compile("batch") # pancreas
 ```
 
 # Overview

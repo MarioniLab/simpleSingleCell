@@ -32,8 +32,8 @@ opts_chunk$set(fig.asp=1)
 ```
 
 ```{r, cache=FALSE, echo=FALSE, results="hide"}
-simpleSingleCell:::.compiler("reads") # 416B
-simpleSingleCell:::.compiler("tenx") # PBMC 
+simpleSingleCell:::.compile("reads") # 416B
+simpleSingleCell:::.compile("tenx") # PBMC 
 ```
 
 # Overview
