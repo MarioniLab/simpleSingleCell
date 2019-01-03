@@ -5,7 +5,7 @@
 {
     if (!file.exists(paste0(target, ".html"))) {
         script <- paste0(target, ".Rmd")
-        r(function(target) rmarkdown::render(script), show=TRUE)
+        r(function(target) rmarkdown::render(target), args=list(target=script), show=TRUE)
     }
     invisible(NULL)
 }
