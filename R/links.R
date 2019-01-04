@@ -5,6 +5,8 @@
     if (!is.null(section)) {
         section <- gsub(" +", "-", tolower(section))
         vignette <- paste0(vignette, ".html#", section)
+    } else {
+        vignette <- paste0(vignette, ".html")
     }
     Biocpkg("simpleSingleCell", vignette=vignette, label=label)
 }
