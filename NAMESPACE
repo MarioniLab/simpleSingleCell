@@ -2,4 +2,5 @@
 
 importFrom(BiocStyle,Biocpkg)
 importFrom(callr,r)
+importFrom(methods,is)
 importFrom(rmarkdown,render)
