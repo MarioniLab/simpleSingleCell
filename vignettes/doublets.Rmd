@@ -39,7 +39,7 @@ These approaches can be highly effective but rely on experimental information th
 
 A more general approach is to infer doublets from the expression profiles alone [@dahlin2018single].
 In this workflow, we will describe two purely computational approaches for detecting doublets from scRNA-seq data.
-The main difference between These two methods is whether or not they need cluster information beforehand.
+The main difference between these two methods is whether or not they need cluster information beforehand.
 Both are implemented in the `r Biocpkg("scran")` package from the open-source Bioconductor project [@huber2015orchestrating].
 We will demonstrate the use of these methods on data from a droplet-based scRNA-seq study of the mouse mammary gland [@bach2017differentiation],
 available from NCBI GEO with the accession code GSE106273.
