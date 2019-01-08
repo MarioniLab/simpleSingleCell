@@ -1,6 +1,6 @@
 Package: simpleSingleCell 
 Title: A step-by-step workflow for low-level analysis of single-cell RNA-seq data with Bioconductor
-Version: 1.7.11
+Version: 1.7.12
 Date: 2018-01-08
 Authors@R: c(person(role=c("aut", "cre"), "Aaron", "Lun", email = "infinite.monkeys.with.keyboards@gmail.com"),
         person(role="aut", "Davis", "McCarthy"),
@@ -34,7 +34,7 @@ License: Artistic-2.0
 Encoding: UTF-8
 LazyData: true
 VignetteBuilder: knitr
-biocViews: Workflow, SingleCellWorkflow
+biocViews: ImmunoOncologyWorkflow, Workflow, SingleCellWorkflow
 NeedsCompilation: no
 URL: https://www.bioconductor.org/help/workflows/simpleSingleCell/ 
 RoxygenNote: 6.1.1
