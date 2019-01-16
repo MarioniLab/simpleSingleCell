@@ -128,8 +128,8 @@ sce <- sce[,which(e.out$FDR <= 0.001)]
 
 **Comments from Aaron:**
 
-- `emptyDrops()` computes Monte Carlo _p_-values based on a Dirichlet-multinomial model of sampling molecules into droplets.
-These _p_-values are stochastic so it is important to set the random seed to obtain reproducible results.
+- `emptyDrops()` computes Monte Carlo $p$-values based on a Dirichlet-multinomial model of sampling molecules into droplets.
+These $p$-values are stochastic so it is important to set the random seed to obtain reproducible results.
 - The stability of the Monte Carlo $p$-values depends on the number of iterations used to compute them. 
 This is controlled using the `niters=` argument in `emptyDrops()`, set to a default of 10000 for speed.
 Larger values improve stability at the cost of time only, so users should set `niters=` to the largest value they are willing to tolerate.
@@ -153,10 +153,10 @@ table(Sig=e.out$FDR <= 0.01, Limited=e.out$Limited)
 
 As mentioned above, `emptyDrops()` assumes that barcodes with low total UMI counts are empty droplets.
 Thus, the null hypothesis should be true for all of these barcodes. 
-We can check whether the hypothesis test holds its size by examining the distribution of _p_-values for low-total barcodes.
+We can check whether the hypothesis test holds its size by examining the distribution of $p$-values for low-total barcodes.
 Ideally, the distribution should be close to uniform.
 
-```{r ambientpvalhist, fig.cap="Distribution of p-values for the assumed empty droplets."}
+```{r ambientpvalhist, fig.cap="Distribution of $p$-values for the assumed empty droplets."}
 full.data <- read10xCounts(fname, col.names=TRUE)
 set.seed(100)
 limit <- 100   

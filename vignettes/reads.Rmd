@@ -835,7 +835,7 @@ markers <- findMarkers(sce, my.clusters, block=sce$Plate)
 For each cluster, the DE results of the relevant comparisons are consolidated into a single output table.
 This allows a set of marker genes to be easily defined by taking the top DE genes from each pairwise comparison between clusters.
 For example, to construct a marker set for cluster 1 from the top 10 genes of each comparison, one would filter `marker.set` to retain rows with `Top` less than or equal to 10.
-Other statistics are also reported for each gene, including the adjusted p-values (see below) and the log-fold changes relative to every other cluster.
+Other statistics are also reported for each gene, including the adjusted $p$-values (see below) and the log-fold changes relative to every other cluster.
 
 ```{r, echo=FALSE, results="hide"}
 old.digits <- options()$digits
@@ -897,7 +897,7 @@ This should be done by setting `pval.type="all"`, which defines the p-value for 
 Combined with `direction="up"`, this can be used to identify unique markers for each cluster.
 However, this is sensitive to overclustering, as unique marker genes will no longer exist if a cluster is split into two smaller subclusters.
 - It must be stressed that the (adjusted) _p_-values computed here cannot be properly interpreted as measures of significance.
-This is because the clusters have been empirically identified from the data, see `r simpleSingleCell:::.link("de", "Misinterpretation of DE p-values", "here")`.
+This is because the clusters have been empirically identified from the data, see `r simpleSingleCell:::.link("de", "Misinterpretation of DE $p$-values", "here")`.
 
 # Concluding remarks
 

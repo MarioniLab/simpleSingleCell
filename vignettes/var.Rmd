@@ -305,7 +305,7 @@ comb.out <- multiBlockVar(sce.416B.2, block=sce.416B.2$Plate,
 ```
 
 Statistics are combined across multiple batches using the `combineVar()` function within `multiBlockVar()`.
-This function computes a weighted average across batches for the means and variances, and applies Fisher's method for combining the _p_-values.
+This function computes a weighted average across batches for the means and variances, and applies Fisher's method for combining the $p$-values.
 These results can be used in downstream functions such as `denoisePCA`, or for detecting highly variable genes (see below).
 
 ```{r}

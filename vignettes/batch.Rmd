@@ -328,7 +328,7 @@ However, we note that it is possible to apply the MNN correction between donors 
 To obtain a single set of features for batch correction, we compute the average biological component across all batches.
 We then take all genes with positive biological components to ensure that all interesting biology is retained, equivalent to the behaviour of `denoisePCA()`.
 However, the quality of the correction can often be sensitive to technical noise, which means that some discretion may be required during feature selection.
-Users may prefer to take the top 1000-5000 genes with the largest average components, or to use `combineVar()` to obtain combined _p_-values for gene selection.
+Users may prefer to take the top 1000-5000 genes with the largest average components, or to use `combineVar()` to obtain combined $p$-values for gene selection.
 
 ```{r}
 universe <- intersect(rownames(dec.gse85241), rownames(dec.gse81076))
@@ -708,7 +708,7 @@ plotTSNE(sce, colour_by="Cluster")
 Differential expression analyses should be performed on the **original** log-expression values or counts.
 We do not use the corrected values here (which no longer correspond to genes anyway) except to obtain the clusters or trajectories to be characterized.
 To model the batch effect, we set the batch of origin as the `block=` argument in `findMarkers()`.
-This will perform all comparisons between clusters _within_ each batch, and then combine the _p_-values to consolidate results across batches.
+This will perform all comparisons between clusters _within_ each batch, and then combine the $p$-values to consolidate results across batches.
 
 ```{r}
 m.out <- findMarkers(sce, clusters$membership, block=sce$Batch,

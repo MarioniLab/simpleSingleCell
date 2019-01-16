@@ -170,7 +170,7 @@ combined <- combineMarkers(all.results, all.pairs, pval.field="P.Value")
 as.data.frame(head(combined[["cluster1"]][,1:3]))
 ```
 
-# Caveats with interpreting DE p-values
+# Caveats with interpreting DE $p$-values
 
 ## Data dredging from clustering
 
@@ -186,7 +186,7 @@ Thus, we can detect "significant" differences between clusters even in the absen
 This effect arises from the fact that clustering, by definition, yields groups of cells that differ in their coordinates in expression space. 
 Testing for DE genes between clusters will inevitably yield some significant results as that is how the clusters were defined in the first place.
 
-```{r pval-dist, fig.cap="Distribution of p-values from a DE analysis between two clusters in a simulation with no true subpopulation structure."}
+```{r pval-dist, fig.cap="Distribution of $p$-values from a DE analysis between two clusters in a simulation with no true subpopulation structure."}
 set.seed(0)
 y <- matrix(rnorm(100000), ncol=200)
 clusters <- kmeans(t(y), centers=2)$cluster
