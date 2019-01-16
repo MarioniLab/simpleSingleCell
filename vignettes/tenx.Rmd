@@ -130,6 +130,9 @@ sce <- sce[,which(e.out$FDR <= 0.001)]
 
 - `emptyDrops()` computes Monte Carlo _p_-values based on a Dirichlet-multinomial model of sampling molecules into droplets.
 These _p_-values are stochastic so it is important to set the random seed to obtain reproducible results.
+- The stability of the Monte Carlo $p$-values depends on the number of iterations used to compute them. 
+This is controlled using the `niters=` argument in `emptyDrops()`, set to a default of 10000 for speed.
+Larger values improve stability at the cost of time only, so users should set `niters=` to the largest value they are willing to tolerate.
 - The function assumes that cell barcodes with total UMI counts below a certain threshold (`lower=100` by default) correspond to empty droplets, 
 and uses them to estimate the ambient expression profile.
 By definition, these barcodes cannot be cell-containing droplets and are excluded from the hypothesis testing, hence the `NA`s in the output.
