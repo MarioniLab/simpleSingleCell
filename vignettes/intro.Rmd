@@ -77,18 +77,22 @@ To cite any of these workflows, please refer to http://f1000research.com/article
 
 All of these workflows start from a publicly available count matrix.
 For simplicity, we forego a description of the read processing steps required to generate the count matrix, i.e., read alignment and counting into features.
-For data from most plate-based protocols, quantification procedures developed for bulk RNA-seq experiments are generally satisfactory [@love2015rnaseq;@chen2016from].
+For SMART-seq2 data [@picelli2014fulllength], quantification procedures developed for bulk RNA-seq are generally satisfactory [@love2015rnaseq;@chen2016from].
 Users favouring an R-based approach to read alignment and counting might consider using the methods in the `r Biocpkg("Rsubread")` package [@liao2013subread;@liao2014featurecounts].
-For droplet-based experiments and some very high-throughput plate-based protocols (e.g., MARS-seq), we suggest using the `r Biocpkg("scPipe")` package [@lian2018scpipe].
 
-Some further considerations specific to single-cell data may also be relevant, depending on the experimental protocol used to generate the data:
+Many other scRNA-seq protocols contain bespoke sequence structures that require careful processing:
 
-- If spike-in RNA was added, the sequences of the spike-in transcripts can be included as additional FASTA files during genome index building prior to alignment.
-Similarly, genomic intervals for both spike-in transcripts and endogenous genes can be concatenated into a single GTF file prior to counting.
-- If UMIs are present, these should be extracted from the read sequence prior to alignment, e.g., with the _UMI-tools_ software [@smith2017umitools].
+- Unique molecular identifiers (UMIs) [@islam2014quantitative] are widely used to mitigate the effects of amplification biases.
 Reads with the same UMI mapping to the same gene represent a single underlying transcript molecule and only increment the count of that gene by one.
-- Alignment-free methods such as _kallisto_ [@bray2016near] or _Salmon_ [@patro2015accurate] may also be useful, due to their speed and ability to perform transcript quantification.
-This can be loaded into R using methods from the `r Biocpkg("tximport")` package [@soneson2015differential].
+Processing of this data requires extraction of the UMI sequence from each read or read pair, and a method to collapse UMI-based duplicates into a single count [@smith2017umitools].
+- Protocols may also use custom cell barcodes to improve multiplexing efficiency beyond that offered by the standard sequencing barcodes (e.g., from Illumina).
+This includes data generated from droplet-based experiments [@zheng2017massively] or from very high-throughput plate-based protocols like MARS-seq [@jaitin2014massively].
+Processing of this data usually requires a separate step to extract the barcode sequence from each read and to allocate the read to the correct per-cell sequencing library.
+
+For these data sets, the `r Biocpkg("scPipe")` package [@lian2018scpipe] provides an R-based processing pipeline for obtaining a count matrix. 
+
+If spike-in RNA was added, the sequences of the spike-in transcripts can be included as additional FASTA files during genome index building prior to alignment.
+Similarly, genomic intervals for both spike-in transcripts and endogenous genes can be concatenated into a single GTF file prior to counting.
 
 # Author information
 
