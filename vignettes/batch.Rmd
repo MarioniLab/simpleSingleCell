@@ -523,8 +523,9 @@ This makes it easy to explore different merge orders without altering the surrou
 mnn.out2$batch # same as mnn.out$batch
 ```
 
-If very different batches (in terms of cell composition) are present, we suggest setting the largest and/or most heterogeneous batch as the first.
+If very different batches (in terms of cell composition) are present, we suggest setting the largest, most heterogeneous batch as the first.
 This ensures that sufficient MNN pairs will be identified between the first and other batches for stable correction.
+Conversely, if two small batches without shared populations are supplied first, the wrong MNN pairs will be detected and the result of the merge will be incorrect.
 
 ```{r, echo=FALSE, results="hide"}
 gc()
@@ -533,10 +534,17 @@ gc()
 ## Hierarchical merging 
 
 In more complex experiments, we may know beforehand that certain sets of batches are more similar to each other.
-For example, we might want to merge batches that represent replicate experiments from the same condition, prior to merging across conditions.
-We might also want to merge batches generated with the same scRNA-seq technology prior to merging across technologies.
-This can be done by multiple calls to `fastMNN()` with progressively merged batches.
+We might then want to merge those similar batches before attempting the more difficult merges involving batches with different cell type composition and/or gene expression.
+Examples include:
 
+- Merging batches that represent replicate experiments from the same condition, prior to merging across conditions.
+- Merging batches generated with the same scRNA-seq technology prior to merging across technologies.
+
+This strategy limits encourages detection of correct MNN pairs as similar batches should have more shared populations, 
+By comparison, performing the more difficult merges first is more likely to introduce errors whereby distinct subpopulations are incorrectly placed together.
+This unnecessarily propagates the error to later steps as the initial merge is used as a reference for subsequent merges.
+
+Hierarchical merging can be achieved through multiple calls to `fastMNN()` with progressively merged batches.
 To illustrate, assume that we want to remove `Donor` effects within each batch prior to merging across batches.
 We split up the cells in GSE85241 according to the donor of origin, creating one `SingleCellExperiment` object for each donor.
 
@@ -570,6 +578,9 @@ for (x in all.donors) {
 
 We use the `multiBatchPCA()` function to perform a PCA across _all_ batches to be merged.
 This ensures that all cells are placed onto the same coordinate space, which would obviously not be possible if a PCA was performed for each batch separately.
+`multiBatchPCA()` performs a modified PCA to ensure that each supplied matrix contributes equally to the definition of the PC space.
+This avoids problems with imbalances in the number of cells across batches, meanining that smaller batches (possibly with unique cell types) are not ignored.
+Here, we have applied `multiBatchPCA()` to the batch-level inputs for convenience, though it is also possible to supply donor-level matrices to equalize contributions across donors.
 
 ```{r}
 all.batches <- c(by.donor.85241, by.donor.81076)
@@ -604,7 +615,7 @@ mnn.out.81076$batch
 The next step is to merge the two batches together.
 To do this, we simply repeat the `fastMNN()` call with the donor-corrected values for each batch.
 Again, we need to set `pc.input=TRUE` to prevent the function from unnecessarily (and incorrectly) repeating the cosine normalization and PCA steps on the corrected values.
-This yields a final corrected expression matrix where both within-batch donor effects and batch effects have been corrected.
+We use a larger `k` in the final `fastMNN()` call to improve the robustness of MNN detection to outlier cells on the edges of each cluster.
 
 ```{r}
 mnn.out3 <- fastMNN(GSE81076=mnn.out.81076$corrected, 
@@ -615,6 +626,7 @@ mnn.out3$batch # by dataset
 c(mnn.out.81076$batch, mnn.out.85241$batch) # by donor
 ```
 
+This yields a final corrected expression matrix where both within-batch donor effects and batch effects have been corrected.
 We examine the quality of each of the merge steps with t-SNE plots (Figure \@ref(fig:tsne-hmerge)).
 Within each batch, the donors are generally well-mixed, and the final merge is consistent with Figure \@ref(fig:tsne-batch). 
 
@@ -638,13 +650,8 @@ plot(tout.all$Y[,1], tout.all$Y[,2], main="Final",
 
 **Comments from Aaron:**
 
-- We use a larger `k` in the final `fastMNN()` call to improve the robustness of MNN detection to outlier cells on the edges of each cluster.
-One might ask why a larger `k` was not needed in Figure \@ref(fig:tsne-batch) as well.
+- One might ask why a larger `k` was not needed in Figure \@ref(fig:tsne-batch) as well.
 This was probably because the outliers were masked by inter-donor heterogeneity when the t-SNE plots were generated without removing the donor effects.
-- `multiBatchPCA()` will ensure that each supplied matrix contributes equally to the definition of the PC space.
-This avoids problems with imbalances in the number of cells across batches.
-In particular, it ensures that smaller batches (possibly with unique cell types) can affect the rotation vectors.
-Here, we have applied `multiBatchPCA()` to the batch-level inputs for convenience, though it is also possible to supply donor-level matrices to equalize contributions across donors.
 - In this specific example, cells from the same donor will occupy contiguous rows in the `mnn.out3$corrected` matrix.
 However, this may not have been the case for the original ordering of cells in each `SingleCellExperiment`.
 This requires some extra account-keeping to match up the final corrected matrix to the original ordering, e.g., when cross-referencing to metadata.
