@@ -291,9 +291,8 @@ curve(new.trend(x), col="red", add=TRUE)
 We decompose the variance for each gene using the Poisson-based trend, and examine the genes with the highest biological components.
 
 ```{r}
-fit0 <- fit
-fit$trend <- new.trend
-dec <- decomposeVar(fit=fit)
+fit$trend <- new.trend # overwrite trend.
+dec <- decomposeVar(fit=fit) # use per-gene variance estimates in 'fit'.
 top.dec <- dec[order(dec$bio, decreasing=TRUE),] 
 head(top.dec)
 ```
