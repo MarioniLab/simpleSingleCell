@@ -578,9 +578,8 @@ for (x in all.donors) {
 
 We use the `multiBatchPCA()` function to perform a PCA across _all_ batches to be merged.
 This ensures that all cells are placed onto the same coordinate space, which would obviously not be possible if a PCA was performed for each batch separately.
-`multiBatchPCA()` performs a modified PCA to ensure that each supplied matrix contributes equally to the definition of the PC space.
+Specifically, `multiBatchPCA()` performs a modified PCA to ensure that each supplied matrix contributes equally to the definition of the PC space.
 This avoids problems with imbalances in the number of cells across batches, meanining that smaller batches (possibly with unique cell types) are not ignored.
-Here, we have applied `multiBatchPCA()` to the batch-level inputs for convenience, though it is also possible to supply donor-level matrices to equalize contributions across donors.
 
 ```{r}
 all.batches <- c(by.donor.85241, by.donor.81076)
@@ -650,6 +649,8 @@ plot(tout.all$Y[,1], tout.all$Y[,2], main="Final",
 
 **Comments from Aaron:**
 
+- Here, we have applied `multiBatchPCA()` to the batch-level inputs for convenience.
+It is also possible to supply donor-level matrices to equalize contributions across donors.
 - One might ask why a larger `k` was not needed in Figure \@ref(fig:tsne-batch) as well.
 This was probably because the outliers were masked by inter-donor heterogeneity when the t-SNE plots were generated without removing the donor effects.
 - In this specific example, cells from the same donor will occupy contiguous rows in the `mnn.out3$corrected` matrix.
