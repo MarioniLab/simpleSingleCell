@@ -200,7 +200,13 @@ summary(high.mito)
 
 - The above justification for using a more relaxed filter is largely retrospective.
 In practice, we may not know _a priori_ the degree of population heterogeneity and whether it manifests in the QC metrics.
-We recommend performing the analysis first with a stringent QC filter, and then relaxing it based on further diagnostics (see `r simpleSingleCell:::.link("qc", "Checking for discarded cell types", "here")` for an example).
+We recommend performing an initial analysis with some QC, and then relaxing the filter (or making it more stringent) based on further diagnostics.
+See `r simpleSingleCell:::.link("qc", "Checking for discarded cell types", "here")` for an example of a potential diagnostic approach.
+- Removal of cells with high mitochondrial content assumes that the damage to the cell membrane is modest enough that the mitochondria are retained.
+It is possible for the cells to be so damaged that all cytoplasmic content is lost and only the stripped nucleus remains for sequencing.
+This manifests as mitochondrial proportions of zero, usually accompanied by low library sizes/numbers of expressed genes and possibly low ribosomal protein gene expression.
+If a cluster of such cells is observed in the data, they can be removed by using `isOutlier()` on the mitochondrial proportions with `type="lower"` and `log=TRUE`
+(to improve resolution around zero).
 
 # Examining gene expression
 
