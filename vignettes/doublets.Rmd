@@ -345,6 +345,12 @@ Some protection is provided by the non-linear nature of many real trajectories, 
 One can also put more weight on the relative library sizes in `doubletCluster()` instead of relying on `N`, 
 under the assumption that sudden spikes in RNA content are unlikely in a continuous biological process.
 
+The best solution to the doublet problem is experimental - that is, to avoid generating them in the first place.
+This should be a consideration when designing scRNA-seq experiments, where the desire to obtain large numbers of cells at minimum cost should be weighed against the general deterioration in data quality and reliability when doublets become more frequent^[Not that penny-pinching PIs would understand, but one can only hope.].
+Other experimental approaches make use of sample-specific cell "labels" to identify doublets in multiplexed experiments [@kang2018multiplexed;@stoekius2018hashing].
+If this information is available, we recommend using it to mark potential doublet clusters rather than simply removing doublets directly, 
+as the latter approach will not remove doublets of cells with the same label.
+
 We save the `SingleCellExperiment` object with its associated data to file for future use.
 
 ```{r}
