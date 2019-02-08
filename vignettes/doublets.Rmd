@@ -354,7 +354,7 @@ as the latter approach will not remove doublets of cells with the same label.
 We save the `SingleCellExperiment` object with its associated data to file for future use.
 
 ```{r}
-saveRDS(sce, file="mammary.rds")
+saveRDS(sce, file="mammary_data.rds")
 ```
 
 All software packages used in this workflow are publicly available from the Comprehensive R Archive Network (https://cran.r-project.org) or the Bioconductor project (http://bioconductor.org).
