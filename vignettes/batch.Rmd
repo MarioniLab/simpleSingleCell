@@ -533,6 +533,8 @@ gc()
 
 ## Hierarchical merging 
 
+### Motivation  
+
 In more complex experiments, we may know beforehand that certain sets of batches are more similar to each other.
 We might then want to merge those similar batches before attempting the more difficult merges involving batches with different cell type composition and/or gene expression.
 Examples include:
@@ -543,6 +545,8 @@ Examples include:
 This strategy limits encourages detection of correct MNN pairs as similar batches should have more shared populations, 
 By comparison, performing the more difficult merges first is more likely to introduce errors whereby distinct subpopulations are incorrectly placed together.
 This unnecessarily propagates the error to later steps as the initial merge is used as a reference for subsequent merges.
+
+### Setting up the inputs
 
 Hierarchical merging can be achieved through multiple calls to `fastMNN()` with progressively merged batches.
 To illustrate, assume that we want to remove `Donor` effects within each batch prior to merging across batches.
@@ -592,6 +596,16 @@ set.seed(1000) # for irlba.
 output <- do.call(multiBatchPCA, c(scaled, list(d=50, approximate=TRUE)))
 names(output)
 ```
+
+**Comments from Aaron:**
+
+- Here, we have applied `multiBatchPCA()` to the batch-level inputs for convenience.
+It is also possible to supply donor-level matrices to equalize contributions across donors.
+- Recall that we ran `multiBatchNorm()` earlier to generate the `rescaled.gse*` objects.
+As a result, cosine normalization is not technically necessary, as all batches should be on the same scale already (see `?cosineNorm` for a discussion of this).
+Nonetheless, we run it here for consistency with our previous `fastMNN()` call where cosine normalization is turned on by default.
+
+### Performing progressive merges 
 
 We pass the matrices corresponding to the donors in GSE85241 to `fastMNN()`, setting `pc.input=TRUE` to indicate that dimensionality reduction has already been performed.
 This uses the first donor to define the reference space^[Which can be changed with `auto.order=`, if so desired.] and merges cells from all other donors to the first.
@@ -697,8 +711,12 @@ gc()
 
 # Using the corrected values in downstream analyses
 
-For downstream analyses, the MNN-corrected values can be treated in the same manner as any other dimensionality reduction result.
-For example, it is straightforward to use the MNN-corrected values directly used for clustering analyses, as shown below.
+## For cell-based analyses
+
+The low-dimensional corrected values can be used in any procedure that involves computing and comparing cell-cell (Euclidean) distances.
+Recall that the aim of batch correction is to bring together related cells from different batches while preserving biological differences between cells within each batch.
+The exact values of the corrected coordinates may not be interpretable, but this is not a problem if we are interested in the relative magnitudes of the distances.
+For example, the code below directly uses the MNN-corrected values for clustering. 
 
 ```{r}
 snn.gr <- buildSNNGraph(sce, use.dimred="MNN")
@@ -713,8 +731,29 @@ sce$Cluster <- factor(clusters$membership)
 plotTSNE(sce, colour_by="Cluster")
 ```
 
-Differential expression analyses should be performed on the **original** log-expression values or counts.
-We do not use the corrected values here (which no longer correspond to genes anyway) except to obtain the clusters or trajectories to be characterized.
+The corrected values can be used in any procedure that operates on cell-cell distances.
+This includes nearest-neighbor searches, non-linear visualization like _t_-SNE and trajectory inference.
+
+## For gene-based analyses
+
+For gene-based procedures like differential expression (DE) analyses or gene network construction, it is desirable to use the **original** log-expression values or counts.
+The corrected values are only used to obtain cell-level results such as clusters or trajectories.
+Batch effects are handled explicitly using blocking terms or via a meta-analysis across batches. 
+We do not use the corrected values directly in gene-based analyses, for various reasons:
+
+- It is usually inappropriate to perform DE analyses on batch-corrected values, due to the failure to model the uncertainty of the correction.
+This usually results in loss of type I error control, i.e., more false positives than expected.
+- The correction does not preserve the mean-variance relationship.
+Applications of common DE methods like `r Biocpkg("edgeR")` or `r Biocpkg("limma")` are unlikely to be valid.
+- Batch correction may (correctly) remove biological differences between batches in the course of mapping all cells onto a common coordinate system.
+Returning to the uncorrected expression values provides an opportunity for detecting such differences if they are of interest.
+Conversely, if the batch correction made a mistake, the use of the uncorrected expression values provides an important sanity check.
+
+Indeed, in the specific case of `fastMNN()`, the batch-corrected values no longer correspond to per-gene expression values anyway.
+This means that they cannot be directly used in gene-based analyses^[Though one can circumvent this, see below.].
+
+Users should generally aim to avoid using batch-corrected values for per-gene analyses when within-batch alternatives are available. 
+To illustrate, we perform a DE analysis on the uncorrected expression data using the clusters identified previously.
 To model the batch effect, we set the batch of origin as the `block=` argument in `findMarkers()`.
 This will perform all comparisons between clusters _within_ each batch, and then combine the $p$-values to consolidate results across batches.
 
@@ -737,14 +776,35 @@ Note that the use of `block=` is roughly similar to the use of a batch-cluster i
 
 **Comments from Aaron:**
 
-- Users of the older `mnnCorrect()` function will note that the function returned corrected _expression_ values.
-Thus, it is tempting to use these corrected values directly for DE analyses.
-This is inappropriate for various reasons:
-    - The default parameters of `mnnCorrect()` do not return corrected values on the log-scale, but rather a cosine-normalized log-scale.
-      This makes it difficult to interpret the effect size of DE analyses based on the corrected values.
-    - It is usually inappropriate to perform DE analyses on batch-corrected values, due to the failure to model the uncertainty of the correction.
-      This usually results in loss of type I error control, i.e., more false positives than expected.
-    - The correction does _not_ preserve the mean-variance relationship.
+- Users of the older `mnnCorrect()` function will note that the function returned corrected expression values.
+It is tempting to use these corrected values directly for DE analyses, but this would likely be inappropriate.
+In addition to the reasons discussed above, the default parameters of `mnnCorrect()` do not return corrected values on the log-scale, but rather a cosine-normalized log-scale.
+This makes it difficult to interpret the effect size of DE analyses based on the corrected values.
+
+## Obtaining per-gene corrected values
+
+Users can obtain per-gene corrected values by computing the cross-product of the corrected values with the rotation vectors.
+This effectively reverses the initial projection into a low-dimensional space during `multiBatchPCA()`.
+For example, the code below obtains corrected expression values for _GCG_.
+
+```{r}
+cor.exp <- tcrossprod(mnn.out$corrected, 
+    mnn.out$rotation[which(rownames(sce)=="GCG"),,drop=FALSE]) 
+summary(cor.exp)
+```
+
+Calculation of per-gene corrected values is not performed by default, as to do so for all genes would require the construction a dense matrix.
+This may be prohibitively memory-consuming for large data sets that are otherwise representable as sparse matrices.
+
+Per-gene corrected values can be readily used for visualization, e.g., to colour cells on _t_-SNE plots by their corrected expression values (Figure \@ref(fig:correctedcolours)).
+This can be more aesthetically pleasing than uncorrected expression values that may contain large shifts on the colour scale between cells in different batches.
+
+```{r correctedcolours, fig.cap="t-SNE plot after MMN correction, where each point represents a cell and is coloured by the corrected expression of _GCG_."}
+plotTSNE(sce, colour_by=data.frame(GCG=cor.exp))
+```
+
+However, use of the corrected values in any quantitative procedure should be treated with extreme caution.
+If they must be used, they should be backed up by similar results from an analysis on the uncorrected values.
 
 # Concluding remarks
 
