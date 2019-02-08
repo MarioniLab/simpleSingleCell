@@ -533,15 +533,6 @@ stopifnot(all(sapply(marker.set["Synpr",-(1:3)], sign)==1))
 options(digits=old.digits)
 ```
 
-We save the list of candidate marker genes for further examination, using compression to reduce the file size.
-The `overlapExprs` function may also be useful for summarizing differences between clusters, as previously mentioned.
-
-```{r}
-gzout <- gzfile("brain_marker_1.tsv.gz", open="wb")
-write.table(marker.set, file=gzout, sep="\t", quote=FALSE, col.names=NA)
-close(gzout)
-```
-
 Figure \@ref(fig:heatmapmarkerbrain) indicates that most of the top markers are strongly DE in cells of cluster `r chosen.inter.cluster` compared to some or all of the other clusters.
 We can use these markers to identify cells from cluster `r chosen.inter.cluster` in validation studies with an independent population of cells.
 A quick look at the markers suggest that cluster `r chosen.inter.cluster` represents interneurons based on expression of *Gad1* and *Slc6a1* [@zeng2012largescale],
@@ -553,6 +544,31 @@ plotHeatmap(sce, features=top.markers, columns=order(my.clusters),
     colour_columns_by="cluster", cluster_cols=FALSE, 
     center=TRUE, symmetric=TRUE, zlim=c(-5, 5))
 ```
+
+An alternative visualization approach is to plot the log-fold changes to all other clusters directly (Figure \@ref(fig:heatmaplfcbrain)).
+This is more concise and is useful in situations involving many clusters that contain different numbers of cells.
+
+```{r heatmaplfcbrain, fig.asp=1.5, fig.cap=sprintf("Heatmap of log-fold changes in expression for the top set of markers for cluster %i, compared to every other cluster in the brain data set.", chosen.inter.cluster)}
+logFCs <- as.matrix(marker.set[1:50,-(1:3)])
+colnames(logFCs) <- sub("logFC.", "", colnames(logFCs))
+
+library(pheatmap)
+max.lfc <- max(abs(range(logFCs)))
+pheatmap(logFCs, breaks=seq(-5, 5, length.out=101))
+```
+
+We save the list of candidate marker genes for further examination, using compression to reduce the file size.
+
+```{r}
+gzout <- gzfile("brain_marker_1.tsv.gz", open="wb")
+write.table(marker.set, file=gzout, sep="\t", quote=FALSE, col.names=NA)
+close(gzout)
+```
+
+**Comments from Aaron:**
+
+- The `overlapExprs()` function may also be useful for summarizing differences between clusters.
+This is discussed in more detail `r simpleSingleCell:::.link("de", "Using the Wilcoxon rank sum test", "here")`.
 
 # Concluding remarks
 
