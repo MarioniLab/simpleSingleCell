@@ -52,7 +52,7 @@ lun.zip <- bfcrpath(bfc,
 lun.sdrf <- bfcrpath(bfc, 
     file.path("https://www.ebi.ac.uk/arrayexpress/files",
         "E-MTAB-5522/E-MTAB-5522.sdrf.txt"))
-unzip(lun.zip)
+unzip(lun.zip, exdir=tempdir())
 ```
 
 <!--
@@ -72,9 +72,9 @@ In each matrix, each row represents an endogenous gene or a spike-in transcript,
 Subsequently, the count in each entry of the matrix represents the number of reads mapped to a particular gene/transcript in a particular cell.
 
 ```{r}
-plate1 <- read.delim("counts_Calero_20160113.tsv", 
+plate1 <- read.delim(file.path(tempdir(), "counts_Calero_20160113.tsv"), 
     header=TRUE, row.names=1, check.names=FALSE)
-plate2 <- read.delim("counts_Calero_20160325.tsv", 
+plate2 <- read.delim(file.path(tempdir(), "counts_Calero_20160325.tsv"), 
     header=TRUE, row.names=1, check.names=FALSE)
 
 gene.lengths <- plate1$Length # First column is the gene length.

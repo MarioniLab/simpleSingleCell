@@ -37,7 +37,7 @@ library(BiocFileCache)
 bfc <- BiocFileCache("raw_data", ask = FALSE)
 raw.path <- bfcrpath(bfc, file.path("http://cf.10xgenomics.com/samples",
     "cell-exp/2.1.0/pbmc4k/pbmc4k_raw_gene_bc_matrices.tar.gz"))
-untar(raw.path, exdir="pbmc4k")
+untar(raw.path, exdir=file.path(tempdir(), "pbmc4k"))
 ```
 
 # Setting up the data
@@ -49,7 +49,7 @@ This will create a `SingleCellExperiment` object where each column corresponds t
 
 ```{r}
 library(DropletUtils)
-fname <- "pbmc4k/raw_gene_bc_matrices/GRCh38"
+fname <- file.path(tempdir(), "pbmc4k/raw_gene_bc_matrices/GRCh38")
 sce <- read10xCounts(fname, col.names=TRUE)
 sce
 ```
