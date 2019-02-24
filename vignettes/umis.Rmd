@@ -259,12 +259,14 @@ Scaling is then performed to ensure that size factors of cells in different clus
 
 - We use a average count threshold of 0.1 to define high-abundance genes to use during normalization.
 This is lower than the default threshold of `min.mean=1`, reflecting the fact that UMI counts are generally smaller than read counts.
-- We set `pc.approx=TRUE` to speed up the dimensionality reduction preceding the nearest-neighbour search.
-This uses methods from the `r CRANpkg("irlba")` package, which require setting the random seed - see below for more detail.
+- We speed up clustering by performing fast dimensionality reduction and then clustering cells on the PCs.
+This is the purpose of the `BSPARAM=` argument, which instructs `quickCluster()` to use a approximate algorithm for PCA^[Using methods from the `r CRANpkg("irlba")` package.].
+The approximation relies on stochastic initialization so we need to set the random seed for reproducibility - see below for more detail.
 
 ```{r}
+library(BiocSingular)
 set.seed(1000)
-clusters <- quickCluster(sce, use.ranks=FALSE, pc.approx=TRUE)
+clusters <- quickCluster(sce, use.ranks=FALSE, BSPARAM=IrlbaParam())
 sce <- computeSumFactors(sce, cluster=clusters, min.mean=0.1)
 summary(sizeFactors(sce))
 ```
@@ -338,13 +340,13 @@ plotExpression(sce, rownames(var.out)[chosen.genes],
 ```
 
 Finally, we use PCA to denoise the expression values, yielding a set of coordinates for each cell where the technical noise has been removed.
-Setting `approximate=TRUE` in `denoisePCA` will perform an approximate singular value decomposition (SVD), using methods from the `r CRANpkg("irlba")` package.
+Setting `BSPARAM=IrlbaParam()` in `denoisePCA()` will perform an approximate singular value decomposition (SVD) using methods from the `r CRANpkg("irlba")` package.
 This is much faster than the exact algorithm on large datasets without much loss of accuracy.
 The approximate algorithm involves a random initialization so we set the seed to guarantee reproducibility.
 
 ```{r}
 set.seed(1000)
-sce <- denoisePCA(sce, technical=var.fit$trend, approximate=TRUE)
+sce <- denoisePCA(sce, technical=var.fit$trend, BSPARAM=IrlbaParam())
 ncol(reducedDim(sce, "PCA"))
 ```
 

@@ -128,8 +128,9 @@ sce <- sce[,!discard]
 
 ```{r}
 library(scran)
+library(BiocSingular)
 set.seed(1000)
-clusters <- quickCluster(sce, use.ranks=FALSE, pc.approx=TRUE)
+clusters <- quickCluster(sce, use.ranks=FALSE, BSPARAM=IrlbaParam())
 table(clusters)
 sce <- computeSumFactors(sce, clusters=clusters, min.mean=0.1) 
 summary(sizeFactors(sce))
@@ -157,11 +158,11 @@ curve(tech.trend(x), add=TRUE, col="red")
 ```
 
 We use `denoisePCA()` to choose the number of principal components (PCs) to retain based on the technical noise per gene.
-We need to set the seed for reproducibility when `approximate=TRUE`, due to the use of randomized methods from `r Biocpkg("irlba")`.
+We need to set the seed for reproducibility when `BSPARAM=IrlbaParam()`, due to the use of randomized methods from `r Biocpkg("irlba")`.
 
 ```{r}
 set.seed(12345)
-sce <- denoisePCA(sce, technical=tech.trend, approximate=TRUE)
+sce <- denoisePCA(sce, technical=tech.trend, BSPARAM=IrlbaParam())
 ncol(reducedDim(sce))
 ```
 
@@ -278,7 +279,7 @@ We see the function in action below:
 
 ```{r}
 set.seed(100)
-dbl.dens <- doubletCells(sce, approximate=TRUE)
+dbl.dens <- doubletCells(sce, BSPARAM=IrlbaParam())
 summary(dbl.dens)
 ```
 
@@ -298,7 +299,7 @@ plotColData(sce, x="Cluster", y="DoubletScore", colour_by="Cluster")
 **Comments from Aaron:**
 
 - To speed up the density calculations, `doubletCells()` will perform a PCA on the log-expression matrix. 
-When `approximate=TRUE`, methods from the `r CRANpkg("irlba")` package are used to perform a fast approximate PCA.
+When `BSPARAM=IrlbaParam()`, methods from the `r CRANpkg("irlba")` package are used to perform a fast approximate PCA.
 This involves randomization so it is necessary to call `set.seed()` to ensure that results are reproducible.
 
 ## Strengths and weaknesses 

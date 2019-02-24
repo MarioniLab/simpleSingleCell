@@ -228,12 +228,13 @@ plotHighestExprs(sce)
 # Normalizing for cell-specific biases
 
 We perform some pre-clustering as described `r simpleSingleCell:::.link("umis", "Normalization of cell-specific biases", label="previously")`.
-Recall that we need to set the seed when using `pc.approx=TRUE` due to the randomness of `r CRANpkg("irlba")`. 
+Recall that we need to set the seed when using `BSPARAM=IrlbaParam()` due to the randomness of `r CRANpkg("irlba")`. 
 
 ```{r}
 library(scran)
+library(BiocSingular)
 set.seed(1000)
-clusters <- quickCluster(sce, use.ranks=FALSE, pc.approx=TRUE)
+clusters <- quickCluster(sce, use.ranks=FALSE, BSPARAM=IrlbaParam())
 table(clusters)
 ```
 
@@ -321,11 +322,11 @@ Nonetheless, if they are deemed to be uninteresting, their impact can be reduced
 # Dimensionality reduction
 
 We use the `denoisePCA()` function with the assumed Poisson technical trend to choose the number of dimensions to retain after PCA.
-Recall that this involves a random initialization when `approximate=TRUE`, which motivates the call to `set.seed()` to obtain reproducible results.
+Recall that this involves a random initialization when `BSPARAM=IrlbaParam()`, which motivates the call to `set.seed()` to obtain reproducible results.
 
 ```{r}
 set.seed(1000)
-sce <- denoisePCA(sce, technical=new.trend, approximate=TRUE)
+sce <- denoisePCA(sce, technical=new.trend, BSPARAM=IrlbaParam())
 ncol(reducedDim(sce, "PCA"))
 ```
 
