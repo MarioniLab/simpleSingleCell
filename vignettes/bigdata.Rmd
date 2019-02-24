@@ -145,7 +145,9 @@ all.equal(alt, sce)
 
 - Efficiently combining parallelization with file-backed matrix representations is likely to require systems that support parallel I/O.
 
-# Approximate nearest neighbours searching
+# Fast approximate algorithms
+
+## Nearest neighbours searching
 
 Identification of neighbouring cells in PC or expression space is a common procedure that is used in many functions, e.g., `buildSNNGraph()`, `doubletCells()`.
 The default is to favour accuracy over speed by using an exact nearest neighbour search, implemented with the k-means for k-nearest neighbours algorithm [@wang2012fast]. 
@@ -180,6 +182,32 @@ table(Exact=sce.pbmc$Cluster, Approx=clusters$membership)
 **Comments from Aaron:**
 
 - The neighbour search algorithms are interoperable with `r Biocpkg("BiocParallel")`, so it is straightforward to parallelize the search for greater speed.
+
+## Principal components analysis
+
+We have already introduced the `IrlbaParam()` function, which creates an `IrlbaParam` parameter object from the `r Biocpkg("BiocSingular")` package.
+If passed to a function via the `BSPARAM=` argument, this instructs the function to use fast approximate methods from `r CRANpkg("irlba")` to perform SVD or PCA.
+However, this is not the only SVD strategy that is provided in the `r Biocpkg("BiocSingular")` framework.
+For example, one could perform randomized SVD^[Via the `r CRANpkg("rsvd")` package.] to perform an approximate SVD.
+
+```{r}
+library(BiocSingular)
+
+# As the name suggests, it is random, so we need to set the seed.
+set.seed(999)    
+r.out <- BiocSingular::runPCA(t(logcounts(sce.pbmc)), rank=20, 
+    BSPARAM=RandomParam(deferred=TRUE))
+str(r.out)
+
+# For comparison:    
+i.out <- BiocSingular::runPCA(t(logcounts(sce.pbmc)), rank=20, 
+    BSPARAM=IrlbaParam(fold=Inf))
+str(i.out)
+```
+
+Users can often obtain considerable speed-ups through a careful choice of `BSPARAM=` that considers the structure of the underlying matrix data.
+For example, setting `deferred=TRUE` will defer the centering during matrix multiplications to avoid loss of sparsity.
+Another consideration would be whether the data are stored on file, in which case one may prefer an algorithm that performs fewer reads at the expense of more computations.
 
 # Concluding remarks
 
