@@ -228,24 +228,18 @@ combos <- with(colData(sce.416b), paste(cluster, Plate, sep="."))
 (num <- table(combos))
 ```
 
-We average the count profiles for all cells in each level of `combos`^[After dividing by size factors in `sce.416b`, to avoid unnecessary variability due to technical scaling biases.].
+We sum the count profiles for all cells in each level of `combos`.
 This yields a set of pseudo-bulk samples that are more amenable to standard DE analysis as the counts are higher and per-observation variance is lower.
 It also ensures that the variance is modelled across samples rather than across cells.
-Each sample is represented no more than once for each condition in the `averaged` matrix, avoiding problems from unmodelled correlations between samples. 
+Each sample is represented no more than once for each condition in the `summed` matrix, avoiding problems from unmodelled correlations between samples. 
 
 ```{r}
-# Computing (non-transformed) normalized expression values. 
-sce.416b <- normalize(sce.416b, return_log=FALSE)
-
-# Averaging within each level of 'combos'.
-library(DelayedMatrixStats) 
-averaged <- colsum(normcounts(sce.416b), group=combos)
-num <- num[match(colnames(averaged), names(num))]
-averaged <- sweep(averaged, 2, num, "/")
-head(averaged)
+library(scater)
+summed <- sumCountsAcrossCells(counts(sce.416b), combos)
+head(summed)
 ```
 
-Finally, we perform a standard `r Biocpkg("edgeR")` analysis using the quasi-likelihood framework [@chen2016from].
+We perform a standard `r Biocpkg("edgeR")` analysis using the quasi-likelihood framework [@chen2016from].
 We ignore spike-in transcripts and low-abundance genes;
 set up the design matrix so that the plate of origin is an additive effect;
 weight each pseudo-bulk count by the number of cells used to compute it; 
@@ -253,19 +247,15 @@ and test for DE between the first two clusters.
 
 ```{r}
 library(edgeR)
-y <- DGEList(averaged)
+y <- DGEList(summed)
 y <- y[aveLogCPM(y) > 1 & !isSpike(sce.416b),]
 y <- calcNormFactors(y)
 
-# Adding a matrix of sample weights.
-w <- as.numeric(num)
-y$weights <- makeCompressedMatrix(w, dim(y), byrow=TRUE)
-
 # Building the design matrix.
-ave.factors <- strsplit(colnames(y), split="\\.")
-ave.clust <- unlist(lapply(ave.factors, "[[", i=1))
-ave.plate <- unlist(lapply(ave.factors, "[[", i=2))
-design <- model.matrix(~0 + ave.clust + ave.plate)
+sum.factors <- strsplit(colnames(y), split="\\.")
+sum.clust <- unlist(lapply(sum.factors, "[[", i=1))
+sum.plate <- unlist(lapply(sum.factors, "[[", i=2))
+design <- model.matrix(~0 + sum.clust + sum.plate)
 
 # Running through the remaining edgeR functions.
 y <- estimateDisp(y, design)
