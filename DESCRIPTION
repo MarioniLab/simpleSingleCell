@@ -1,7 +1,7 @@
 Package: simpleSingleCell 
 Title: A step-by-step workflow for low-level analysis of single-cell RNA-seq data with Bioconductor
-Version: 1.7.17
-Date: 2019-02-08
+Version: 1.7.18
+Date: 2019-02-28
 Authors@R: c(person(role=c("aut", "cre"), "Aaron", "Lun", email = "infinite.monkeys.with.keyboards@gmail.com"),
         person(role="aut", "Davis", "McCarthy"),
         person(role="aut", "John", "Marioni"))
@@ -16,25 +16,29 @@ Description: This workflow implements a low-level analysis pipeline for
         SMART-seq2 and 10X Genomics. 
 Imports: BiocStyle, callr, rmarkdown
 Suggests: knitr, 
-        BiocParallel,
-        Rtsne,
         readxl,
+        R.utils,
+        Matrix,
         SingleCellExperiment,
         scater,
-        org.Mm.eg.db,
         scran,
-        limma,
-        pheatmap,
+        DropletUtils,
+        org.Hs.eg.db,
+        org.Mm.eg.db,
+        TxDb.Mmusculus.UCSC.mm10.ensGene,
         dynamicTreeCut,
         cluster,
+        igraph,
+        Rtsne,
+        pheatmap,
+        limma,
         edgeR,
-        TxDb.Mmusculus.UCSC.mm10.ensGene,
-        scRNAseq,
-        DropletUtils,
+        BiocParallel,
         BiocFileCache,
         BiocNeighbors,
-        TENxBrainData,
-        DelayedMatrixStats
+        BiocSingular,
+        scRNAseq,
+        TENxBrainData
 License: Artistic-2.0
 Encoding: UTF-8
 LazyData: true
