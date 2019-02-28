@@ -376,8 +376,8 @@ original <- list(
 )
 
 # Slightly convoluted call to avoid re-writing code later.
-# Equivalent to fastMNN(GSE81076, GSE85241, k=20, d=50, BSPARAM=IrlbaParam())
-mnn.out <- do.call(fastMNN, c(original, list(k=20, d=50, BSPARAM=IrlbaParam())))
+# Equivalent to fastMNN(GSE81076, GSE85241, k=20, d=50, approximate=TRUE)
+mnn.out <- do.call(fastMNN, c(original, list(k=20, d=50, approximate=TRUE)))
 dim(mnn.out$corrected)
 ```
 
@@ -409,7 +409,7 @@ This should be interpreted as the minimum frequency of each cell type or state i
   - However, larger values of `k` can also reduce accuracy by allowing incorrect MNN pairs to form between cells of different types.
     Thus, we suggest starting with the default `k` and increasing it if one is confident that the same cell types are not adequately merged across batches.
     This is better than starting with a large `k` as incorrect merging is much harder to diagnose than insufficient merging.
-- When `BSPARAM=IrlbaParam()`, `fastMNN()` uses methods from the `r CRANpkg("irlba")` package to perform the principal components analysis quickly.
+- When `approximate=TRUE`, `fastMNN()` uses methods from the `r CRANpkg("irlba")` package to perform the principal components analysis quickly.
 While the run-to-run differences should be minimal, it does mean that `set.seed()` is required to obtain fully reproducible results.
 
 
@@ -480,7 +480,7 @@ We set `compute.variances=TRUE` to indicate to `fastMNN()` that the variance los
 ```{r}
 set.seed(1000)
 with.var <- do.call(fastMNN, c(original, 
-    list(k=20, d=50, BSPARAM=IrlbaParam(), 
+    list(k=20, d=50, approximate=TRUE, 
         compute.variances=TRUE)
 ))
 with.var$lost.var
@@ -510,7 +510,7 @@ The first batch is then corrected to the second batch to obtain a new reference 
 
 ```{r}
 mnn.out2 <- do.call(fastMNN, c(original, 
-    list(k=20, d=50, BSPARAM=IrlbaParam(), auto.order=c(2,1))
+    list(k=20, d=50, approximate=TRUE, auto.order=c(2,1))
 ))
 mnn.out2$order # batch 2 (GSE85241) is first in the order.
 mnn.out2$pairs # 'first' cells now come from GSE85241.
@@ -594,7 +594,7 @@ all.logcounts <- lapply(all.batches, logcounts)
 scaled <- lapply(all.logcounts, cosineNorm) 
 
 set.seed(1000) # for irlba.
-output <- do.call(multiBatchPCA, c(scaled, list(d=50, BSPARAM=IrlbaParam())))
+output <- do.call(multiBatchPCA, c(scaled, list(d=50, approximate=TRUE))
 names(output)
 ```
 
