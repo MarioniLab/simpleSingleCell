@@ -243,7 +243,7 @@ head(summed)
 
 We perform a standard `r Biocpkg("edgeR")` analysis using the quasi-likelihood (QL) framework [@chen2016from] to identify differential expression between clusters.
 Firstly, we convert each summed pseudo-bulk count into an average, weighted by the number of cells used to compute it.
-Higher weights reflect the greater stability of an average count obtained from many cells.
+Higher weights reflect the greater precision of average counts derived from many cells.
 
 ```{r}
 stopifnot(identical(colnames(summed), names(num)))
@@ -254,10 +254,11 @@ y <- DGEList(averaged)
 y$weights <- matrix(as.integer(num), nrow(y), ncol(y), byrow=TRUE)
 ```
 
-We ignore spike-in transcripts and low-abundance genes.
+We ignore spike-in transcripts and low-abundance genes, and we compute normalization factors^[Not the same as size factors!] using `calcNormFactors()`.
 
 ```{r}
 y <- y[aveLogCPM(y) > 1 & !isSpike(sce.416b),]
+y <- calcNormFactors(y)
 ```
 
 We set up the design matrix so that the plate of origin is an additive effect.
@@ -269,17 +270,24 @@ sum.plate <- unlist(lapply(sum.factors, "[[", i=2))
 design <- model.matrix(~0 + sum.clust + sum.plate)
 ```
 
-We test for DE between the first two clusters using the rest of the QL pipeline.
+We estimate the negative binomial and QL dispersions using `estimateDisp()` and `glmQLFit()`, respectively.
+Larger dispersions represent greater variability between replicate plates, not cells.
 
 ```{r}
-y <- calcNormFactors(y)
 y <- estimateDisp(y, design)
 summary(y$trended.dispersion)    
 fit <- glmQLFit(y, design, robust=TRUE)
 summary(fit$df.prior)    
+```
+
+We test for DE between the first two clusters using `glmQLFTest()`.
+This yields a number of potentially interesting DE genes involved in cell division,
+consistent with the differences in cell cycle activity between clusters.
+
+```{r}
 res <- glmQLFTest(fit, contrast=c(1, -1, 0, 0, 0, 0))
-(top <- topTags(res))
 summary(decideTests(res))
+(top <- topTags(res))
 ```
 
 The DE analysis on pseudo-bulk counts does not explicitly penalize DE genes that are highly variable across cells within each sample.
