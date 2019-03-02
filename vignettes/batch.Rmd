@@ -594,7 +594,7 @@ all.logcounts <- lapply(all.batches, logcounts)
 scaled <- lapply(all.logcounts, cosineNorm) 
 
 set.seed(1000) # for irlba.
-output <- do.call(multiBatchPCA, c(scaled, list(d=50, approximate=TRUE))
+output <- do.call(multiBatchPCA, c(scaled, list(d=50, approximate=TRUE)))
 names(output)
 ```
 
