@@ -218,8 +218,10 @@ However, these are difficult to implement from both a theoretical and practical 
 A faster approach is to use a summation strategy [@lun2017overcoming], where all cells in each combination of sample and condition (or cluster) are summed together.
 This yields a single pseudo-bulk count profile per combination, to which standard methods like `r Biocpkg("edgeR")` or `r Biocpkg("limma")` can be applied.
 
+# Using pseudo-bulk counts 
+
 We demonstrate this procedure on the `r simpleSingleCell:::.link("reads", NULL, "416B data set")` again.
-We first create a factor containing all combinations of the per-cell factors of interest.
+We create a factor containing all combinations of the per-cell factors of interest.
 Here, the factors of interest are the assigned cluster and the plate of origin for each cell^[Cluster is nested in oncogene induction status so that latter will not be used here.].
 All cells from one plate with the same oncogene induction status were obtained from the same biological sample.
 
@@ -239,30 +241,53 @@ summed <- sumCountsAcrossCells(counts(sce.416b), combos)
 head(summed)
 ```
 
-We perform a standard `r Biocpkg("edgeR")` analysis using the quasi-likelihood framework [@chen2016from].
-We ignore spike-in transcripts and low-abundance genes;
-set up the design matrix so that the plate of origin is an additive effect;
-weight each pseudo-bulk count by the number of cells used to compute it; 
-and test for DE between the first two clusters.
+We perform a standard `r Biocpkg("edgeR")` analysis using the quasi-likelihood (QL) framework [@chen2016from] to identify differential expression between clusters.
+Firstly, we convert each summed pseudo-bulk count into an average, weighted by the number of cells used to compute it.
+Higher weights reflect the greater precision of average counts derived from many cells.
 
 ```{r}
+stopifnot(identical(colnames(summed), names(num)))
+averaged <- sweep(summed, 2, num, "/")
+
 library(edgeR)
-y <- DGEList(summed)
+y <- DGEList(averaged)
+y$weights <- matrix(as.integer(num), nrow(y), ncol(y), byrow=TRUE)
+```
+
+We ignore spike-in transcripts and low-abundance genes, and we compute normalization factors^[Not the same as size factors!] using `calcNormFactors()`.
+
+```{r}
 y <- y[aveLogCPM(y) > 1 & !isSpike(sce.416b),]
 y <- calcNormFactors(y)
+```
 
-# Building the design matrix.
+We set up the design matrix so that the plate of origin is an additive effect.
+
+```{r}
 sum.factors <- strsplit(colnames(y), split="\\.")
 sum.clust <- unlist(lapply(sum.factors, "[[", i=1))
 sum.plate <- unlist(lapply(sum.factors, "[[", i=2))
 design <- model.matrix(~0 + sum.clust + sum.plate)
+```
 
-# Running through the remaining edgeR functions.
+We estimate the negative binomial and QL dispersions using `estimateDisp()` and `glmQLFit()`, respectively.
+Larger dispersions represent greater variability between replicate plates, not cells.
+
+```{r}
 y <- estimateDisp(y, design)
+summary(y$trended.dispersion)    
 fit <- glmQLFit(y, design, robust=TRUE)
+summary(fit$df.prior)    
+```
+
+We test for DE between the first two clusters using `glmQLFTest()`.
+This yields a number of potentially interesting DE genes involved in cell division,
+consistent with the differences in cell cycle activity between clusters.
+
+```{r}
 res <- glmQLFTest(fit, contrast=c(1, -1, 0, 0, 0, 0))
-(top <- topTags(res))
 summary(decideTests(res))
+(top <- topTags(res))
 ```
 
 The DE analysis on pseudo-bulk counts does not explicitly penalize DE genes that are highly variable across cells within each sample.
