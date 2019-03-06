@@ -242,21 +242,11 @@ head(summed)
 ```
 
 We perform a standard `r Biocpkg("edgeR")` analysis using the quasi-likelihood (QL) framework [@chen2016from] to identify differential expression between clusters.
-Firstly, we convert each summed pseudo-bulk count into an average, weighted by the number of cells used to compute it.
-Higher weights reflect the greater precision of average counts derived from many cells.
+We ignore spike-in transcripts and low-abundance genes, and we compute normalization factors^[Not the same as size factors!] using the `calcNormFactors()` function.
 
 ```{r}
-stopifnot(identical(colnames(summed), names(num)))
-averaged <- sweep(summed, 2, num, "/")
-
 library(edgeR)
-y <- DGEList(averaged)
-y$weights <- matrix(as.integer(num), nrow(y), ncol(y), byrow=TRUE)
-```
-
-We ignore spike-in transcripts and low-abundance genes, and we compute normalization factors^[Not the same as size factors!] using `calcNormFactors()`.
-
-```{r}
+y <- DGEList(summed)
 y <- y[aveLogCPM(y) > 1 & !isSpike(sce.416b),]
 y <- calcNormFactors(y)
 ```
@@ -264,9 +254,9 @@ y <- calcNormFactors(y)
 We set up the design matrix so that the plate of origin is an additive effect.
 
 ```{r}
-sum.factors <- strsplit(colnames(y), split="\\.")
-sum.clust <- unlist(lapply(sum.factors, "[[", i=1))
-sum.plate <- unlist(lapply(sum.factors, "[[", i=2))
+sum.terms <- strsplit(colnames(y), split="\\.")
+sum.clust <- unlist(lapply(sum.terms, "[[", i=1))
+sum.plate <- unlist(lapply(sum.terms, "[[", i=2))
 design <- model.matrix(~0 + sum.clust + sum.plate)
 ```
 
