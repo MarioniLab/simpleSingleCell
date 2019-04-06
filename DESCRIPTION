@@ -37,6 +37,7 @@ Suggests: knitr,
         BiocFileCache,
         BiocNeighbors,
         BiocSingular,
+        batchelor,
         scRNAseq,
         TENxBrainData
 License: Artistic-2.0

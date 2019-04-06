@@ -344,7 +344,10 @@ The `multiBatchNorm()` function recomputes log-normalized expression values afte
 This improves the quality of the correction by removing one aspect of the technical differences between batches.
 
 ```{r}
-rescaled <- multiBatchNorm(sce.gse85241[universe,], sce.gse81076[universe,])
+rescaled <- batchelor::multiBatchNorm(
+    sce.gse85241[universe,], 
+    sce.gse81076[universe,]
+)
 rescaled.gse85241 <- rescaled[[1]]
 rescaled.gse81076 <- rescaled[[2]]
 ```
@@ -354,6 +357,8 @@ rescaled.gse81076 <- rescaled[[2]]
 - Technically, we should have performed variance modelling and feature selection _after_ calling `multiBatchNorm()`.
 This ensures that the variance components are estimated from the same values to be used in the batch correction.
 In practice, this makes little difference, and it tends to be easier to process each batch separately and consolidate all results in one step as shown above.
+- The `batchelor::` prefix avoids ambiguity during the migration of `multiBatchNorm()` from `r Biocpkg("scran")` to `r Biocpkg("batchelor")`.
+This will not be necessary in the next release.
 
 # Performing MNN-based correction
 
@@ -366,7 +371,7 @@ Thus, the difference between cells in MNN pairs can be used as an estimate of th
 We apply the `fastMNN()` function to the three batches to remove the batch effect, using the genes in `chosen`.
 To reduce computational work and technical noise, all cells in all cells are projected into the low-dimensional space defined by the top `d` principal components.
 Identification of MNNs and calculation of correction vectors are then performed in this low-dimensional space.
-The function returns a matrix of corrected values for downstream analyses like clustering or visualization.
+The function returns a `SingleCellExperiment` object containing low-dimensional corrected values for downstream analyses like clustering or visualization.
 
 ```{r}
 set.seed(100) 
@@ -375,25 +380,33 @@ original <- list(
     GSE85241=logcounts(rescaled.gse85241)[chosen,]
 )
 
-# Slightly convoluted call to avoid re-writing code later.
-# Equivalent to fastMNN(GSE81076, GSE85241, k=20, d=50, approximate=TRUE)
-mnn.out <- do.call(fastMNN, c(original, list(k=20, d=50, approximate=TRUE)))
-dim(mnn.out$corrected)
+# Slightly convoluted call to avoid re-writing code later. Equivalent to:
+# > fastMNN(GSE81076, GSE85241, k=20, d=50, BSPARAM=IrlbaParam(deferred=TRUE))
+mnn.out <- do.call(batchelor::fastMNN, 
+    c(original, list(k=20, d=50, BSPARAM=IrlbaParam(deferred=TRUE)))
+)
+mnn.out
 ```
 
-Each row of the `corrected` matrix corresponds to a cell in one of the batches.
-The `batch` field contains a run-length encoding object specifying the batch of origin of each row.
+Each column of `mnn.out` corresponds to a cell in one of the batches, while each row corresponds to an input gene in `original`.
+The `corrected` matrix in the `reducedDims` slot contains the low-dimensional corrected coordinates for all cells.
 
 ```{r}
-mnn.out$batch
+dim(reducedDim(mnn.out, "corrected"))
 ```
 
-Advanced users may also be interested in the list of `DataFrame`s in the `pairs` field.
+The `batch` field in the column metadata contains an object specifying the batch of origin of each cell. 
+
+```{r}
+Rle(mnn.out$batch) # using an Rle for pretty-printing.
+```
+
+Advanced users may also be interested in the list of `DataFrame`s in the `pairs` metadata field.
 Each `DataFrame` describes the MNN pairs identified upon merging of each successive batch.
 This may be useful for checking the identified MNN pairs against known cell type identity, e.g., to determine if the cell types are being paired correctly.
 
 ```{r}
-mnn.out$pairs
+metadata(mnn.out)$merge.info$pairs
 ```
 
 As previously mentioned, we have only used two batches here to simplify the workflow.
@@ -409,9 +422,9 @@ This should be interpreted as the minimum frequency of each cell type or state i
   - However, larger values of `k` can also reduce accuracy by allowing incorrect MNN pairs to form between cells of different types.
     Thus, we suggest starting with the default `k` and increasing it if one is confident that the same cell types are not adequately merged across batches.
     This is better than starting with a large `k` as incorrect merging is much harder to diagnose than insufficient merging.
-- When `approximate=TRUE`, `fastMNN()` uses methods from the `r CRANpkg("irlba")` package to perform the principal components analysis quickly.
+- When `BSPARAM=IrlbaParam(deferred=TRUE)`, `fastMNN()` uses methods from the `r CRANpkg("irlba")` package to perform the principal components analysis quickly.
 While the run-to-run differences should be minimal, it does mean that `set.seed()` is required to obtain fully reproducible results.
-
+The `deferred=` argument instructs `fastMNN()` to sacrifice some numerical precision for greater speed.
 
 ```{r, echo=FALSE, results="hide"}
 gc()
@@ -420,24 +433,6 @@ gc()
 # Examining the effect of correction
 
 ## By visualization
-
-We create a new `SingleCellExperiment` object containing log-expression values for all cells, along with information regarding the batch of origin.
-The MNN-corrected values are stored as dimensionality reduction results, befitting the principal components analysis performed within `fastMNN()`. 
-
-```{r}
-omat <- do.call(cbind, original)
-sce <- SingleCellExperiment(list(logcounts=omat))
-reducedDim(sce, "MNN") <- mnn.out$corrected
-sce$Batch <- as.character(mnn.out$batch)
-
-# Adjusting the rownames for easier reading.
-rowData(sce)$ENSEMBL <- rownames(sce)    
-rowData(sce)$SYMBOL <- mapIds(org.Hs.eg.db, keytype="ENSEMBL", 
-    keys=rownames(sce), column="SYMBOL")
-rownames(sce) <- uniquifyFeatureNames(rownames(sce), rowData(sce)$SYMBOL)
-
-sce
-```
 
 We examine the batch correction with some _t_-SNE plots.
 Figure~\@ref(fig:tsne-batch) demonstrates how the cells separate by batch of origin in the uncorrected data.
@@ -448,13 +443,14 @@ Note that the E-MTAB-5601 dataset still displays some separation, which is proba
 set.seed(100)
 
 # Using irlba to set up the t-SNE, for speed.
-osce <- runPCA(sce, ntop=Inf, method="irlba")
+sce <- SingleCellExperiment(list(logcounts=do.call(cbind, original)))
+osce <- runPCA(sce, ntop=Inf, BSPARAM=IrlbaParam())
 osce <- runTSNE(osce, use_dimred="PCA")
 ot <- plotTSNE(osce, colour_by="Batch") + ggtitle("Original")
 
 # Corrected.
 set.seed(100)
-sce <- runTSNE(sce, use_dimred="MNN")
+sce <- runTSNE(mnn.out, use_dimred="MNN")
 ct <- plotTSNE(sce, colour_by="Batch") + ggtitle("Corrected")
 
 multiplot(ot, ct, cols=2)
@@ -464,6 +460,13 @@ We colour by the expression of marker genes for known pancreas cell types to det
 Cells in the same visual cluster express the same marker genes (Figure \@ref(fig:tsne-markers)), indicating that the correction maintains separation of cell types.
 
 ```{r tsne-markers, fig.width=10, fig.height=10, fig.cap="t-SNE plots after MNN correction, where each point represents a cell and is coloured by its corrected expression of key marker genes for known cell types in the pancreas."}
+# Replacing the row names for easier reference.
+sce <- mnn.out
+rowData(sce)$ENSEMBL <- rownames(sce)    
+rowData(sce)$SYMBOL <- mapIds(org.Hs.eg.db, keytype="ENSEMBL", 
+    keys=rownames(sce), column="SYMBOL")
+rownames(sce) <- uniquifyFeatureNames(rownames(sce), rowData(sce)$SYMBOL)
+
 ct.gcg <- plotTSNE(sce, colour_by="GCG") + ggtitle("Alpha cells")
 ct.ins <- plotTSNE(sce, colour_by="INS") + ggtitle("Beta cells")
 ct.sst <- plotTSNE(sce, colour_by="SST") + ggtitle("Delta cells")
@@ -475,15 +478,10 @@ multiplot(ct.gcg, ct.ins, ct.sst, ct.ppy, cols=2)
 
 One useful diagnostic is the proportion of variance within each batch that is lost during MNN correction.
 Specifically, this refers to the within-batch variance that is removed during orthogonalization with respect to the average correction vector at each merge step. 
-We set `compute.variances=TRUE` to indicate to `fastMNN()` that the variance loss should be computed and returned.
+This is returned via the `lost.var` field in the metadata of `mnn.out`, which contains a matrix of the variance lost in each batch (column) at each merge step (row).
 
 ```{r}
-set.seed(1000)
-with.var <- do.call(fastMNN, c(original, 
-    list(k=20, d=50, approximate=TRUE, 
-        compute.variances=TRUE)
-))
-with.var$lost.var
+metadata(mnn.out)$merge.info$lost.var
 ```
 
 Large proportions of lost variance suggest that correction is removing genuine biological heterogeneity.
@@ -509,11 +507,12 @@ In the example shown below, batch 2 is treated as the reference as it is the fir
 The first batch is then corrected to the second batch to obtain a new reference batch - and so on, if more than two batches were present.
 
 ```{r}
-mnn.out2 <- do.call(fastMNN, c(original, 
-    list(k=20, d=50, approximate=TRUE, auto.order=c(2,1))
+mnn.out2 <- do.call(batchelor::fastMNN, c(original, 
+    list(k=20, d=50, auto.order=c(2,1),
+         BSPARAM=IrlbaParam(deferred=TRUE))
 ))
-mnn.out2$order # batch 2 (GSE85241) is first in the order.
-mnn.out2$pairs # 'first' cells now come from GSE85241.
+metadata(mnn.out2)$merge.order # batch 2 (GSE85241) is first in the order.
+metadata(mnn.out2)$merge.info$pairs # 'first' cells now come from GSE85241.
 ```
 
 Using `auto.order=` will change the merge order without requiring a change to the supplied order of batches in `original`.
@@ -521,7 +520,7 @@ Similarly, the order of batches (and cells) in the output will not be altered.
 This makes it easy to explore different merge orders without altering the surrounding code.
 
 ```{r}
-mnn.out2$batch # same as mnn.out$batch
+Rle(mnn.out2$batch) # same as mnn.out$batch
 ```
 
 If very different batches (in terms of cell composition) are present, we suggest setting the largest, most heterogeneous batch as the first.
@@ -594,8 +593,10 @@ all.logcounts <- lapply(all.batches, logcounts)
 scaled <- lapply(all.logcounts, cosineNorm) 
 
 set.seed(1000) # for irlba.
-output <- do.call(multiBatchPCA, c(scaled, list(d=50, approximate=TRUE)))
-names(output)
+pc.all <- do.call(batchelor::multiBatchPCA, c(scaled, 
+    list(k=20, d=50, BSPARAM=IrlbaParam(deferred=TRUE))
+))
+names(pc.all)
 ```
 
 **Comments from Aaron:**
@@ -613,16 +614,18 @@ This uses the first donor to define the reference space^[Which can be changed wi
 In this manner, we remove donor effects within the GSE85241 batch.
 
 ```{r}
-pcs.85241 <- output[seq_along(by.donor.85241)]
-mnn.out.85241 <- do.call(fastMNN, c(pcs.85241, list(pc.input=TRUE)))
+pcs.85241 <- pc.all[seq_along(by.donor.85241)]
+mnn.out.85241 <- do.call(batchelor::fastMNN, c(pcs.85241, list(pc.input=TRUE)))
 mnn.out.85241$batch
 ```
 
+Note that when `pc.input=TRUE`, a `DataFrame` is returned instead of a `SingleCellExperiment`.
+This reflects the fact that per-gene identities are lost when PCs are supplied instead of per-gene expression vectors^[Though it is entirely possible to reconstruct these using rotation vectors, see below.].
 We repeat this for the donors in the GSE81076 batch.
 
 ```{r}
-pcs.81076 <- tail(output, length(by.donor.81076))
-mnn.out.81076 <- do.call(fastMNN, c(pcs.81076, list(pc.input=TRUE)))
+pcs.81076 <- tail(pc.all, length(by.donor.81076))
+mnn.out.81076 <- do.call(batchelor::fastMNN, c(pcs.81076, list(pc.input=TRUE)))
 mnn.out.81076$batch
 ```
 
@@ -632,9 +635,11 @@ Again, we need to set `pc.input=TRUE` to prevent the function from unnecessarily
 We use a larger `k` in the final `fastMNN()` call to improve the robustness of MNN detection to outlier cells on the edges of each cluster.
 
 ```{r}
-mnn.out3 <- fastMNN(GSE81076=mnn.out.81076$corrected, 
-    GSE85241=mnn.out.85241$corrected, pc.input=TRUE,
-    k=100) # see comments below.
+mnn.out3 <- batchelor::fastMNN(
+    GSE81076=mnn.out.81076,
+    GSE85241=mnn.out.85241, 
+    pc.input=TRUE, k=100 # see comments below.
+) 
 
 mnn.out3$batch # by dataset
 c(mnn.out.81076$batch, mnn.out.85241$batch) # by donor
@@ -696,13 +701,20 @@ The aim is to maximize the number of MNN pairs at each step to provide a stable 
 We demonstrate below using the within-donor subbatches in the GSE81076 data set.
 
 ```{r}
-mnn.out.auto <- do.call(fastMNN, c(pcs.81076, 
+mnn.out.auto <- do.call(batchelor::fastMNN, c(pcs.81076, 
     list(pc.input=TRUE, auto.order=TRUE)))
 names(by.donor.81076) # supplied order 
-mnn.out.auto$order # automatically defined order
+metadata(mnn.out.auto)$merge.order # automatically defined order
 ```
 
-The obvious cost is that of computation time. 
+As with manual specification, the merge order does not affect the output order of cells.
+This makes it easy to try different merge orderings without having to deal with a re-ordering of output cells.
+
+```{r}
+Rle(mnn.out.auto$batch) 
+```
+
+The obvious cost of this approach is that of computation time. 
 Nearest-neighbour searches need to be performed between all pairs of batches, and then between each remaining batch and the reference at each merge step.
 As such, we prefer manual definition of a merge order that makes better use of prior knowledge about the experiment design.
 
@@ -784,17 +796,27 @@ This makes it difficult to interpret the effect size of DE analyses based on the
 
 ## Obtaining per-gene corrected values
 
-Users can obtain per-gene corrected values by computing the cross-product of the corrected values with the rotation vectors.
-This effectively reverses the initial projection into a low-dimensional space during `multiBatchPCA()`.
+When applied on gene expression values, `fastMNN()` will also return a matrix of corrected per-gene expression values in the `reconstructed` assay.
+This is obtained by taking the cross-product of the corrected low-dimensional values with the rotation vectors from the initial PCA,
+which effectively reverses the initial projection into a low-dimensional space during `multiBatchPCA()`.
+The example below extracts the corrected expression values for insulin.
+
+```{r}
+assay(mnn.out, "reconstructed")
+summary(assay(mnn.out)["INS",])
+```
+
+If `fastMNN()` was run on low-dimensional inputs, only the low-dimensional output will be reported.
+Nonetheless, users can obtain per-gene corrected values by manually computing the cross-product based on the rotation vectors from the PCA.
 For example, the code below obtains corrected expression values for _GCG_.
 
 ```{r}
-cor.exp <- tcrossprod(mnn.out$corrected, 
-    mnn.out$rotation[which(rownames(sce)=="GCG"),,drop=FALSE]) 
+cor.exp <- tcrossprod(mnn.out3$corrected,
+    metadata(pc.all)$rotation["GCG",,drop=FALSE])
 summary(cor.exp)
 ```
 
-Calculation of per-gene corrected values is not performed by default, as to do so for all genes would require the construction a dense matrix.
+Explicit calculation of per-gene corrected values is probably ill-advised, as to do so for all genes would require the construction a dense matrix.
 This may be prohibitively memory-consuming for large data sets that are otherwise representable as sparse matrices.
 
 Per-gene corrected values can be readily used for visualization, e.g., to colour cells on _t_-SNE plots by their corrected expression values (Figure \@ref(fig:correctedcolours)).
