@@ -387,14 +387,14 @@ plotHighestExprs(sce, n=50) + fontsize
 
 ## Filtering out low-abundance genes
 
-Low-abundance genes are problematic as zero or near-zero counts do not contain much information for reliable statistical inference [@bourgon2010independent].
-These genes typically do not provide enough evidence to reject the null hypothesis during testing, yet they still increase the severity of the multiple testing correction.
-In addition, the discreteness of the counts may interfere with statistical procedures, e.g., by compromising the accuracy of continuous approximations.
+Low-abundance genes are problematic as zero or near-zero counts do not contain much information for reliable statistical inference.
+In applications involving hypothesis testing, these genes typically do not provide enough evidence to reject the null hypothesis yet they still increase the severity of the multiple testing correction.
+The discreteness of the counts may also interfere with statistical procedures, e.g., by compromising the accuracy of continuous approximations.
 Thus, low-abundance genes are often removed in many RNA-seq analysis pipelines before the application of downstream methods.
 
 The "optimal" choice of filtering strategy depends on the downstream application.
 A more aggressive filter is usually required to remove discreteness (e.g., for normalization) compared to that required for removing underpowered tests.
-For hypothesis testing, the filter statistic should also be independent of the test statistic under the null hypothesis.
+For hypothesis testing, the filter statistic should also be independent of the test statistic under the null hypothesis [@bourgon2010independent].
 Thus, we (or the relevant function) will filter at each step as needed, rather than applying a single filter for the entire analysis.
 
 Several metrics can be used to define low-abundance genes.
