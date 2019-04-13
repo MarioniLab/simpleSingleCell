@@ -50,7 +50,7 @@ sce.pancreas <- readRDS("pancreas_data.rds")
 # Same code as in pancreas MNN correction workflow.
 library(scran)
 m.out <- findMarkers(sce.pancreas, sce.pancreas$Cluster, 
-    block=sce.pancreas$Batch, direction="up") 
+    block=sce.pancreas$batch, direction="up", assay.type="original") 
 demo <- m.out[["1"]] 
 as.data.frame(demo[demo$Top <= 5,1:3])
 ```
@@ -69,11 +69,11 @@ There is also a slight increase in power when information is shared across clust
 ```{r}
 # Setting up the design matrix (we remove intercept for full rank
 # in the final design matrix with the cluster-specific terms).
-design <- model.matrix(~sce.pancreas$Batch)
+design <- model.matrix(~sce.pancreas$batch)
 design <- design[,-1,drop=FALSE]
 
 m.alt <- findMarkers(sce.pancreas, sce.pancreas$Cluster, 
-    design=design, direction="up")
+    design=design, direction="up", assay.type="original")
 demo <- m.alt[["1"]]
 as.data.frame(demo[demo$Top <= 5,1:3])
 ```
