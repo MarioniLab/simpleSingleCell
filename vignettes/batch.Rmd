@@ -59,6 +59,8 @@ We first read the table into memory.
 gse81076.df <- read.table(grun.fname, sep='\t', 
     header=TRUE, stringsAsFactors=FALSE, row.names=1)
 dim(gse81076.df)
+head(rownames(gse81076.df))
+head(colnames(gse81076.df))
 ```
 
 Unfortunately, the data and metadata are all mixed together in this file.
@@ -72,6 +74,7 @@ table(plate.id)
 ```
 
 Another irritating feature of this dataset is that gene symbols were supplied, rather than stable identifiers such as Ensembl.
+Stable identifiers are desirable as they facilitate reliable cross-referencing of gene identities between data sets^[The two data sets used in this workflow come from the same provider, who at least uses gene symbols consistently. So, technically, we could have skipped the conversion here. Nonetheless, we have chosen to perform it to demonstrate how one would deal with more heterogeneous data sources (e.g., mixtures of Ensembl identifiers and gene symbols, or multiple synonymous gene symbols).].
 We convert all row names to Ensembl identifiers, removing `NA` or duplicated entries (with the exception of spike-in transcripts). 
 
 ```{r}
@@ -206,6 +209,8 @@ We first read the table into memory.
 gse85241.df <- read.table(muraro.fname, sep='\t', 
     header=TRUE, row.names=1, stringsAsFactors=FALSE)
 dim(gse85241.df)
+head(rownames(gse85241.df))
+head(colnames(gse85241.df))
 ```
 
 We extract the metadata from the column names.
