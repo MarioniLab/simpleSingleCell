@@ -349,7 +349,7 @@ The `multiBatchNorm()` function recomputes log-normalized expression values afte
 This improves the quality of the correction by removing one aspect of the technical differences between batches.
 
 ```{r}
-rescaled <- batchelor::multiBatchNorm(
+rescaled <- multiBatchNorm(
     sce.gse85241[universe,], 
     sce.gse81076[universe,]
 )
@@ -362,8 +362,6 @@ rescaled.gse81076 <- rescaled[[2]]
 - Technically, we should have performed variance modelling and feature selection _after_ calling `multiBatchNorm()`.
 This ensures that the variance components are estimated from the same values to be used in the batch correction.
 In practice, this makes little difference, and it tends to be easier to process each batch separately and consolidate all results in one step as shown above.
-- The `batchelor::` prefix avoids ambiguity during the migration of `multiBatchNorm()` from `r Biocpkg("scran")` to `r Biocpkg("batchelor")`.
-This will not be necessary in the next release.
 
 # Performing MNN-based correction
 
@@ -383,7 +381,7 @@ set.seed(100)
 unc.gse81076 <- logcounts(rescaled.gse81076)[chosen,]
 unc.gse85241 <- logcounts(rescaled.gse85241)[chosen,]
 
-mnn.out <- batchelor::fastMNN(
+mnn.out <- fastMNN(
     GSE81076=unc.gse81076, GSE85241=unc.gse85241,
     k=20, d=50, BSPARAM=IrlbaParam(deferred=TRUE)
 )
@@ -517,7 +515,7 @@ In the example shown below, batch 2 is treated as the reference as it is the fir
 The first batch is then corrected to the second batch to obtain a new reference batch - and so on, if more than two batches were present.
 
 ```{r}
-mnn.out2 <- batchelor::fastMNN(
+mnn.out2 <- fastMNN(
     GSE81076=unc.gse81076, GSE85241=unc.gse85241,
     k=20, d=50, auto.order=c(2,1), BSPARAM=IrlbaParam(deferred=TRUE)
 )
@@ -600,10 +598,10 @@ all.batches <- c(by.donor.85241, by.donor.81076)
 
 # Cosine normalizing for consistency with fastMNN() defaults.
 all.logcounts <- lapply(all.batches, logcounts)
-scaled <- lapply(all.logcounts, batchelor::cosineNorm) 
+scaled <- lapply(all.logcounts, cosineNorm) 
 
 set.seed(1000) # for irlba.
-pc.all <- do.call(batchelor::multiBatchPCA, c(scaled, 
+pc.all <- do.call(multiBatchPCA, c(scaled, 
     list(d=50, BSPARAM=IrlbaParam(deferred=TRUE))
 ))
 names(pc.all)
@@ -625,7 +623,7 @@ In this manner, we remove donor effects within the GSE85241 batch.
 
 ```{r}
 pcs.85241 <- pc.all[seq_along(by.donor.85241)]
-mnn.out.85241 <- do.call(batchelor::fastMNN, c(pcs.85241, list(pc.input=TRUE)))
+mnn.out.85241 <- do.call(fastMNN, c(pcs.85241, list(pc.input=TRUE)))
 Rle(mnn.out.85241$batch)
 ```
 
@@ -635,7 +633,7 @@ We repeat this for the donors in the GSE81076 batch.
 
 ```{r}
 pcs.81076 <- tail(pc.all, length(by.donor.81076))
-mnn.out.81076 <- do.call(batchelor::fastMNN, c(pcs.81076, list(pc.input=TRUE)))
+mnn.out.81076 <- do.call(fastMNN, c(pcs.81076, list(pc.input=TRUE)))
 Rle(mnn.out.81076$batch)
 ```
 
@@ -645,7 +643,7 @@ Again, we need to set `pc.input=TRUE` to prevent the function from unnecessarily
 We use a larger `k` in the final `fastMNN()` call to improve the robustness of MNN detection to outlier cells on the edges of each cluster.
 
 ```{r}
-mnn.out3 <- batchelor::fastMNN(
+mnn.out3 <- fastMNN(
     GSE81076=mnn.out.81076,
     GSE85241=mnn.out.85241, 
     pc.input=TRUE, k=100 # see comments below.
@@ -711,7 +709,7 @@ The aim is to maximize the number of MNN pairs at each step to provide a stable 
 We demonstrate below using the within-donor subbatches in the GSE81076 data set.
 
 ```{r}
-mnn.out.auto <- do.call(batchelor::fastMNN, c(pcs.81076, 
+mnn.out.auto <- do.call(fastMNN, c(pcs.81076, 
     list(pc.input=TRUE, auto.order=TRUE)))
 names(by.donor.81076) # supplied order 
 metadata(mnn.out.auto)$merge.order # automatically defined order
