@@ -46,6 +46,7 @@ Encoding: UTF-8
 LazyData: true
 VignetteBuilder: knitr
 biocViews: ImmunoOncologyWorkflow, Workflow, SingleCellWorkflow
+Workflow: True
 NeedsCompilation: no
 URL: https://www.bioconductor.org/help/workflows/simpleSingleCell/ 
 RoxygenNote: 6.1.1
