@@ -1,0 +1,335 @@
+---
+title: Multi-step correction of batch effects in single-cell RNA-seq data
+author: 
+- name: Aaron T. L. Lun
+  affiliation: Cancer Research UK Cambridge Institute, Li Ka Shing Centre, Robinson Way, Cambridge CB2 0RE, United Kingdom
+- name: Michael D. Morgan
+  affiliation: Wellcome Trust Sanger Institute, Wellcome Genome Campus, Hinxton, Cambridge CB10 1SA, United Kingdom
+date: "`r Sys.Date()`"
+vignette: >
+  %\VignetteIndexEntry{12. More batch correction}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}    
+output: 
+  BiocStyle::html_document:
+    titlecaps: false
+    toc_float: true
+bibliography: ref.bib
+---
+
+# Introduction
+
+In the `r Biocpkg("simpleSingleCell", "batch.html", "previous batch correction workflow")`, we merged two scRNA-seq data sets involving human pancreas cell populations.
+This workflow extends the previous example to describe how to perform a more complicated merge operation involving different levels of batch effects.
+Here, we will use pancreas data sets generated using the Smart-seq2 technology [@segerstolpe2016singlecell;@lawlor2017singlecell],
+and merge them with the previous data sets generated using CEL-seq-based methods.
+Our overall strategy is to use a hierarchical merge to remove batch effects within each technology,
+followed by the removal of batch effects between technologies.
+
+# Loading in the data
+
+## Smart-seq2, GSE86473
+
+### Reading in data
+
+Here, we use data from the @lawlor2017singlecell study.
+Reads were mapped to the hg38 build of the human genome with _STAR_ [@dobin2013star],
+then assigned to Ensembl genes using the `featureCounts()` function [@liao2014featurecounts].
+We obtain the resulting count matrices^[That poor ol' Mike had to generate himself, no thanks to @lawlor2017singlecell.] using the `r Biocpkg("BiocFileCache")` package.
+
+```{r}
+library(BiocFileCache)
+bfc <- BiocFileCache(ask=FALSE)    
+host.path <- file.path("https://jmlab-gitlab.cruk.cam.ac.uk",
+    "publications/MNN2017-DataFiles/raw",
+    "4d649e8865cb2b924b61f6bd3f908865dfe0f560/GSE86473/")
+alpha <- bfcrpath(bfc, file.path(host.path, 'alpha-feature_counts.tsv.gz'))
+beta <- bfcrpath(bfc, file.path(host.path, 'beta-feature_counts.tsv.gz'))
+delta <- bfcrpath(bfc, file.path(host.path, 'delta-feature_counts.tsv.gz'))
+pp <- bfcrpath(bfc, file.path(host.path, 'PP-feature_counts.tsv.gz'))
+```
+
+We read in the resulting count matrices using `r Biocpkg("scater")` [@mccarthy2017scater].
+For logistical reasons, cells were processed based on the annotation supplied with the paper,
+hence the presence of different count tables for each cell type in the pancreas.
+
+```{r}
+library(scater)
+alpha.df <- readSparseCounts(alpha)
+beta.df <- readSparseCounts(beta)
+delta.df <- readSparseCounts(delta)
+pp.df <- readSparseCounts(pp)
+
+# Checking genes are in the same order.
+stopifnot(identical(rownames(alpha.df), rownames(beta.df)))
+stopifnot(identical(rownames(alpha.df), rownames(delta.df)))
+stopifnot(identical(rownames(alpha.df), rownames(pp.df)))
+
+rbind(Alpha=dim(alpha.df), Beta=dim(beta.df), 
+    Delta=dim(delta.df), PP=dim(pp.df))
+```
+
+We combine the matrices and clean up row and column names. 
+
+```{r}
+gse86473.df <- cbind(alpha.df, beta.df, delta.df, pp.df)
+rownames(gse86473.df) <- sub("ERCC\\.", "ERCC-", rownames(gse86473.df))
+samp.names <- sub("\\.dedup$", "", colnames(gse86473.df))
+samp.names <- sub(".star$", "", samp.names) 
+colnames(gse86473.df) <- samp.names
+```
+
+We load in the metadata, again with some additional formatting.
+
+```{r}
+meta.fname <- bfcrpath(bfc, file.path(host.path, 'experimental_design.tsv'))
+gse86473.meta <- read.delim(meta.fname, stringsAsFactors=FALSE)
+stopifnot(identical(sort(colnames(gse86473.df)), sort(gse86473.meta$Sample)))
+
+gse86473.meta <- gse86473.meta[match(colnames(gse86473.df), gse86473.meta$Sample),]
+gse86473.meta$Study <- "GSE86473"
+gse86473.meta$CellType <- paste0(
+    toupper(substr(gse86473.meta$CellType, 1, 1)),
+    substring(gse86473.meta$CellType, 2))
+head(gse86473.meta)
+table(gse86473.meta$CellType)
+```
+
+Finally, we create a `SingleCellExperiment` object.
+
+```{r}
+sce.gse86473 <- SingleCellExperiment(list(counts=gse86473.df), 
+    colData=gse86473.meta)
+isSpike(sce.gse86473, "ERCC") <- grep("^ERCC-", rownames(sce.gse86473))
+sce.gse86473
+```
+
+### Quality control and normalization
+
+We remove low-quality cells based on outliers for various quality control metrics,
+such as the total library size and the number of expressed genes.
+This is similar to what was described `r Biocpkg("simpleSingleCell", "reads.html#3_quality_control_on_the_cells", "previously")`.
+Note that this data does not contain any counts for spike-in transcripts, 
+so the spike-in percentage is not used here.
+
+```{r}
+sce.gse86473 <- calculateQCMetrics(sce.gse86473, compact=TRUE)
+qc.mat <- cbind(
+    NFeatures=isOutlier(sce.gse86473$scater_qc$all$total_features_by_counts, 
+        log=TRUE, type="lower", nmads=3),
+    LibSize=isOutlier(sce.gse86473$scater_qc$all$total_counts, 
+        log=TRUE, type="lower", nmads=3)
+)
+colSums(qc.mat)
+discard <- rowMeans(qc.mat) > 0
+sce.gse86473 <- sce.gse86473[,!discard]
+summary(discard)
+```
+
+We compute size factors with the deconvolution method from the `r Biocpkg("scran")` package [@lun2016pooling].
+Pre-clustering is performed using `quickCluster()` to avoid pooling together very different cells.
+Note the use of `IrlbaParam()` from `r Biocpkg("BiocSingular")` to speed up the PCA calculations.
+
+```{r gse}
+library(scran)
+library(BiocSingular)
+clusters <- quickCluster(sce.gse86473, BSPARAM=IrlbaParam())
+table(clusters)
+sce.gse86473 <- computeSumFactors(sce.gse86473, clusters=clusters)
+summary(sizeFactors(sce.gse86473))
+```
+
+There is no need for spike-in normalization, as there are actually no spike-in counts. 
+We thus proceed directly to calculation of the log-transformed normalized expression values for endogenous genes.
+
+```{r}
+# Ignore warnings due to no spike-in size factors.
+suppressWarnings(sce.gse86473 <- normalize(sce.gse86473))
+```
+
+### Modelling variability
+    
+Given that no spike-ins are available, we fit a mean-dependent trend to the variances of the endogenous genes to model technical noise.
+This requires the assumptions that have been stated `r Biocpkg("simpleSingleCell", "var.html#when-spike-ins-are-unavailable", "elsewhere")`.
+
+```{r}
+fit <- trendVar(sce.gse86473, use.spikes=FALSE, loess.args=list(span=0.05))
+dec.gse86473 <- decomposeVar(sce.gse86473, fit)
+dec.gse86473[order(dec.gse86473$bio, decreasing=TRUE),]
+```
+
+Figure \@ref(fig:var-gse86473) shows the strong mean-variance relationship that is typical of read count data.
+
+```{r var-gse86473, fig.cap="Variance of normalized log-expression values for each gene in the GSE86473 data set, plotted against the mean log-expression. The blue line represents the mean-dependent trend fitted to the variances of all genes."}
+plot(fit$mean, fit$var, xlab="Mean log-expression",
+    ylab="Variance of log-expression")
+curve(fit$trend(x), col="dodgerblue", add=TRUE, lwd=2)
+```
+
+## Smart-seq2, E-MTAB-5061
+
+### Reading in the data
+
+Here, we use data from the @@segerstolpe2016singlecell study.
+The good news is that the authors have provided a count table in the ArrayExpress entry for this project.
+We download it using `r Biocpkg("BiocFileCache")` to cache the results:
+
+```{r}
+bfc <- BiocFileCache(ask=FALSE)    
+emat <- bfcrpath(bfc, file.path("https://www.ebi.ac.uk/arrayexpress",
+    "experiments/E-MTAB-5061/files/E-MTAB-5061.processed.1.zip"))
+count.file <- "pancreas_refseq_rpkms_counts_3514sc.txt"
+```
+
+The bad news is that the count table is needlessly complex:
+
+- The first 2 columns contain the gene symbol and NCBI ID for each row.
+- The next `X` columns are the RPKMs, for `X` cells.
+- The remaining `X` columns are the counts.
+
+This requires some additional work to extract the useful data.
+The first line contains the names of the cells, 
+so we can use this to determine the number and indices of the columns with per-cell counts:
+
+```{r}
+col.names <- read.table(unz(emat, count.file), header=FALSE, sep="\t", 
+    stringsAsFactors=FALSE, comment.char="", nrows = 1)[,-1]
+ncells <- length(col.names)
+
+what <- vector("list", ncells*2 + 2)
+what[[1]] <- "character"
+what[seq_len(ncells) + ncells + 2] <- "integer"
+```
+
+We then read in the counts only:
+
+```{r}
+emtab.df <- read.table(unz(emat, count.file), header=FALSE, sep="\t", 
+    stringsAsFactors=FALSE, colClasses=what, skip=1)
+emtab.df <- emtab.df[!duplicated(emtab.df[,1]),]
+row.names <- emtab.df[,1]
+emtab.df <- emtab.df[,-1]
+
+rownames(emtab.df) <- row.names
+colnames(emtab.df) <- col.names
+dim(emtab.df)
+```
+
+We read in the metadata and extract the appropriate columns.
+
+```{r}
+meta.fname <- bfcrpath(bfc, file.path("https://www.ebi.ac.uk/arrayexpress",
+    "files/E-MTAB-5061/E-MTAB-5061.sdrf.txt"))
+emtab.sdrf <- read.delim(meta.fname, stringsAsFactors=FALSE)
+stopifnot(identical(sort(emtab.sdrf$Source.Name), sort(colnames(emtab.df))))    
+
+emtab.sdrf <- emtab.sdrf[match(colnames(emtab.df), emtab.sdrf$Source.Name),]
+emtab.meta <- emtab.sdrf[, c("Assay.Name", 
+    "Characteristics.cell.type.", "Characteristics.individual.",
+    "Characteristics.single.cell.well.quality.")]
+colnames(emtab.meta) <- c("Sample", "CellType", "Donor", "Quality")
+emtab.meta$Study <- "E-MTAB-5061"
+head(emtab.meta)
+```
+
+Some editing the cell type labels is necessary for consistency with GSE86473.
+
+```{r}
+emtab.meta$CellType <- gsub(" cell", "", emtab.meta$CellType)
+emtab.meta$CellType <- paste0(
+    toupper(substr(emtab.meta$CellType, 1, 1)),
+    substring(emtab.meta$CellType, 2))
+table(emtab.meta$CellType)
+```
+
+Finally, we create a `SingleCellExperiment` object.
+
+```{r}
+sce.emtab <- SingleCellExperiment(list(counts=as.matrix(emtab.df)), 
+    colData=emtab.meta)
+isSpike(sce.emtab, "ERCC") <- grep("^ERCC_", rownames(sce.emtab))
+sce.emtab
+```
+
+### Quality control and normalization
+
+We first remove the low quality cells that were marked by the authors.
+
+```{r}
+low.qual <- sce.emtab$Quality == "low quality cell"
+sce.emtab <- sce.emtab[,!low.qual]
+summary(low.qual)
+```
+
+We also remove low quality cells based on our own quality control metrics.
+It is debatable whether these two separate rounds of quality control are necessary, 
+but we do this for consistency with respect to the preprocessing performed across all data sets.
+
+```{r}
+sce.emtab <- calculateQCMetrics(sce.emtab, compact=TRUE)
+qc.mat <- cbind(
+    NFeatures=isOutlier(sce.emtab$scater_qc$all$total_features_by_counts, 
+        log=TRUE, type="lower", nmads=3),
+    LibSize=isOutlier(sce.emtab$scater_qc$all$total_counts, 
+        log=TRUE, type="lower", nmads=3),
+    SpikePct=isOutlier(sce.emtab$scater_qc$feature_control_ERCC$pct_counts, 
+        type="higher", nmads=3)
+)
+colSums(qc.mat)
+discard <- rowMeans(qc.mat) > 0
+sce.emtab <- sce.emtab[,!discard]
+summary(discard)
+```
+
+We compute size factors using the pre-clustering and deconvolution approach.
+
+```{r}
+clusters <- quickCluster(sce.emtab, use.ranks=FALSE, BSPARAM=IrlbaParam())
+table(clusters)
+sce.emtab <- computeSumFactors(sce.emtab, clusters=clusters)
+summary(sizeFactors(sce.emtab))
+```
+
+We also compute separate size factors for the spike-in counts.
+Note that some cells have no spike-in counts and will not be useful for downstream steps that rely on spike-ins.
+
+```{r}
+sce.emtab <- computeSpikeFactors(sce.emtab, general.use=FALSE)
+summary(sizeFactors(sce.emtab, "ERCC"))
+```
+
+### Modelling variability
+
+Variance modelling requires some care in this data set.
+The mean-variance trend is highly variable across cell populations from different donors,
+presumably because each donor was processed in a separate batch.
+Thus, we have to block on `Donor` using the `multiBlockVar()` function as discussed `r Biocpkg("simpleSingleCell", "var.html#fitting-batch-specific-trends", "here")`.
+We also have to remove cells with no spike-ins, as they are not useful for modelling technical noise;
+and remove cells from donor `AZ`, which has very low spike-in concentrations.
+
+```{r}
+for.hvg <- sce.emtab[,sizeFactors(sce.emtab, "ERCC") > 0
+    & sce.emtab$Donor!="AZ"]
+for.hvg <- multiBlockNorm(for.hvg, for.hvg$Donor) 
+comb.out <- multiBlockVar(for.hvg, for.hvg$Donor)
+head(comb.out[,-7])
+```
+
+Figure \@ref(fig:var-emtab) demonstrates the diversity of mean-variance relationships across different donors.
+
+```{r var-emtab, fig.wide=TRUE, fig.asp=1, fig.cap="Variance of normalized log-expression values for each gene in each donor of the EMTAB-5061 data set, plotted against the mean log-expression. The blue line represents the mean-dependent trend fitted to the variances of spike-in transcripts within each donor."}
+all.donors <- unique(for.hvg$Donor)
+par(mfrow=c(ceiling(length(all.donors)/3),3))
+is.spike <- isSpike(for.hvg)
+for (plate in all.donors) {
+    cur.out <- comb.out$per.block[[plate]]
+    plot(cur.out$mean, cur.out$total, pch=16, cex=0.6, main=plate, 
+        xlab="Mean log-expression", ylab="Variance of log-expression")
+    curve(metadata(cur.out)$trend(x), col="dodgerblue", lwd=2, add=TRUE)
+    points(cur.out$mean[is.spike], cur.out$total[is.spike], col="red", pch=16)
+}
+```
+
+# References
+
+
