@@ -156,7 +156,7 @@ We then compute normalized log-expression values for use in downstream analyses.
 sce.gse81076 <- normalize(sce.gse81076)
 ```
 
-### Identifying highly variable genes
+### Modelling variability
 
 We identify highly variable genes (HVGs) using `trendVar()` and `decomposeVar()`, using the variances of spike-in transcripts to model technical noise.
 We set `block=` to ensure that uninteresting differences between plates or donors do not inflate the variance.
@@ -181,8 +181,7 @@ We will be using this information later when performing feature selection prior 
 ```{r}
 dec.gse81076 <- dec
 dec.gse81076$Symbol <- rowData(sce.gse81076)$Symbol
-dec.gse81076 <- dec.gse81076[order(dec.gse81076$bio, decreasing=TRUE),]
-head(dec.gse81076)
+dec.gse81076[order(dec.gse81076$bio, decreasing=TRUE),]
 ```
 
 ```{r, echo=FALSE, results="hide"}
@@ -285,7 +284,7 @@ summary(sizeFactors(sce.gse85241, "ERCC"))
 sce.gse85241 <- normalize(sce.gse85241)
 ```
 
-### Identifying highly variable genes
+### Modelling variability
 
 We fit a trend to the spike-in variances as previously described, allowing us to model the technical noise for each gene (Figure \@ref(fig:var-gse85241)).
 Again, we set `block=` to ensure that uninteresting differences between plates or donors do not inflate the variance.
@@ -306,8 +305,7 @@ We order genes by decreasing biological component, as described above.
 ```{r}
 dec.gse85241 <- dec
 dec.gse85241$Symbol <- rowData(sce.gse85241)$Symbol
-dec.gse85241 <- dec.gse85241[order(dec.gse85241$bio, decreasing=TRUE),]
-head(dec.gse85241)
+dec.gse85241[order(dec.gse85241$bio, decreasing=TRUE),]
 ```
 
 ```{r, echo=FALSE, results="hide"}
@@ -321,7 +319,7 @@ In @haghverdi2018batch, we originally performed batch correction across four sep
 For simplicity, we will only consider the two batches generated using CEL-seq(2) and ignore those generated using Smart-seq2 [@segerstolpe2016singlecell;@lawlor2017singlecell].
 As one might expect, batch correction is easiest when dealing with data generated from the same technology,
 as fewer systematic differences are present that can interfere with the biological structure.
-Nonetheless, it is often possible to obtain good results when applying MNN correction to batches of data generated with different technologies.
+Nonetheless, it is often possible to obtain good results when applying MNN correction to batches of data generated with different technologies, as demonstrated in `r Biocpkg("simpleSingleCell", "multibatch.html", "this workflow")` for advanced batch correction.
 
 It is also worth pointing out that both of the CEL-seq(2) batches above contain cells from multiple donors.
 Each donor could be treated as a separate batch in their own right, 
@@ -349,6 +347,7 @@ The `multiBatchNorm()` function recomputes log-normalized expression values afte
 This improves the quality of the correction by removing one aspect of the technical differences between batches.
 
 ```{r}
+library(batchelor)
 rescaled <- multiBatchNorm(
     sce.gse85241[universe,], 
     sce.gse81076[universe,]
@@ -374,7 +373,7 @@ Thus, the difference between cells in MNN pairs can be used as an estimate of th
 We apply the `fastMNN()` function to the three batches to remove the batch effect, using the genes in `chosen`.
 To reduce computational work and technical noise, all cells in all cells are projected into the low-dimensional space defined by the top `d` principal components.
 Identification of MNNs and calculation of correction vectors are then performed in this low-dimensional space.
-The function returns a `SingleCellExperiment` object containing low-dimensional corrected values for downstream analyses like clustering or visualization.
+The function returns a `SingleCellExperiment` object containing corrected values for downstream analyses like clustering or visualization.
 
 ```{r}
 set.seed(100) 
@@ -500,236 +499,6 @@ In this case, the proportion of lost variance is small, indicating that non-orth
 gc()
 ```
 
-# Controlling the merge order
-
-## Manual specification 
-
-The order of the supplied batches will affect the result as the first batch is used to define the reference space to which all other batches are corrected.
-Specifically, the first batch is defined as the reference batch;
-the second batch is corrected to and merged with the current reference batch, yielding a new reference batch;
-and so on for all batches in the supplied order, with an increasingly large reference batch at each step.
-The use of a merged reference ensures that information from batches other than the first are used to identify MNN pairs in later batches.
-
-The order of batches to merge can be manually specified in the `auto.order=` argument to `fastMNN()`.
-In the example shown below, batch 2 is treated as the reference as it is the first specified batch in `auto.order=`.
-The first batch is then corrected to the second batch to obtain a new reference batch - and so on, if more than two batches were present.
-
-```{r}
-mnn.out2 <- fastMNN(
-    GSE81076=unc.gse81076, GSE85241=unc.gse85241,
-    k=20, d=50, auto.order=c(2,1), BSPARAM=IrlbaParam(deferred=TRUE)
-)
-metadata(mnn.out2)$merge.order # batch 2 (GSE85241) is first in the order.
-metadata(mnn.out2)$merge.info$pairs[[1]] # 'first' now refers to GSE85241.
-```
-
-Using `auto.order=` will change the merge order without requiring a change to the supplied order of batches in `fastMNN()`.
-Similarly, the order of batches (and cells) in the output will not be altered.
-This makes it easy to explore different merge orders without altering the surrounding code.
-
-```{r}
-Rle(mnn.out2$batch) # same as mnn.out$batch
-```
-
-If very different batches (in terms of cell composition) are present, we suggest setting the largest, most heterogeneous batch as the first.
-This ensures that sufficient MNN pairs will be identified between the first and other batches for stable correction.
-Conversely, if two small batches without shared populations are supplied first, the wrong MNN pairs will be detected and the result of the merge will be incorrect.
-
-```{r, echo=FALSE, results="hide"}
-gc()
-```
-
-## Hierarchical merging 
-
-### Motivation  
-
-In more complex experiments, we may know beforehand that certain sets of batches are more similar to each other.
-We might then want to merge those similar batches before attempting the more difficult merges involving batches with different cell type composition and/or gene expression.
-Examples include:
-
-- Merging batches that represent replicate experiments from the same condition, prior to merging across conditions.
-- Merging batches generated with the same scRNA-seq technology prior to merging across technologies.
-
-This strategy limits encourages detection of correct MNN pairs as similar batches should have more shared populations, 
-By comparison, performing the more difficult merges first is more likely to introduce errors whereby distinct subpopulations are incorrectly placed together.
-This unnecessarily propagates the error to later steps as the initial merge is used as a reference for subsequent merges.
-
-### Setting up the inputs
-
-Hierarchical merging can be achieved through multiple calls to `fastMNN()` with progressively merged batches.
-To illustrate, assume that we want to remove `Donor` effects within each batch prior to merging across batches.
-We split up the cells in GSE85241 according to the donor of origin, creating one `SingleCellExperiment` object for each donor.
-
-```{r}
-all.donors <- unique(rescaled.gse85241$Donor)
-table(rescaled.gse85241$Donor)
-by.donor.85241 <- vector("list", length(all.donors))
-names(by.donor.85241) <- sort(all.donors)
-for (x in all.donors) {
-    by.donor.85241[[x]] <- rescaled.gse85241[,rescaled.gse85241$Donor==x]
-}
-```
-
-We repeat this process for GSE81076.
-For demonstration purposes, we will aggregate some of the donors together to ensure that there are enough cells in each level for MNN detection.
-
-```{r}
-adj.donors <- c(D101="A", D102="A", D10631="A",
-    D17="B", D1713="B", D172444="B",
-    D2="C", D3="C",
-    D71="D", D72="D", D73="D", D74="D")[rescaled.gse81076$Donor]
-table(adj.donors)
-
-all.donors <- unique(adj.donors)
-by.donor.81076 <- vector("list", length(all.donors))
-names(by.donor.81076) <- sort(all.donors)
-for (x in all.donors) {
-    by.donor.81076[[x]] <- rescaled.gse81076[,adj.donors==x]
-}
-```
-
-We use the `multiBatchPCA()` function to perform a PCA across _all_ batches to be merged.
-This ensures that all cells are placed onto the same coordinate space, which would obviously not be possible if a PCA was performed for each batch separately.
-Specifically, `multiBatchPCA()` performs a modified PCA to ensure that each supplied matrix contributes equally to the definition of the PC space.
-This avoids problems with imbalances in the number of cells across batches, meanining that smaller batches (possibly with unique cell types) are not ignored.
-
-```{r}
-all.batches <- c(by.donor.85241, by.donor.81076)
-
-# Cosine normalizing for consistency with fastMNN() defaults.
-all.logcounts <- lapply(all.batches, logcounts)
-scaled <- lapply(all.logcounts, cosineNorm) 
-
-set.seed(1000) # for irlba.
-pc.all <- do.call(multiBatchPCA, c(scaled, 
-    list(d=50, BSPARAM=IrlbaParam(deferred=TRUE))
-))
-names(pc.all)
-```
-
-**Comments from Aaron:**
-
-- Here, we have applied `multiBatchPCA()` to the batch-level inputs for convenience.
-It is also possible to supply donor-level matrices to equalize contributions across donors.
-- Recall that we ran `multiBatchNorm()` earlier to generate the `rescaled.gse*` objects.
-As a result, cosine normalization is not technically necessary, as all batches should be on the same scale already (see `?cosineNorm` for a discussion of this).
-Nonetheless, we run it here for consistency with our previous `fastMNN()` call where cosine normalization is turned on by default.
-
-### Performing progressive merges 
-
-We pass the matrices corresponding to the donors in GSE85241 to `fastMNN()`, setting `pc.input=TRUE` to indicate that dimensionality reduction has already been performed.
-This uses the first donor to define the reference space^[Which can be changed with `auto.order=`, if so desired.] and merges cells from all other donors to the first.
-In this manner, we remove donor effects within the GSE85241 batch.
-
-```{r}
-pcs.85241 <- pc.all[seq_along(by.donor.85241)]
-mnn.out.85241 <- do.call(fastMNN, c(pcs.85241, list(pc.input=TRUE)))
-Rle(mnn.out.85241$batch)
-```
-
-Note that when `pc.input=TRUE`, a `DataFrame` is returned instead of a `SingleCellExperiment`.
-This reflects the fact that per-gene identities are lost when PCs are supplied instead of per-gene expression vectors^[Though it is entirely possible to reconstruct these using rotation vectors, see below.].
-We repeat this for the donors in the GSE81076 batch.
-
-```{r}
-pcs.81076 <- tail(pc.all, length(by.donor.81076))
-mnn.out.81076 <- do.call(fastMNN, c(pcs.81076, list(pc.input=TRUE)))
-Rle(mnn.out.81076$batch)
-```
-
-The next step is to merge the two batches together.
-To do this, we simply repeat the `fastMNN()` call with the donor-corrected values for each batch.
-Again, we need to set `pc.input=TRUE` to prevent the function from unnecessarily (and incorrectly) repeating the cosine normalization and PCA steps on the corrected values.
-We use a larger `k` in the final `fastMNN()` call to improve the robustness of MNN detection to outlier cells on the edges of each cluster.
-
-```{r}
-mnn.out3 <- fastMNN(
-    GSE81076=mnn.out.81076,
-    GSE85241=mnn.out.85241, 
-    pc.input=TRUE, k=100 # see comments below.
-) 
-
-Rle(mnn.out3$batch) # by dataset
-Rle(c(mnn.out.81076$batch, mnn.out.85241$batch)) # by donor
-```
-
-This yields a final corrected expression matrix where both within-batch donor effects and batch effects have been corrected.
-We examine the quality of each of the merge steps with t-SNE plots (Figure \@ref(fig:tsne-hmerge)).
-Within each batch, the donors are generally well-mixed, and the final merge is consistent with Figure \@ref(fig:tsne-batch). 
-
-```{r tsne-hmerge, fig.width=10, fig.asp=0.5, fig.cap="t-SNE plots after correcting for donor effects within each data set, and after correcting for batch effects between data sets (final). Each point represents a cell that is coloured according to its donor of origin (left, middle) or the data set of origin (right)."}
-set.seed(1000)
-par(mfrow=c(1,3))
-
-library(Rtsne)
-tout.85241 <- Rtsne(mnn.out.85241$corrected, pca=FALSE)
-plot(tout.85241$Y[,1], tout.85241$Y[,2], main="GSE85241 donors",
-    col=as.factor(mnn.out.85241$batch), xlab="tSNE1", ylab="tSNE2")
-
-tout.81076 <- Rtsne(mnn.out.81076$corrected, pca=FALSE)
-plot(tout.81076$Y[,1], tout.81076$Y[,2], main="GSE81076 donors",
-    col=as.factor(mnn.out.81076$batch), xlab="tSNE1", ylab="tSNE2")
-
-tout.all <- Rtsne(mnn.out3$corrected, pca=FALSE)
-plot(tout.all$Y[,1], tout.all$Y[,2], main="Final",
-    col=as.factor(mnn.out3$batch), xlab="tSNE1", ylab="tSNE2")
-```
-
-**Comments from Aaron:**
-
-- Here, we have applied `multiBatchPCA()` to the batch-level inputs for convenience.
-It is also possible to supply donor-level matrices to equalize contributions across donors.
-- One might ask why a larger `k` was not needed in Figure \@ref(fig:tsne-batch) as well.
-This was probably because the outliers were masked by inter-donor heterogeneity when the t-SNE plots were generated without removing the donor effects.
-- In this specific example, cells from the same donor will occupy contiguous rows in the `mnn.out3$corrected` matrix.
-However, this may not have been the case for the original ordering of cells in each `SingleCellExperiment`.
-This requires some extra account-keeping to match up the final corrected matrix to the original ordering, e.g., when cross-referencing to metadata.
-
-    ```{r}
-    original.plate <- unlist(lapply(rescaled, "[[", i="Plate"))
-    original.names <- unlist(lapply(rescaled, colnames))
-    
-    # Needs unique names: trigger error otherwise.
-    stopifnot(anyDuplicated(original.names)==0L)
-
-    m <- match(rownames(mnn.out3$corrected), original.names)
-    new.plate <- original.plate[m]
-    ```
-
-```{r, echo=FALSE, results="hide"}
-gc()
-```
-
-## Automatic specification
-
-In situations where the nature of each batch is unknown, users can set `auto.order=TRUE` to allow `fastMNN()` to empirically choose which batches to merge at each step.
-The first merge is performed between the pair of batches with the most MNN pairs.
-Progressive merges are performed with the remaining batch that has the most MNN pairs with the current reference batch.
-The aim is to maximize the number of MNN pairs at each step to provide a stable correction.
-We demonstrate below using the within-donor subbatches in the GSE81076 data set.
-
-```{r}
-mnn.out.auto <- do.call(fastMNN, c(pcs.81076, 
-    list(pc.input=TRUE, auto.order=TRUE)))
-names(by.donor.81076) # supplied order 
-metadata(mnn.out.auto)$merge.order # automatically defined order
-```
-
-As with manual specification, the merge order does not affect the output order of cells.
-This makes it easy to try different merge orderings without having to deal with a re-ordering of output cells.
-
-```{r}
-Rle(mnn.out.auto$batch) 
-```
-
-The obvious cost of this approach is that of computation time. 
-Nearest-neighbour searches need to be performed between all pairs of batches, and then between each remaining batch and the reference at each merge step.
-As such, we prefer manual definition of a merge order that makes better use of prior knowledge about the experiment design.
-
-```{r, echo=FALSE, results="hide"}
-gc()
-```
-
 # Using the corrected values in downstream analyses
 
 ## For cell-based analyses
@@ -807,32 +576,124 @@ This makes it difficult to interpret the effect size of DE analyses based on the
 When applied on gene expression values, `fastMNN()` will also return a matrix of corrected per-gene expression values in the `reconstructed` assay.
 This is obtained by taking the cross-product of the corrected low-dimensional values with the rotation vectors from the initial PCA,
 which effectively reverses the initial projection into a low-dimensional space during `multiBatchPCA()`.
-The example below extracts the corrected expression values for insulin.
+The cross-product is represented as a `LowRankMatrix` to avoid explicitly creating a large dense matrix.
 
 ```{r}
 assay(sce, "reconstructed")
-summary(assay(sce)["INS",])
 ```
 
-If `fastMNN()` was run on low-dimensional inputs, only the low-dimensional output will be reported.
-Nonetheless, users can obtain per-gene corrected values by manually computing the cross-product using the PCA rotation vectors.
-For example, the code below obtains corrected expression values for _GCG_ from our hierarchical merge.
+We can then use standard methods on the `LowRankMatrix` to extract the corrected expression values for a gene of interest.
+For example, subsetting by row name is used below to obtain the corrected expression for insulin.
 
 ```{r}
-rotations <- metadata(pc.all)$rotation
-cor.exp <- tcrossprod(mnn.out3$corrected,
-    rotations["ENSG00000115263",,drop=FALSE])
-summary(cor.exp)
+summary(assay(sce)["INS",])
 ```
-
-Explicit calculation of all per-gene corrected values is probably ill-advised as this would involve the construction of a dense matrix.
-This may be prohibitively memory-consuming for large data sets that are otherwise representable as sparse matrices.
-Rather, corrected values can be computed for specific genes as they are needed, e.g., using the `LowRankMatrix` class.
 
 Per-gene corrected values can be readily used for visualization, e.g., in Figure \@ref(fig:tsne-markers).
 This can be more aesthetically pleasing than uncorrected expression values that may contain large shifts on the colour scale between cells in different batches.
 However, use of the corrected values in any quantitative procedure should be treated with extreme caution.
 If they must be used, they should be backed up by similar results from an analysis on the uncorrected values.
+
+# Controlling the merge order
+
+## Manual specification 
+
+The order of the supplied batches will affect the result as the first batch is used to define the reference space to which all other batches are corrected.
+Specifically, the first batch is defined as the reference batch;
+the second batch is corrected to and merged with the current reference batch, yielding a new reference batch;
+and so on for all batches in the supplied order, with an increasingly large reference batch at each step.
+The use of a merged reference ensures that information from batches other than the first are used to identify MNN pairs in later batches.
+
+The order of batches to merge can be manually specified in the `auto.order=` argument to `fastMNN()`.
+In the example shown below, batch 2 is treated as the reference as it is the first specified batch in `auto.order=`.
+The first batch is then corrected to the second batch to obtain a new reference batch - and so on, if more than two batches were present.
+
+```{r}
+mnn.out2 <- fastMNN(
+    GSE81076=unc.gse81076, GSE85241=unc.gse85241,
+    k=20, d=50, auto.order=c(2,1), BSPARAM=IrlbaParam(deferred=TRUE)
+)
+metadata(mnn.out2)$merge.order # batch 2 (GSE85241) is first in the order.
+metadata(mnn.out2)$merge.info$pairs[[1]] # 'first' now refers to GSE85241.
+```
+
+Using `auto.order=` will change the merge order without requiring a change to the supplied order of batches in `fastMNN()`.
+Similarly, the order of batches (and cells) in the output will not be altered.
+This makes it easy to explore different merge orders without altering the surrounding code.
+
+```{r}
+Rle(mnn.out2$batch) # same as mnn.out$batch
+```
+
+If very different batches (in terms of cell composition) are present, we suggest setting the largest, most heterogeneous batch as the first.
+This ensures that sufficient MNN pairs will be identified between the first and other batches for stable correction.
+Conversely, if two small batches without shared populations are supplied first, the wrong MNN pairs will be detected and the result of the merge will be incorrect.
+
+```{r, echo=FALSE, results="hide"}
+gc()
+```
+
+## Hierarchical merging 
+
+In more complex experiments, we may know beforehand that certain sets of batches are more similar to each other.
+We might then want to merge those similar batches before attempting the more difficult merges involving batches with different cell type composition and/or gene expression.
+Examples include:
+
+- Merging batches that represent replicate experiments from the same condition, prior to merging across conditions.
+- Merging batches generated with the same scRNA-seq technology prior to merging across technologies.
+
+This strategy encourages detection of correct MNN pairs as similar batches should have more shared populations.
+By comparison, performing the more difficult merges first is more likely to introduce errors whereby distinct subpopulations are incorrectly placed together.
+This unnecessarily propagates the error to later steps as the initial merge is used as a reference for subsequent merges.
+
+Hierarchical merging is achieved by first projecting all batches into a common PC space with `multiBatchPCA()`,
+and then performing multiple calls to `fastMNN()` with progressively merged batches.
+We will demonstrate this in the following `r Biocpkg("simpleSingleCell", "multibatch.html", "vignette")`.
+
+## Automatic specification
+
+In situations where the nature of each batch is unknown, users can set `auto.order=TRUE` to allow `fastMNN()` to empirically choose which batches to merge at each step.
+The first merge is performed between the pair of batches with the most MNN pairs.
+Progressive merges are performed with the remaining batch that has the most MNN pairs with the current reference batch.
+The aim is to maximize the number of MNN pairs at each step to provide a stable correction.
+We demonstrate below by splitting the GSE85241 data set into two subbatches.
+
+```{r}
+first.half <- seq_len(ncol(unc.gse85241)/2)
+mnn.auto <- fastMNN(
+    GSE81076=unc.gse81076, 
+    GSE85241_first=unc.gse85241[,first.half],
+    GSE85241_second=unc.gse85241[,-first.half],
+    k=20, d=50, auto.order=TRUE, BSPARAM=IrlbaParam(deferred=TRUE)
+)
+```
+
+We see that the automatically defined order differs from the sequence of batches provided to `fastMNN()`.
+In particular, the subbatches within GSE85241 are merged together before both are merged with GSE81076.
+This is expected as neighbors are more likely to be identified between cells from the same batch than across batches.
+
+```{r}
+metadata(mnn.auto)$merge.order # automatically defined order
+```
+
+```{r, echo=FALSE}
+stopifnot(identical(metadata(mnn.auto)$merge.order[3], "GSE81076"))
+```
+
+As with manual specification, the merge order does not affect the output order of cells.
+This makes it easy to try different merge orderings without having to deal with a re-ordering of output cells.
+
+```{r}
+Rle(mnn.auto$batch) 
+```
+
+The obvious cost of this approach is that of computation time. 
+Nearest-neighbour searches need to be performed between all pairs of batches, and then between each remaining batch and the reference at each merge step.
+Manual definition of the merge order may also be able to make better use of prior knowledge about the experiment design.
+
+```{r, echo=FALSE, results="hide"}
+gc()
+```
 
 # Concluding remarks
 
@@ -841,6 +702,16 @@ This avoids the need to repeat all of the processing steps described above.
 
 ```{r}
 saveRDS(file="pancreas_data.rds", sce)
+```
+
+We also save the processed objects for each data set separately, 
+for use in the `r Biocpkg("simpleSingleCell", "multibatch.html", "later workflow")`.
+
+```{r}
+saveRDS(file="gse81076_sce.rds", sce.gse81076)
+saveRDS(file="gse81076_dec.rds", dec.gse81076)
+saveRDS(file="gse85241_sce.rds", sce.gse85241)
+saveRDS(file="gse85241_dec.rds", dec.gse85241)
 ```
 
 All software packages used in this workflow are publicly available from the Comprehensive R Archive Network (https://cran.r-project.org) or the Bioconductor project (http://bioconductor.org).
