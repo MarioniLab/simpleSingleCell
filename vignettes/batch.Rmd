@@ -136,7 +136,7 @@ This is done with pre-clustering by `quickCluster()` to avoid pooling together v
 library(scran)
 library(BiocSingular)
 set.seed(1000) # for irlba. 
-clusters <- quickCluster(sce.gse81076, use.ranks=FALSE, BSPARAM=IrlbaParam())
+clusters <- quickCluster(sce.gse81076, BSPARAM=IrlbaParam())
 table(clusters)
 sce.gse81076 <- computeSumFactors(sce.gse81076, min.mean=0.1, clusters=clusters)
 summary(sizeFactors(sce.gse81076))
@@ -275,7 +275,7 @@ We compute size factors for the endogenous genes and spike-in transcripts, and u
 
 ```{r}
 set.seed(1000)
-clusters <- quickCluster(sce.gse85241, use.ranks=FALSE, BSPARAM=IrlbaParam())
+clusters <- quickCluster(sce.gse85241, BSPARAM=IrlbaParam())
 table(clusters)
 sce.gse85241 <- computeSumFactors(sce.gse85241, min.mean=0.1, clusters=clusters)
 summary(sizeFactors(sce.gse85241))

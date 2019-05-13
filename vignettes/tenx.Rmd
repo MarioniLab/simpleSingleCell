@@ -234,7 +234,7 @@ Recall that we need to set the seed when using `BSPARAM=IrlbaParam()` due to the
 library(scran)
 library(BiocSingular)
 set.seed(1000)
-clusters <- quickCluster(sce, use.ranks=FALSE, BSPARAM=IrlbaParam())
+clusters <- quickCluster(sce, BSPARAM=IrlbaParam())
 table(clusters)
 ```
 

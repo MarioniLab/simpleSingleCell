@@ -266,7 +266,7 @@ The approximation relies on stochastic initialization so we need to set the rand
 ```{r}
 library(BiocSingular)
 set.seed(1000)
-clusters <- quickCluster(sce, use.ranks=FALSE, BSPARAM=IrlbaParam())
+clusters <- quickCluster(sce, BSPARAM=IrlbaParam())
 sce <- computeSumFactors(sce, cluster=clusters, min.mean=0.1)
 summary(sizeFactors(sce))
 ```

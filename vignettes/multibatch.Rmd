@@ -307,7 +307,7 @@ summary(discard)
 We compute size factors using the pre-clustering and deconvolution approach.
 
 ```{r}
-clusters <- quickCluster(sce.emtab, use.ranks=FALSE, BSPARAM=IrlbaParam())
+clusters <- quickCluster(sce.emtab, BSPARAM=IrlbaParam())
 table(clusters)
 sce.emtab <- computeSumFactors(sce.emtab, clusters=clusters)
 summary(sizeFactors(sce.emtab))
