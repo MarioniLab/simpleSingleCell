@@ -92,7 +92,7 @@ __Comments from Aaron:__
 - We suggest only computing correlations between a subset of genes of interest, known either _a priori_ or empirically defined, e.g., as HVGs.
 Computing correlations across all genes will take too long; unnecessarily increase the severity of the multiple testing correction; 
 and may prioritize strong but uninteresting correlations, e.g., between tightly co-regulated house-keeping genes.
-- The `correlatePairs` function can also return gene-centric output by setting `per.gene=TRUE`.
+- The `correlateGenes()` function can be used on the output of `correlatePairs()` to return gene-centric output. 
 This calculates a combined _p_-value [@simes1986improved] for each gene that indicates whether it is significantly correlated to any other gene.
 From a statistical perspective, this is a more natural approach to correcting for multiple testing when genes, rather than pairs of genes, are of interest.
 - The `Limited` field indicates whether the _p_-value was lower-bounded by the number of permutations.
