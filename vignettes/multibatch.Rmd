@@ -32,87 +32,60 @@ simpleSingleCell:::.compile("batch") # pancreas
 
 In the `r Biocpkg("simpleSingleCell", "batch.html", "previous batch correction workflow")`, we merged two scRNA-seq data sets involving human pancreas cell populations.
 This workflow extends the previous example to describe how to perform a more complicated merge operation involving different levels of batch effects.
-Here, we will use pancreas data sets generated using the Smart-seq2 technology [@segerstolpe2016singlecell;@lawlor2017singlecell],
+Here, we will use pancreas data sets generated using Smart-based technologies [@segerstolpe2016singlecell;@lawlor2017singlecell],
 and merge them with the previous data sets generated using CEL-seq-based methods [@grun2016denovo;@muraro2016singlecell].
 Our overall strategy is to use a hierarchical merge to remove batch effects within each technology,
 followed by the removal of batch effects between technologies.
 
 # Loading in the data
 
-## Smart-seq2, GSE86473
+## SMARTer, GSE86469
 
 ### Reading in data
 
-Here, we use data from the @lawlor2017singlecell study.
-Reads were mapped to the hg38 build of the human genome with _STAR_ [@dobin2013star],
-then assigned to Ensembl genes using the `featureCounts()` function [@liao2014featurecounts].
-We obtain the resulting count matrices^[That poor ol' Mike had to generate himself, no thanks to @lawlor2017singlecell.] using the `r Biocpkg("BiocFileCache")` package.
+Here, we use data from the @lawlor2017singlecell study of pancreatic islet cells from healthy and type II diabetic donors.
+This was generated using the SMARTer protocol on the Fluidigm C1 system.
+We download and cache the count matrix using the `r Biocpkg("BiocFileCache")` package.
 
 ```{r}
 library(BiocFileCache)
 bfc <- BiocFileCache(ask=FALSE)    
-host.path <- file.path("https://jmlab-gitlab.cruk.cam.ac.uk",
-    "publications/MNN2017-DataFiles/raw",
-    "4d649e8865cb2b924b61f6bd3f908865dfe0f560/GSE86473/")
-alpha <- bfcrpath(bfc, file.path(host.path, 'alpha-feature_counts.tsv.gz'))
-beta <- bfcrpath(bfc, file.path(host.path, 'beta-feature_counts.tsv.gz'))
-delta <- bfcrpath(bfc, file.path(host.path, 'delta-feature_counts.tsv.gz'))
-pp <- bfcrpath(bfc, file.path(host.path, 'PP-feature_counts.tsv.gz'))
+count.tab <- bfcrpath(bfc, file.path(
+    "ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE86nnn/GSE86469/suppl",
+    "GSE86469_GEO.islet.single.cell.processed.data.RSEM.raw.expected.counts.csv.gz"
+))
 ```
 
-We read in the resulting count matrices using `r Biocpkg("scater")` [@mccarthy2017scater].
-For logistical reasons, cells were processed based on the annotation supplied with the paper,
-hence the presence of different count tables for each cell type in the pancreas.
+We read in the count matrix in sparse format using `r Biocpkg("scater")` [@mccarthy2017scater].
 
 ```{r}
 library(scater)
-alpha.df <- readSparseCounts(alpha)
-beta.df <- readSparseCounts(beta)
-delta.df <- readSparseCounts(delta)
-pp.df <- readSparseCounts(pp)
-
-# Checking genes are in the same order.
-stopifnot(identical(rownames(alpha.df), rownames(beta.df)))
-stopifnot(identical(rownames(alpha.df), rownames(delta.df)))
-stopifnot(identical(rownames(alpha.df), rownames(pp.df)))
-
-rbind(Alpha=dim(alpha.df), Beta=dim(beta.df), 
-    Delta=dim(delta.df), PP=dim(pp.df))
+mat <- readSparseCounts(count.tab, sep=",", quote='"', row.names=1)
+dim(mat)
 ```
 
-We combine the matrices and clean up row and column names. 
+We load in the metadata from NCBI GEO using the `r Biocpkg("GEOquery")` package [@davis2007geoquery].
 
 ```{r}
-gse86473.df <- cbind(alpha.df, beta.df, delta.df, pp.df)
-rownames(gse86473.df) <- sub("ERCC\\.", "ERCC-", rownames(gse86473.df))
-samp.names <- sub("\\.dedup$", "", colnames(gse86473.df))
-samp.names <- sub(".star$", "", samp.names) 
-colnames(gse86473.df) <- samp.names
-```
+library(GEOquery)
+metadata <- pData(getGEO("GSE86469")[[1]])
+metadata <- metadata[,c("title", "cell type:ch1", "islet unos id:ch1")]
 
-We load in the metadata, again with some additional formatting.
+rownames(metadata) <- metadata$title
+metadata <- metadata[,-1]
+colnames(metadata) <- c("CellType", "Donor")
 
-```{r}
-meta.fname <- bfcrpath(bfc, file.path(host.path, 'experimental_design.tsv'))
-gse86473.meta <- read.delim(meta.fname, stringsAsFactors=FALSE)
-stopifnot(identical(sort(colnames(gse86473.df)), sort(gse86473.meta$Sample)))
-
-gse86473.meta <- gse86473.meta[match(colnames(gse86473.df), gse86473.meta$Sample),]
-gse86473.meta$Study <- "GSE86473"
-gse86473.meta$CellType <- paste0(
-    toupper(substr(gse86473.meta$CellType, 1, 1)),
-    substring(gse86473.meta$CellType, 2))
-head(gse86473.meta)
-table(gse86473.meta$CellType)
+stopifnot(identical(colnames(mat), rownames(metadata)))
+head(metadata)
 ```
 
 Finally, we create a `SingleCellExperiment` object.
 
 ```{r}
-sce.gse86473 <- SingleCellExperiment(list(counts=gse86473.df), 
-    colData=gse86473.meta)
-isSpike(sce.gse86473, "ERCC") <- grep("^ERCC-", rownames(sce.gse86473))
-sce.gse86473
+library(SingleCellExperiment)
+sce.gse86469 <- SingleCellExperiment(list(counts=mat), colData=metadata)
+isSpike(sce.gse86469, "ERCC") <- grep("^ERCC-", rownames(sce.gse86469))
+sce.gse86469
 ```
 
 ### Quality control and normalization
@@ -124,16 +97,16 @@ Note that this data does not contain any counts for spike-in transcripts,
 so the spike-in percentage is not used here.
 
 ```{r}
-sce.gse86473 <- calculateQCMetrics(sce.gse86473, compact=TRUE)
+sce.gse86469 <- calculateQCMetrics(sce.gse86469, compact=TRUE)
 qc.mat <- cbind(
-    NFeatures=isOutlier(sce.gse86473$scater_qc$all$total_features_by_counts, 
+    NFeatures=isOutlier(sce.gse86469$scater_qc$all$total_features_by_counts, 
         log=TRUE, type="lower", nmads=3),
-    LibSize=isOutlier(sce.gse86473$scater_qc$all$total_counts, 
+    LibSize=isOutlier(sce.gse86469$scater_qc$all$total_counts, 
         log=TRUE, type="lower", nmads=3)
 )
 colSums(qc.mat)
 discard <- rowMeans(qc.mat) > 0
-sce.gse86473 <- sce.gse86473[,!discard]
+sce.gse86469 <- sce.gse86469[,!discard]
 summary(discard)
 ```
 
@@ -144,10 +117,10 @@ Note the use of `IrlbaParam()` from `r Biocpkg("BiocSingular")` to speed up the 
 ```{r gse}
 library(scran)
 library(BiocSingular)
-clusters <- quickCluster(sce.gse86473, BSPARAM=IrlbaParam())
+clusters <- quickCluster(sce.gse86469, BSPARAM=IrlbaParam())
 table(clusters)
-sce.gse86473 <- computeSumFactors(sce.gse86473, clusters=clusters)
-summary(sizeFactors(sce.gse86473))
+sce.gse86469 <- computeSumFactors(sce.gse86469, clusters=clusters)
+summary(sizeFactors(sce.gse86469))
 ```
 
 There is no need for spike-in normalization, as there are actually no spike-in counts. 
@@ -155,7 +128,7 @@ We thus proceed directly to calculation of the log-transformed normalized expres
 
 ```{r}
 # Ignore warnings due to no spike-in size factors.
-suppressWarnings(sce.gse86473 <- normalize(sce.gse86473))
+suppressWarnings(sce.gse86469 <- normalize(sce.gse86469))
 ```
 
 ### Modelling variability
@@ -164,14 +137,15 @@ Given that no spike-ins are available, we fit a mean-dependent trend to the vari
 This requires the assumptions that have been stated `r Biocpkg("simpleSingleCell", "var.html#when-spike-ins-are-unavailable", "elsewhere")`.
 
 ```{r}
-fit <- trendVar(sce.gse86473, use.spikes=FALSE, loess.args=list(span=0.05))
-dec.gse86473 <- decomposeVar(sce.gse86473, fit)
-dec.gse86473[order(dec.gse86473$bio, decreasing=TRUE),]
+fit <- trendVar(sce.gse86469, use.spikes=FALSE, 
+    block=sce.gse86469$Donor, loess.args=list(span=0.05))
+dec.gse86469 <- decomposeVar(sce.gse86469, fit)
+dec.gse86469[order(dec.gse86469$bio, decreasing=TRUE),]
 ```
 
-Figure \@ref(fig:var-gse86473) shows the strong mean-variance relationship that is typical of read count data.
+Figure \@ref(fig:var-gse86469) shows the strong mean-variance relationship that is typical of read count data.
 
-```{r var-gse86473, fig.cap="Variance of normalized log-expression values for each gene in the GSE86473 data set, plotted against the mean log-expression. The blue line represents the mean-dependent trend fitted to the variances of all genes."}
+```{r var-gse86469, fig.cap="Variance of normalized log-expression values for each gene in the GSE86469 data set, plotted against the mean log-expression. The blue line represents the mean-dependent trend fitted to the variances of all genes."}
 plot(fit$mean, fit$var, xlab="Mean log-expression",
     ylab="Variance of log-expression")
 curve(fit$trend(x), col="dodgerblue", add=TRUE, lwd=2)
@@ -255,7 +229,7 @@ emtab.meta$Study <- "E-MTAB-5061"
 head(emtab.meta)
 ```
 
-Some editing of the cell type labels is necessary for consistency with GSE86473.
+Some editing of the cell type labels is necessary for consistency with GSE86469.
 
 ```{r}
 emtab.meta$CellType <- gsub(" cell", "", emtab.meta$CellType)
@@ -370,7 +344,7 @@ This is made straightforward by the presence of common Ensembl identifiers.
 
 ```{r}
 universe <- Reduce(intersect, list(rownames(dec.gse81076), 
-    rownames(dec.gse85241), rownames(dec.gse86473), 
+    rownames(dec.gse85241), rownames(dec.gse86469), 
     rownames(dec.emtab)))
 universe <- universe[!grepl("^ERCC-", universe)] # removing spike-ins.
 length(universe)
@@ -382,10 +356,10 @@ This mitigates differences in scale and variance in the log-expression values be
 ```{r}
 library(batchelor)
 nout <- multiBatchNorm(sce.gse81076[universe,], sce.gse85241[universe,],
-    sce.gse86473[universe,], sce.emtab[universe,])
+    sce.gse86469[universe,], sce.emtab[universe,])
 sce.gse81076 <- nout[[1]]
 sce.gse85241 <- nout[[2]]
-sce.gse86473 <- nout[[3]]
+sce.gse86469 <- nout[[3]]
 sce.emtab <- nout[[4]]
 ```
 
@@ -394,7 +368,7 @@ This is a relaxed approach to feature selection that ensures that interesting fe
 
 ```{r}
 mean.bio <- (dec.gse81076[universe,"bio"] + dec.gse85241[universe,"bio"]
-    + dec.gse86473[universe,"bio"] + dec.emtab[universe,"bio"])/4
+    + dec.gse86469[universe,"bio"] + dec.emtab[universe,"bio"])/4
 chosen <- universe[mean.bio > 0]
 length(chosen)
 ```
@@ -404,7 +378,7 @@ We then subset all of the `SingleCellExperiment` objects so that only these feat
 ```{r}
 sce.gse81076 <- sce.gse81076[chosen,]
 sce.gse85241 <- sce.gse85241[chosen,]
-sce.gse86473 <- sce.gse86473[chosen,]
+sce.gse86469 <- sce.gse86469[chosen,]
 sce.emtab <- sce.emtab[chosen,]
 ```
 
@@ -420,7 +394,7 @@ set.seed(1000)
 pcs <- multiBatchPCA(
     gse81076=sce.gse81076,
     gse85241=sce.gse85241,
-    gse86473=sce.gse86473,
+    gse86469=sce.gse86469,
     emtab=sce.emtab,
     BSPARAM=IrlbaParam(deferred=TRUE)
 )
@@ -445,20 +419,20 @@ However, this is not technically necessary as all batches should be on the same 
 
 # Hierarchical merging
 
-## Merging the SMART-seq2 data
+## Merging the Smart-based data
 
 The @segerstolpe2016singlecell study contains strong donor effects that interfere with correction.
-Several cell types exhibit strong per-donor effects such that the multiple clusters cannot be fully merged with the corresponding single cluster in GSE86473 (Figure \@ref(fig:smart-raw)).
+Several cell types exhibit strong per-donor effects such that the multiple clusters cannot be fully merged with the corresponding single cluster in GSE86469 (Figure \@ref(fig:smart-raw)).
 
-```{r smart-raw, fig.wide=TRUE, fig.asp=0.5, fig.cap="t-SNE plots of the merged SMART-seq2 data sets. Each point is a cell coloured by the batch of origin (left) or the donor of origin in E-MTAB-5061 (right)."}
-direct.smart <- fastMNN(pcs$gse86473, pcs$emtab, k=20, pc.input=TRUE)
+```{r smart-raw, fig.wide=TRUE, fig.asp=0.5, fig.cap="t-SNE plots of the merged Smart-based data sets. Each point is a cell coloured by the batch of origin (left) or the donor of origin in E-MTAB-5061 (right)."}
+direct.smart <- fastMNN(pcs$gse86469, pcs$emtab, k=20, pc.input=TRUE)
 
 set.seed(2000)
 tsne.out <- Rtsne::Rtsne(direct.smart$corrected, perplexity=30, pca=FALSE)
 df <- data.frame(x=tsne.out$Y[,1], y=tsne.out$Y[,2], 
-    batch=rep(c("GSE86473", "E-MTAB-5061"), 
-        c(ncol(sce.gse86473), ncol(sce.emtab))),
-    donor=c(rep("unknown", ncol(sce.gse86473)), sce.emtab$Donor))
+    batch=rep(c("GSE86469", "E-MTAB-5061"), 
+        c(ncol(sce.gse86469), ncol(sce.emtab))),
+    donor=c(rep("unknown", ncol(sce.gse86469)), sce.emtab$Donor))
 
 multiplot(
     ggplot(df) + geom_point(aes(x=x, y=y, color=donor)) +
@@ -476,23 +450,23 @@ Note the use of `pc.input=TRUE` to avoid performing a PCA on a matrix of low-dim
 fixed.emtab <- fastMNN(pcs$emtab, batch=sce.emtab$Donor, k=20, pc.input=TRUE)
 ```
 
-It is then straightforward to merge these corrected expression values with the data from GSE86473.
+It is then straightforward to merge these corrected expression values with the data from GSE86469.
 This removes differences between studies and represents the second level of the merge hierarchy.
 
 ```{r}
-mnn.smart <- fastMNN(pcs$gse86473, fixed.emtab, k=20, pc.input=TRUE)
+mnn.smart <- fastMNN(pcs$gse86469, fixed.emtab, k=20, pc.input=TRUE)
 ```
 
 This strategy eliminates the donor-based structure in the merged data (Figure \@ref(fig:smart-fixed)),
 collapsing the previously distinct per-donor clusters into a single entity.
 
-```{r smart-fixed, fig.wide=TRUE, fig.asp=0.5, fig.cap="t-SNE plots of the merged SMART-seq2 data sets. Each point is a cell coloured by the batch of origin (left) or the donor of origin in E-MTAB-5061 (right)."}
+```{r smart-fixed, fig.wide=TRUE, fig.asp=0.5, fig.cap="t-SNE plots of the merged Smart-based data sets. Each point is a cell coloured by the batch of origin (left) or the donor of origin in E-MTAB-5061 (right)."}
 set.seed(2000)
 tsne.out <- Rtsne::Rtsne(mnn.smart$corrected, perplexity=30, pca=FALSE)
 df <- data.frame(x=tsne.out$Y[,1], y=tsne.out$Y[,2], 
-    batch=rep(c("GSE86473", "E-MTAB-5061"), 
-        c(ncol(sce.gse86473), ncol(sce.emtab))),
-    donor=c(rep("unknown", ncol(sce.gse86473)), sce.emtab$Donor))
+    batch=rep(c("GSE86469", "E-MTAB-5061"), 
+        c(ncol(sce.gse86469), ncol(sce.emtab))),
+    donor=c(rep(NA, ncol(sce.gse86469)), sce.emtab$Donor))
 
 multiplot(
     ggplot(df) + geom_point(aes(x=x, y=y, color=donor)) +
@@ -513,7 +487,7 @@ but we will ignore it as it does not seem to interfere with the merge.
 mnn.umi <- fastMNN(pcs$gse81076, pcs$gse85241, k=20, pc.input=TRUE)
 ```
 
-Figure \@ref(fig:cel-merge) demonstrates that these two data sets are successfully merged.
+Figure \@ref(fig:umi-merge) demonstrates that these two data sets are successfully merged.
 The quality of this merge is probably due to the fact that both data sets were generated by the same provider,
 combined with the reduction in technical variability that is offered by UMI-based protocols.
 
@@ -542,17 +516,18 @@ This suggests that the combined merge is satisfactory.
 set.seed(2000)
 tsne.out <- Rtsne::Rtsne(mnn.final$corrected, perplexity=30, pca=FALSE)
 df <- data.frame(x=tsne.out$Y[,1], y=tsne.out$Y[,2], 
-    batch=rep(c("GSE81076", "GSE85241", "GSE86473", "E-MTAB-5061"), 
+    batch=rep(c("GSE81076", "GSE85241", "GSE86469", "E-MTAB-5061"), 
         c(ncol(sce.gse81076), ncol(sce.gse85241),
-            ncol(sce.gse86473), ncol(sce.emtab))),
+            ncol(sce.gse86469), ncol(sce.emtab))),
     type=c(rep("unknown", ncol(sce.gse81076)+ncol(sce.gse85241)), 
-        sce.gse86473$CellType, sce.emtab$CellType),
+        sce.gse86469$CellType, sce.emtab$CellType),
     stringsAsFactors=FALSE)
 
 # Restricting colors to certain approved cell types for visibility.
 approved <- c(Acinar="#ffff00", Alpha="#ff0000", Beta="#c400ff", 
     Delta="#ff7800", Ductal="#00f5ff", Gamma="#0000ff",
     Other="#000000", unknown="grey80")
+df$type[df$type=="Gamma/PP"] <- "Gamma"
 df$type[!df$type %in% names(approved)] <- "Other"
 
 multiplot(
