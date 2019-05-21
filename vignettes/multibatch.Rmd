@@ -509,11 +509,12 @@ This represents the final level of the hierarchical merge.
 mnn.final <- fastMNN(mnn.umi, mnn.smart, k=20, pc.input=TRUE)
 ```
 
-Cells group together in distinct clusters that are consistent with the annotations from individual studies (Figure \@ref(fig:overall-merge)).
-This suggests that the combined merge is satisfactory.
+Cells from multiple batches group together in distinct clusters in Figure \@ref(fig:overall-merge).
+Each of the large clusters corresponds to a single cell type as annotated in the individual studies,
+which suggests that the merge is largely satisfactory.
 
 ```{r overall-merge, fig.wide=TRUE, fig.asp=0.5, fig.cap="t-SNE plot of all merged pancreas data sets. Each point is a cell coloured by the batch of origin (left) or the annotated cell type (right)."}
-set.seed(2000)
+set.seed(3000)
 tsne.out <- Rtsne::Rtsne(mnn.final$corrected, perplexity=30, pca=FALSE)
 df <- data.frame(x=tsne.out$Y[,1], y=tsne.out$Y[,2], 
     batch=rep(c("GSE81076", "GSE85241", "GSE86469", "E-MTAB-5061"), 
@@ -537,6 +538,18 @@ multiplot(
         scale_color_manual(values=approved) +
         xlab("t-SNE 1") + ylab("t-SNE 2") + ggtitle("By cell type"),
     cols=2)
+```
+
+We can verify this by clustering on the corrected low-dimensional values using a graph-based method [@xu2015identification].
+Each cluster contains contributions from all batches and is cleanly separated in Figure \@ref(fig:overall-cluster).
+
+```{r overall-cluster, fig.cap="t-SNE plot of all merged pancreas data sets. Each point is a cell coloured by the assigned cluster."}
+g <- buildSNNGraph(mnn.final$corrected, d=NA, transposed=TRUE)
+clusters <- igraph::cluster_walktrap(g)
+df$cluster <- factor(clusters$membership)
+table(df$cluster, df$batch) # Good mixing between batches.
+ggplot(df) + geom_point(aes(x=x, y=y, color=cluster)) +
+    xlab("t-SNE 1") + ylab("t-SNE 2") + ggtitle("By cluster")
 ```
 
 # Variance-based diagnostics 
