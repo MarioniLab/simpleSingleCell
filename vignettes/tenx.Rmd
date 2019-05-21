@@ -386,7 +386,7 @@ plotTSNE(sce, colour_by="Cluster")
 ```{r, echo=FALSE, results="hide"}
 # Hidden variables for use in text or hidden chunks,
 # to avoid the need for manual changes.
-chosen.platelets <- 9
+chosen.platelets <- 12 
 ```
 
 We detect marker genes for each cluster using `findMarkers()`.
@@ -400,7 +400,7 @@ We examine the markers for cluster `r chosen.platelets` in more detail.
 The upregulation of genes such as _PF4_ and _PPBP_ suggests that this cluster contains platelets or their precursors.
 
 ```{r}
-marker.set <- markers[["9"]]
+marker.set <- markers[["12"]]
 head(marker.set[,1:8], 10) # only first 8 columns, for brevity
 ```
 
