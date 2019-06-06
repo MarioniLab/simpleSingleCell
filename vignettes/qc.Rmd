@@ -209,7 +209,7 @@ isSpike(sce.allen, "ERCC") <- grep("ERCC", rownames(sce.allen))
 # Computing the QC metrics and running PCA.
 library(scater)
 sce.allen <- calculateQCMetrics(sce.allen)
-sce.allen <- runPCA(sce.allen, use_coldata=TRUE, detect_outliers=TRUE)
+sce.allen <- runColDataPCA(sce.allen, detect_outliers=TRUE)
 table(sce.allen$outlier)
 ```
 
