@@ -131,6 +131,12 @@ We thus proceed directly to calculation of the log-transformed normalized expres
 suppressWarnings(sce.gse86469 <- normalize(sce.gse86469))
 ```
 
+We save this object for use elsewhere.
+
+```{r}
+saveRDS(sce.gse86469, file="gse86469_sce.rds")
+```
+
 ### Modelling variability
     
 Given that no spike-ins are available, we fit a mean-dependent trend to the variances of the endogenous genes to model technical noise.
@@ -293,6 +299,12 @@ Note that some cells have no spike-in counts and will not be useful for downstre
 ```{r}
 sce.emtab <- computeSpikeFactors(sce.emtab, general.use=FALSE)
 summary(sizeFactors(sce.emtab, "ERCC"))
+```
+
+We then save this object for use elsewhere.
+
+```{r}
+saveRDS(sce.emtab, file="emtab5061_sce.rds")
 ```
 
 ### Modelling variability
