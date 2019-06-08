@@ -25,6 +25,7 @@ opts_chunk$set(fig.asp=1)
 ```{r, cache=FALSE, echo=FALSE, results="hide"}
 simpleSingleCell:::.compile("reads") # 416B
 simpleSingleCell:::.compile("batch") # pancreas
+simpleSingleCell:::.compile("multibatch") # pancreas
 ```
 
 # Overview
@@ -86,10 +87,13 @@ In particular, the presence of clusters in which a gene is silent will shrink th
 preventing the model from penalizing genes with high variance in other clusters.
 Thus, we generally recommend the use of `block=` where possible.
 
-# Using the Wilcoxon rank sum test
+# Alternative testing methods
+
+## Using the Wilcoxon rank sum test
 
 The `overlapExprs()` function uses the Wilcoxon rank sum test to detect uneven mixing of the distributions of expression values between clusters.
-The effect size is reported as the probability of randomly sampling one observation in one cluster that is greater than a random observation in another cluster.
+The effect size is reported as the "area under the curve",
+i.e., the probability of randomly sampling one observation in one cluster that is greater than a random observation in another cluster.
 This prioritizes genes where there is clear separation between the distributions of expression values of different clusters.
 We demonstrate the use of `overlapExprs()` on the 416B data set from the `r simpleSingleCell:::.link("reads", NULL, "previous workflow")`,
 detecting DE genes between clusters while blocking on the plate of origin.
@@ -113,7 +117,45 @@ Wilcoxon tests provide a stronger guarantee of cluster separation than the $t$-t
 This promotes the identification of good marker genes that discriminate between clusters.
 The downside is that they are slower, the effect size is more difficult to interpret and the test result is not entirely robust to differences in scaling biases across clusters.
 
-# Using other DE analysis results
+## Using an exact binomial test
+
+Another approach is to use binomial tests to check for differences in the proportion of expressing cells between clusters.
+(A cell is considered to express a gene simply if it has a non-zero count for that gene.)
+The effect size is reported as the log-fold change in this proportion between each pair of clusters.
+We demonstrate below using the 416B data, focusing on genes that are upregulated in each cluster with `direction="up"`.
+
+```{r}
+b.pairs <- pairwiseBinom(sce.416b, sce.416b$cluster, block=sce.416b$Plate,
+    direction="up")
+b.out <- combineMarkers(b.pairs$statistics, b.pairs$pairs, effect="logFC")
+head(b.out[["1"]]) # top DEGs for cluster 1 against the others.
+```
+
+Large log-odds ratios indicate that the gene is more frequently expressed in one cluster compared to the other.
+Again, we see strong differences in the expressed proportion between cluster 1 and the others (Figure \@ref(fig:viol-de-binom))
+for the top set of genes in `b.out`.
+
+```{r viol-de-binom, fig.cap="Distribution of log-normalized expression values for the top 10 DE genes involving cluster 1 with the binomial test, stratified by cluster assignment and coloured by the plate of origin for each cell."}
+plotExpression(sce.416b, x="cluster", colour_by="Plate",
+    features=head(rownames(b.out[[1]])))
+```
+
+Binomial tests offer a much more stringent definition of marker genes,
+where the top-ranking genes are those that are expressed frequently in one cluster and not expressed at all in another.
+This can prioritize useful genes more effectively but can also discard good candidate markers.
+For example, _GCG_ is a clear marker for pancreatic alpha cells but is expressed in almost every other cell of the @lawlor2017singlecell `r simpleSingleCell:::.link("multibatch", "loading in the data", "pancreas data")` (Figure \@ref(fig:viol-gcg-lawlor)).
+
+```{r viol-gcg-lawlor, fig.cap="Distribution of log-normalized expression values for _GCG_ across different pancreatic cell types in GSE86469."}
+sce.gse86469 <- readRDS("gse86469_sce.rds")
+plotExpression(sce.gse86469, x="CellType", features="ENSG00000115263")
+```
+
+Another aspect of this test is that it will not respond to scaling normalization.
+Systematic differences in library size between clusters will not be considered when computing $p$-values or effect sizes.
+This is not necessarily problematic for marker gene detection -
+users can treat this as retaining information about the total RNA content, analogous to spike-in normalization.
+
+## Using other DE analysis results
 
 It is possible to perform marker gene detection based on results from other DE analysis methods.
 For example, consider the `voom` approach in the `r Biocpkg("limma")` package [@law2014voom].
