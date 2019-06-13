@@ -36,107 +36,53 @@ opts_chunk$set(fig.asp=1)
 In this workflow, we examine a heterogeneous dataset from a study of cell types in the mouse brain [@zeisel2015brain].
 This contains approximately 3000 cells of varying types such as oligodendrocytes, microglia and neurons.
 Individual cells were isolated using the Fluidigm C1 microfluidics system [@pollen2014lowcoverage] and library preparation was performed on each cell using a UMI-based protocol.
-After sequencing, expression was quantified by counting the number of UMIs mapped to each gene.
-Count data for all endogenous genes, mitochondrial genes and spike-in transcripts are available from http://linnarssonlab.org/cortex.
-
-```{r}
-library(BiocFileCache)
-bfc <- BiocFileCache("raw_data", ask = FALSE)
-base.url <- file.path("https://storage.googleapis.com",
-    "linnarsson-lab-www-blobs/blobs/cortex")
-mRNA.path <- bfcrpath(bfc, file.path(base.url, 
-    "expression_mRNA_17-Aug-2014.txt"))
-mito.path <- bfcrpath(bfc, file.path(base.url, 
-    "expression_mito_17-Aug-2014.txt"))
-spike.path <- bfcrpath(bfc, file.path(base.url, 
-    "expression_spikes_17-Aug-2014.txt"))
-```
+After sequencing, expression was quantified by counting the number of unique molecular identifiers (UMIs) mapped to each gene.
+Our analysis aims to characterize the heterogeneity in transcriptional profiles across different cell types in this dataset.
 
 # Setting up the data 
 
-The count data are distributed across several files, so some work is necessary to consolidate them into a single matrix.
-We define a simple utility function for loading data in from each file. 
-(We stress that this function is only relevant to the current dataset, and should not be used for other datasets.
-This kind of effort is generally not required if all of the counts are in a single file and separated from the metadata.)
+Public data often requires considerable pre-processing before it is suitable for further analysis.
+Fortunately, this work has already been done in the `r Biocpkg("scRNAseq")` package,
+which conveniently provides the @zeisel2015brain count data in the form of a `SingleCellExperiment` object.
 
 ```{r}
-readFormat <- function(infile) { 
-    # First column is empty.
-    metadata <- read.delim(infile, stringsAsFactors=FALSE, header=FALSE, nrow=10)[,-1] 
-    rownames(metadata) <- metadata[,1]
-    metadata <- metadata[,-1]
-    metadata <- as.data.frame(t(metadata))
-
-    # First column after row names is some useless filler.
-    counts <- read.delim(infile, stringsAsFactors=FALSE, 
-        header=FALSE, row.names=1, skip=11)[,-1] 
-    counts <- as.matrix(counts)
-    return(list(metadata=metadata, counts=counts))
-}
+library(scRNAseq)
+sce <- ZeiselBrainData()
+table(rowData(sce)$featureType)
 ```
 
-Using this function, we read in the counts for the endogenous genes, ERCC spike-in transcripts and mitochondrial genes.
+We remove the repeat regions as these are not of interest.
+We will use the spike-in transcripts and the mitochondrial proportions later for quality control.
 
 ```{r}
-endo.data <- readFormat(mRNA.path)
-spike.data <- readFormat(spike.path)
-mito.data <- readFormat(mito.path)
-```
-
-We also need to rearrange the columns for the mitochondrial data, as the order is not consistent with the other files.
-
-```{r}
-m <- match(endo.data$metadata$cell_id, mito.data$metadata$cell_id)
-mito.data$metadata <- mito.data$metadata[m,]
-mito.data$counts <- mito.data$counts[,m]
-```
-
-```{r, echo=FALSE}
-stopifnot(identical(endo.data$metadata$cell_id, spike.data$metadata$cell_id)) # should be the same.
-stopifnot(all(endo.data$metadata$cell_id==mito.data$metadata$cell_id)) # should now be the same.
+sce <- sce[rowData(sce)$featureType!="repeat",]
 ```
 
 In this particular dataset, some genes are represented by multiple rows corresponding to alternative genomic locations.
-We sum the counts for all rows corresponding to a single gene for ease of interpretation.
+We sum the counts for all rows corresponding to a single gene for ease of interpretation,
+and create a new `SingleCellExperiment` with these aggregated counts.
 
 ```{r}
-raw.names <- sub("_loc[0-9]+$", "", rownames(endo.data$counts))
-new.counts <- rowsum(endo.data$counts, group=raw.names, reorder=FALSE)
-endo.data$counts <- new.counts
+library(scater)
+raw.names <- sub("_loc[0-9]+$", "", rownames(sce))
+table(table(raw.names))
+new.counts <- rowsum(counts(sce), raw.names, reorder=FALSE)
+dim(new.counts)
+
+# Replacing the count matrix in 'sce'.
+sce <- sce[match(rownames(new.counts), raw.names),]
+rownames(sce) <- rownames(new.counts)
+counts(sce) <- new.counts
 ```
 
-The counts are then combined into a single matrix for constructing a `SingleCellExperiment` object.
-For convenience, metadata for all cells are stored in the same object for later access.
-
-```{r}
-library(SingleCellExperiment)
-all.counts <- rbind(endo.data$counts, mito.data$counts, spike.data$counts)
-sce <- SingleCellExperiment(list(counts=all.counts), colData=endo.data$metadata)
-dim(sce)
-```
-
-We add gene-based annotation identifying rows that correspond to each class of features.
 We also determine the Ensembl identifier for each row.
 
 ```{r}
-# Specifying the nature of each row.
-nrows <- c(nrow(endo.data$counts), nrow(mito.data$counts), nrow(spike.data$counts))
-is.spike <- rep(c(FALSE, FALSE, TRUE), nrows)
-is.mito <- rep(c(FALSE, TRUE, FALSE), nrows)
-isSpike(sce, "Spike") <- is.spike
-
-# Adding Ensembl IDs.
 library(org.Mm.eg.db)
-ensembl <- mapIds(org.Mm.eg.db, keys=rownames(sce), keytype="SYMBOL", column="ENSEMBL")
+ensembl <- mapIds(org.Mm.eg.db, keys=rownames(sce), 
+    keytype="SYMBOL", column="ENSEMBL")
 rowData(sce)$ENSEMBL <- ensembl
-
 sce
-```
-
-```{r, echo=FALSE, results='hide'}
-# Save some memory.
-rm(mito.data, endo.data, spike.data, new.counts)
-gc()
 ```
 
 # Quality control on the cells 
@@ -146,7 +92,8 @@ Nonetheless, we compute some quality control metrics with `r Biocpkg("scater")` 
 
 ```{r}
 library(scater)
-sce <- calculateQCMetrics(sce, feature_controls=list(Mt=is.mito)) 
+sce <- calculateQCMetrics(sce, feature_controls=list(
+    Mt=rowData(sce)$featureType=="mito"))
 ```
 
 We examine the distribution of the QC metrics across all cells (Figure \@ref(fig:libplotbrain)).
@@ -161,7 +108,7 @@ hist(sce$total_counts/1e3, xlab="Library sizes (thousands)", main="",
     breaks=20, col="grey80", ylab="Number of cells")
 hist(sce$total_features_by_counts, xlab="Number of expressed genes", main="", 
     breaks=20, col="grey80", ylab="Number of cells")
-hist(sce$pct_counts_Spike, xlab="ERCC proportion (%)",
+hist(sce$pct_counts_ERCC, xlab="ERCC proportion (%)",
     ylab="Number of cells", breaks=20, main="", col="grey80")
 hist(sce$pct_counts_Mt, xlab="Mitochondrial proportion (%)", 
     ylab="Number of cells", breaks=20, main="", col="grey80")
@@ -173,7 +120,7 @@ Again, the presence of spike-in transcripts means that we do not have to use the
 ```{r}
 libsize.drop <- isOutlier(sce$total_counts, nmads=3, type="lower", log=TRUE)
 feature.drop <- isOutlier(sce$total_features_by_counts, nmads=3, type="lower", log=TRUE)
-spike.drop <- isOutlier(sce$pct_counts_Spike, nmads=3, type="higher")
+spike.drop <- isOutlier(sce$pct_counts_ERCC, nmads=3, type="higher")
 ```
 
 Removal of low-quality cells is then performed by combining the filters for all of the metrics.
@@ -283,7 +230,7 @@ plot(sizeFactors(sce), sce$total_counts/1e3, log="xy",
 We also compute size factors specific to the spike-in set, as previously described.
 
 ```{r}
-sce <- computeSpikeFactors(sce, type="Spike", general.use=FALSE)
+sce <- computeSpikeFactors(sce, type="ERCC", general.use=FALSE)
 ```
 
 Finally, normalized log-expression values are computed for each endogenous gene or spike-in transcript using the appropriate size factors.

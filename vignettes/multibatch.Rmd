@@ -162,96 +162,48 @@ curve(fit$trend(x), col="dodgerblue", add=TRUE, lwd=2)
 ### Reading in the data
 
 Here, we use data from the @@segerstolpe2016singlecell study.
-The good news is that the authors have provided a count table in the ArrayExpress entry for this project.
-We download it using `r Biocpkg("BiocFileCache")` to cache the results:
+This has already been processed into a `SingleCellExperiment` by the `r Biocpkg("scRNAseq")` package.
 
 ```{r}
-bfc <- BiocFileCache(ask=FALSE)    
-emat <- bfcrpath(bfc, file.path("https://www.ebi.ac.uk/arrayexpress",
-    "experiments/E-MTAB-5061/files/E-MTAB-5061.processed.1.zip"))
-count.file <- "pancreas_refseq_rpkms_counts_3514sc.txt"
+library(scRNAseq)
+sce.emtab <- SegerstolpePancreasData()
+sce.emtab
 ```
 
-The bad news is that the count table is needlessly complex:
-
-- The first 2 columns contain the gene symbol and NCBI GenBank transcript identifiers for each row.
-- The next `X` columns are the RPKMs, for `X` cells.
-- The remaining `X` columns are the counts.
-
-This requires some additional work to extract the useful data.
-The first line contains the names of the cells, 
-so we can use this to determine the number and indices of the columns with per-cell counts.
-
-```{r}
-col.names <- read.table(unz(emat, count.file), header=FALSE, sep="\t", 
-    stringsAsFactors=FALSE, comment.char="", nrows = 1)[,-1]
-ncells <- length(col.names)
-
-what <- vector("list", ncells*2 + 2)
-what[[1]] <- "character"
-what[seq_len(ncells) + ncells + 2] <- "integer"
-```
-
-We then read in the gene symbols and the counts.
-We use the gene symbols as the GenBank IDs have been rather clumsily formatted.
-
-```{r}
-emtab.df <- read.table(unz(emat, count.file), header=FALSE, sep="\t", 
-    stringsAsFactors=FALSE, colClasses=what, skip=1)
-row.names <- emtab.df[,1]
-emtab.df <- emtab.df[,-1]
-colnames(emtab.df) <- col.names
-dim(emtab.df)
-```
-
-Some work is required to translate the symbols into Ensembl gene identifiers via the `r Biocpkg("org.Hs.eg.db")` package.
+We translate the gene symbols into Ensembl gene identifiers via the `r Biocpkg("org.Hs.eg.db")` package.
 
 ```{r}
 library(org.Hs.eg.db)
-ens.id <- mapIds(org.Hs.eg.db, keys=row.names, 
+symbols <- rowData(sce.emtab)$symbol
+ens.id <- mapIds(org.Hs.eg.db, keys=symbols,
     keytype="SYMBOL", column="ENSEMBL")
-ens.id <- ifelse(is.na(ens.id), row.names, ens.id)
+ens.id <- ifelse(is.na(ens.id), symbols, ens.id)
 
 keep <- !duplicated(ens.id)
-emtab.df <- emtab.df[keep,]
-rownames(emtab.df) <- ens.id[keep]
-head(rownames(emtab.df))
+sce.emtab <- sce.emtab[keep,]
+rownames(sce.emtab) <- ens.id[keep]
+head(rownames(sce.emtab))
 ```
 
-We read in the metadata and extract the appropriate columns.
+We simplify the names of some of the relevant column metadata fields for ease of access.
 
 ```{r}
-meta.fname <- bfcrpath(bfc, file.path("https://www.ebi.ac.uk/arrayexpress",
-    "files/E-MTAB-5061/E-MTAB-5061.sdrf.txt"))
-emtab.sdrf <- read.delim(meta.fname, stringsAsFactors=FALSE)
-stopifnot(identical(sort(emtab.sdrf$Source.Name), sort(colnames(emtab.df))))    
-
-emtab.sdrf <- emtab.sdrf[match(colnames(emtab.df), emtab.sdrf$Source.Name),]
-emtab.meta <- emtab.sdrf[, c("Assay.Name", 
-    "Characteristics.cell.type.", "Characteristics.individual.",
-    "Characteristics.single.cell.well.quality.")]
-colnames(emtab.meta) <- c("Sample", "CellType", "Donor", "Quality")
+emtab.meta <- colData(sce.emtab)[,c("cell type", 
+    "individual", "single cell well quality")]
+colnames(emtab.meta) <- c("CellType", "Donor", "Quality")
 emtab.meta$Study <- "E-MTAB-5061"
-head(emtab.meta)
+colData(sce.emtab) <- emtab.meta
+colData(sce.emtab)
 ```
 
-Some editing of the cell type labels is necessary for consistency with GSE86469.
+Some editing of the cell type labels is also necessary for consistency with the annotation used in GSE86469.
 
 ```{r}
-emtab.meta$CellType <- gsub(" cell", "", emtab.meta$CellType)
-emtab.meta$CellType <- paste0(
-    toupper(substr(emtab.meta$CellType, 1, 1)),
-    substring(emtab.meta$CellType, 2))
-table(emtab.meta$CellType)
-```
-
-Finally, we create a `SingleCellExperiment` object.
-
-```{r}
-sce.emtab <- SingleCellExperiment(list(counts=as.matrix(emtab.df)), 
-    colData=emtab.meta)
-isSpike(sce.emtab, "ERCC") <- grep("^ERCC_", rownames(sce.emtab))
-sce.emtab
+sce.emtab$CellType <- gsub(" cell", "", sce.emtab$CellType)
+sce.emtab$CellType <- paste0(
+    toupper(substr(sce.emtab$CellType, 1, 1)),
+    substring(sce.emtab$CellType, 2))
+table(sce.emtab$CellType)
 ```
 
 ### Quality control and normalization
