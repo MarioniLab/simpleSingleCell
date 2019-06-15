@@ -1,5 +1,5 @@
 ---
-title: Workflows for analyzing single-cell RNA-seq data with R/Bioconductor
+title: Analyzing single-cell RNA-seq data with R/Bioconductor
 author: 
 - name: Aaron T. L. Lun
   affiliation: &CRUK Cancer Research UK Cambridge Institute, Li Ka Shing Centre, Robinson Way, Cambridge CB2 0RE, United Kingdom
