@@ -373,8 +373,6 @@ Its lack of expression relative to other genes will still yield informative pair
 
 # Examining gene-level expression metrics
 
-## Inspecting the most highly expressed genes
-
 We examine the identities of the most highly expressed genes (Figure \@ref(fig:topgene416b)).
 This should generally be dominated by constitutively expressed transcripts, such as those for ribosomal or mitochondrial proteins.
 The presence of other classes of features may be cause for concern if they are not consistent with expected biology.
@@ -385,20 +383,7 @@ fontsize <- theme(axis.text=element_text(size=12), axis.title=element_text(size=
 plotHighestExprs(sce, n=50) + fontsize
 ```
 
-## Filtering out low-abundance genes
-
-Low-abundance genes are problematic as zero or near-zero counts do not contain much information for reliable statistical inference.
-In applications involving hypothesis testing, these genes typically do not provide enough evidence to reject the null hypothesis yet they still increase the severity of the multiple testing correction.
-The discreteness of the counts may also interfere with statistical procedures, e.g., by compromising the accuracy of continuous approximations.
-Thus, low-abundance genes are often removed in many RNA-seq analysis pipelines before the application of downstream methods.
-
-The "optimal" choice of filtering strategy depends on the downstream application.
-A more aggressive filter is usually required to remove discreteness (e.g., for normalization) compared to that required for removing underpowered tests.
-For hypothesis testing, the filter statistic should also be independent of the test statistic under the null hypothesis [@bourgon2010independent].
-Thus, we (or the relevant function) will filter at each step as needed, rather than applying a single filter for the entire analysis.
-
-Several metrics can be used to define low-abundance genes.
-The most obvious is the average count for each gene, computed across all cells in the dataset.
+Another useful metric is the average count for each gene, computed across all cells in the dataset.
 We calculate this using the `calcAverage()` function, which also performs some adjustment for library size differences between cells. 
 We typically observe a peak of moderately expressed genes following a plateau of lowly expressed genes (Figure \@ref(fig:abhist416b)).
 
@@ -408,20 +393,9 @@ hist(log10(ave.counts), breaks=100, main="", col="grey80",
     xlab=expression(Log[10]~"average count"))
 ```
 
-A minimum threshold can be applied to this value to filter out genes that are lowly expressed.
-The example below demonstrates how we _could_ remove genes with average counts less than 1.
-The number of `TRUE` values in `demo.keep` corresponds to the number of retained rows/genes after filtering.
-
-```{r}
-demo.keep <- ave.counts >= 1
-filtered.sce <- sce[demo.keep,]
-summary(demo.keep)
-```
-
 We also examine the number of cells that express each gene.
 This is closely related to the average count for most genes, as expression in many cells will result in a higher average (Figure \@ref(fig:nexprshist416b)).
 Genes expressed in very few cells are often uninteresting as they are driven by amplification artifacts (though they may also also arise from rare populations).
-We could then remove genes that are expressed in fewer than _n_ cells.
 
 ```{r nexprshist416b, fig.cap="The number of cells expressing each gene in the 416B dataset, plotted against the log-average count. Intensity of colour corresponds to the number of genes at any given location."}
 num.cells <- nexprs(sce, byrow=TRUE)
@@ -429,10 +403,9 @@ smoothScatter(log10(ave.counts), num.cells, ylab="Number of cells",
     xlab=expression(Log[10]~"average count"))
 ```
 
-As mentioned above, we will apply these filters at each step rather than applying them globally by subsetting `sce`.
-This ensures that the most appropriate filter is used in each application.
-Nonetheless, we remove genes that are not expressed in any cell to reduce computational work in downstream steps. 
-Such genes provide no information and would be removed by any filtering strategy.
+We remove genes that are not expressed in any cell to avoid unnecessary computational work in downstream steps. 
+Further filtering may be applied on a step-by-step basis within specific functions - 
+see comments `r simpleSingleCell:::.link("misc", "comments on filtering by abundance", "here')` for a more detailed discussion.
 
 ```{r}
 to.keep <- num.cells > 0
