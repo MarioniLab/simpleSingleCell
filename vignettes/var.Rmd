@@ -194,8 +194,9 @@ it is possible that the top HVG set would be dominated by markers for the outlie
 This would compromise resolution of differences between the other subpopulations. 
 Relaxed selection of genes avoids these issues to improve reliability at the cost of suboptimal signal-to-noise.
 
-That said, once a baseline is acquired, users can easily explore various compromises between bias and variance in most functions through the `subset.row=` argument (or equivalent).
-This allows users to test different gene subsets without having to keep track of changes to the input `SingleCellExperiment`.
+That said, once a baseline is acquired, users can easily explore various compromises between bias and variance.
+This is achieved in most `r Biocpkg("scran")` functions through the `subset.row=` argument (or equivalent in other packages),
+which allows users to easily test different gene subsets in various procedures.
 The example below uses the top 500 genes with the largest biological components for dimensionality reduction via `denoisePCA()`.
 
 ```{r}
@@ -207,11 +208,19 @@ ncol(reducedDim(sce.hsc, "PCA"))
 
 **Comments from Aaron:**
 
-- If too few HVGs are selected, the analysis may fail to resolve heterogeneity that is not the most dominant factor in the data.
-In such cases, a useful sanity-checking procedure is to repeat the entire analysis (including HVG detection)
-on each subpopulation.
-This allows characterization of further heterogeneity within each subpopulation that was masked in the overall analysis.
-Of course, this is not without its own risks - repeated application of this strategy can result in the definition of highly resolved "subpopulations" with differences that are so small as to be meaningless in the wider context of the entire population.
+- If too few HVGs are selected, the analysis may fail to resolve factors of variation that are not the most dominant in the data.
+In such cases, a useful procedure is to repeat the entire analysis on each cluster of cells identified in the initial analysis.
+To do so, users can simply subset the `SingleCellExperiment` object and re-apply functions for variance modelling, dimensionality reduction, clustering, etc. to the subset.
+This allows characterization of further heterogeneity within each cluster that was masked in the overall analysis.
+Of course, this strategy is much more labour intensive -
+in addition to the obvious additional work, more care is required to deal with the consequences of overclustering at each step.
+    - Overclustering in the initial analysis splits subpopulations in a manner that does not reflect the major factors of variation within each subpopulation (as the HVGs capturing that subpopulation's internal variation are not used).
+    Repeating the analysis on each of those weakly separated clusters risks defining redundant instances of the same cell types or states, which requires additional effort to reconcile during interpretation.
+    - Overclustering reduces the number of cells in each of the repeated analyses,
+    as cells from the same type or state are split across two or more clusters in the initial analysis.
+    This reduces the resolution available for characterizing heterogeneity.
+    - The alternative is to avoid overclustering by requiring strong separation at each step,
+    which increases the number of steps required to achieve a particular resolution.
 
 ## Further comments
 

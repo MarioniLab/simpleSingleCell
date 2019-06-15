@@ -387,7 +387,7 @@ Very heterogeneous datasets may yield a few large clusters on the first round of
 It can be useful to repeat the variance modelling, denoising and clustering using only the cells within each of the initial clusters.
 This can be achieved by subsetting `sce` according to a particular level of `my.clusters`, and re-applying the relevant functions on the subset.
 Doing so may focus on a different set of genes that define heterogeneity _within_ an initial cluster, as opposed to those that define differences _between_ the initial clusters.
-This would allow fine-scale structure within each cluster to be explored at greater resolution. 
+This would allow fine-scale structure within each cluster to be explored at greater resolution^[Also see comments `r simpleSingleCell:::.link("var", "HVGs and the bias-variance trade-off", "here")`.].
 For simplicity, though, we will only use the broad clusters corresponding to clear subpopulations in this workflow.
 
 **Comments from Aaron:**
