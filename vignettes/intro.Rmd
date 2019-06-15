@@ -20,6 +20,7 @@ vignette: >
 output: 
   BiocStyle::html_document:
     toc_float: true
+    titlecaps: no
 bibliography: ref.bib
 ---
 
@@ -93,6 +94,34 @@ For these data sets, the `r Biocpkg("scPipe")` package [@lian2018scpipe] provide
 
 If spike-in RNA was added, the sequences of the spike-in transcripts can be included as additional FASTA files during genome index building prior to alignment.
 Similarly, genomic intervals for both spike-in transcripts and endogenous genes can be concatenated into a single GTF file prior to counting.
+
+# Quick start
+
+The code below contains a no-frills analysis of the @zeisel2015brain data set, culminating in Figure \@ref(fig:quickstart).
+This is only provided as a demonstration of the overall structure of a basic scRNA-seq analysis -
+for each step, more sophisticated procedures will be presented in the following workflows.
+(While this simple analysis is unlikely to do too poorly if applied directly to a user's data set,
+it is still helpful to read the workflows to gain an understanding of the potential problems at each step and their solutions.)
+
+```{r quickstart, fig.cap="A t-SNE plot of the Zeisel brain dataset, where each cell is a point coloured by its cluster assignment."}
+# Preparing data:
+library(scRNAseq)
+sce <- ZeiselBrainData()
+sce <- sce[!isSpike(sce),] # not using the spike-ins, for simplicity.
+
+# Dimensionality reduction:
+library(scater)
+sce <- normalize(sce) # normalizing by library size for speed.
+sce <- runPCA(sce, scale=FALSE) # auto-selects the most variable genes.
+sce <- runTSNE(sce, use_dimred="PCA")
+
+# Defining clusters and markers:
+library(scran)
+snn.gr <- buildSNNGraph(sce, use.dimred="PCA")
+sce$cluster <- factor(igraph::cluster_walktrap(snn.gr)$membership)
+markers <- findMarkers(sce, sce$cluster)
+plotTSNE(sce, colour_by="cluster")
+```
 
 # Author information
 
