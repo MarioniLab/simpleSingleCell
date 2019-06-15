@@ -214,13 +214,6 @@ To do so, users can simply subset the `SingleCellExperiment` object and re-apply
 This allows characterization of further heterogeneity within each cluster that was masked in the overall analysis.
 Of course, this strategy is much more labour intensive -
 in addition to the obvious additional work, more care is required to deal with the consequences of overclustering at each step.
-    - Overclustering in the initial analysis splits subpopulations in a manner that does not reflect the major factors of variation within each subpopulation (as the HVGs capturing that subpopulation's internal variation are not used).
-    Repeating the analysis on each of those weakly separated clusters risks defining redundant instances of the same cell types or states, which requires additional effort to reconcile during interpretation.
-    - Overclustering reduces the number of cells in each of the repeated analyses,
-    as cells from the same type or state are split across two or more clusters in the initial analysis.
-    This reduces the resolution available for characterizing heterogeneity.
-    - The alternative is to avoid overclustering by requiring strong separation at each step,
-    which increases the number of steps required to achieve a particular resolution.
 
 ## Further comments
 
