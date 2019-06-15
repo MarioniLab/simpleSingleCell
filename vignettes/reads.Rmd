@@ -405,7 +405,7 @@ smoothScatter(log10(ave.counts), num.cells, ylab="Number of cells",
 
 We remove genes that are not expressed in any cell to avoid unnecessary computational work in downstream steps. 
 Further filtering may be applied on a step-by-step basis within specific functions - 
-see comments `r simpleSingleCell:::.link("misc", "comments on filtering by abundance", "here')` for a more detailed discussion.
+see comments `r simpleSingleCell:::.link("misc", "comments on filtering by abundance", "here")` for a more detailed discussion.
 
 ```{r}
 to.keep <- num.cells > 0
@@ -553,13 +553,13 @@ plotExpression(sce, features=rownames(var.out)[chosen.genes]) + fontsize
 
 - In practice, trend fitting is complicated by the small number of spike-in transcripts and the uneven distribution of their abundances.
 See `r simpleSingleCell:::.link("var", "Details of trend-fitting parameters", "here")` for more details on how to refine the fit.
-- In the absence of spike-ins, users can set `use.spikes=FALSE` to fit a trend to the variances of the endogenous genes (see `r simpleSingleCell:::.link("var", "Wwhen spike-ins are unavailable", "here")`).
+- In the absence of spike-ins, users can set `use.spikes=FALSE` to fit a trend to the variances of the endogenous genes (see `r simpleSingleCell:::.link("var", "When spike-ins are unavailable", "here")`).
 Alternatively, we can create a trend based on the assumption of Poisson technical noise, as described `r simpleSingleCell:::.link("tenx", "Modelling the mean-variance trend", "here")`.
 - Negative biological components are often obtained from `decomposeVar`. 
 These are intuitively meaningless as it is impossible for a gene to have total variance below technical noise.
 Nonetheless, such values occur due to imprecise estimation of the total variance, especially for low numbers of cells.
 - `decomposeVar` also yields _p_-values that can be used to define HVGs at a specific threshold for the false discovery rate (FDR).
-We will discuss this in more detail later, as formal detection of HVGs is not necessary for feature selection during data exploration.
+We will discuss this in more detail `r simpleSingleCell:::.link("var", NULL, "later")`, as formal detection of HVGs is not necessary for feature selection during data exploration.
 
 # Removing the batch effect
 
@@ -597,7 +597,7 @@ Each axis is a principal component (PC), where any early PC will explain more of
 We assume that biological processes involving co-regulated groups of genes will account for the most variance in the data.
 If this is the case, this process should be represented by one or more of the earlier PCs.
 In contrast, random technical noise affects each gene independently and will be represented by later PCs.
-The `denoisePCA()` function removes later PCs until the total discarded variance is equal to the sum of technical components for all genes used in the PCA.
+The `denoisePCA()` function removes later PCs until the total discarded variance is equal to the sum of technical components for all genes used in the PCA, using the technical components estimated from `decomposeVar()`.
 
 ```{r}
 sce <- denoisePCA(sce, technical=var.out, assay.type="corrected")
@@ -612,11 +612,12 @@ __Comments from Aaron:__
 
 - `denoisePCA()` will only use genes that have positive biological components, i.e., variances greater than the fitted trend.
 This guarantees that the total technical variance to be discarded will not be greater than the total variance in the data.
+- Users can restrict `denoisePCA()` to use a smaller subset of genes by setting the `subset.row=` argument.
+This may be useful to only perform the PCA on genes with the largest biological components,
+thus increasing the signal-to-noise ratio of downstream analyses.
+See `r simpleSingleCell:::.link("var", "HVGs and the bias-variance trade-off", "here")` for a discussion of the considerations involved.
 - For the `technical=` argument, the function will also accept the trend function directly (i.e., `var.fit$trend`) or a vector of technical components per gene.
-Here, we supply the `DataFrame` from `decomposeVar()` to allow the function to adjust for the loss of residual degrees of freedom after batch correction.
-Specifically, the variance in the batch-corrected matrix is slightly understated, requiring some rescaling of the technical components to compensate.
-- No filtering is performed on abundance here, which ensures that PCs corresponding to rare subpopulations can still be detected. 
-Discreteness is less of an issue as low-abundance genes also have lower variance, thus reducing their contribution to the PCA.
+The advantage of supplying the `DataFrame` from `decomposeVar()` is that it allows adjustments for the loss of residual degrees of freedom after batch correction.
 - It is also possible to obtain a low-rank approximation of the original expression matrix, capturing the variance equivalent to the retained PCs.
 This is useful for denoising prior to downstream procedures that require gene-wise expression values.
 

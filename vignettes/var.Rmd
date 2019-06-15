@@ -152,7 +152,7 @@ nrow(hvg.out)
 
 We rank the results to focus on genes with larger biological components.
 This highlights an interesting aspect of the underlying hypothesis test, which is based on the ratio of the total variance to the expected technical variance.
-Ranking based on _p_-value tends to prioritize HVGs that are more likely to be true positives but, at the same time, less likely to be interesting.
+Ranking based on $p$-value tends to prioritize HVGs that are more likely to be true positives but, at the same time, less likely to be interesting.
 This is because the ratio can be very large for HVGs that have very low total variance and do not contribute much to the cell-cell heterogeneity.
 
 ```{r}
@@ -169,9 +169,59 @@ fontsize <- theme(axis.text=element_text(size=12), axis.title=element_text(size=
 plotExpression(sce.hsc, features=rownames(hvg.out)[1:10]) + fontsize
 ```
 
+## HVGs and the bias-variance trade-off
+
+A common procedure in many scRNA-seq data analyses is to select a subset of interesting genes for further analysis.
+The definition of "interesting" is often based on a per-gene measure of variation such that HVGs are prioritized.
+For example, `denoisePCA()` does so when it only performs the principal components analysis on genes with positive biological components.
+More aggressive strategies involve taking some top set of genes, 
+e.g., the top 1000-5000 genes with the largest biological components or the smallest $p$-values.
+
+The choice between these strategies involves making a decision about the acceptable bias-variance trade-off in the analysis.
+If we only use a small set of HVGs, we risk discarding genuine biological signal and our bias will likely be high.
+Conversely, if we include too many genes, we risk obscuring the signal with unnecessary noise.
+It is difficult to determine the optimal trade-off for any given application,
+as noise in one context may be useful signal in another.
+For example, heterogeneity in T cell activation responses is an interesting phenomena [@richard2018tcell]
+but may be simply noise in studies that only care about distinguishing the major immunophenotypes.
+
+The position taken by most of our workflows is to err on the side of reducing bias at the cost of increasing variance.
+This is done by retaining as many genes as possible for further analysis and only removing what is strictly necessary.
+The motivation here is to provide a conservative baseline analysis that avoids loss of structure in pathological scenarios.
+For example, imagine that a data set contained several subpopulations, one of which was very different from the others.
+If we were to take the top 500 genes for further analysis, 
+it is possible that the top HVG set would be dominated by markers for the outlier subpopulation.
+This would compromise resolution of differences between the other subpopulations. 
+Relaxed selection of genes avoids these issues to improve reliability at the cost of suboptimal signal-to-noise.
+
+That said, once a baseline is acquired, users can easily explore various compromises between bias and variance in most functions through the `subset.row=` argument (or equivalent).
+This allows users to test different gene subsets without having to keep track of changes to the input `SingleCellExperiment`.
+The example below uses the top 500 genes with the largest biological components for dimensionality reduction via `denoisePCA()`.
+
+```{r}
+top.hvgs <- head(rownames(hvg.out), 500)
+sce.hsc <- denoisePCA(sce.hsc, technical=var.fit$trend,
+    subset.row=top.hvgs, max.rank=50)
+ncol(reducedDim(sce.hsc, "PCA"))
+```
+
+**Comments from Aaron:**
+
+- If too few HVGs are selected, the analysis may fail to resolve heterogeneity that is not the most dominant factor in the data.
+In such cases, a useful sanity-checking procedure is to repeat the entire analysis (including HVG detection)
+on each subpopulation.
+This allows characterization of further heterogeneity within each subpopulation that was masked in the overall analysis.
+Of course, this is not without its own risks - repeated application of this strategy can result in the definition of highly resolved "subpopulations" with differences that are so small as to be meaningless in the wider context of the entire population.
+
 ## Further comments
 
-There are many other strategies for defining HVGs, based on a variety of metrics:
+We save the HSC dataset to file for later use.
+
+```{r}
+saveRDS(sce.hsc, file="hsc_data.rds")
+```
+
+Note that there are many other strategies for defining HVGs, based on a variety of metrics:
 
 - the coefficient of variation, using the `technicalCV2()` function [@brennecke2013accounting] or the `DM()` function [@kim2015characterizing] in `r Biocpkg("scran")`.
 - the dispersion parameter in the negative binomial distribution, using the `estimateDisp()` function in `r Biocpkg("edgeR")` [@mccarthy2012differential].
@@ -179,12 +229,6 @@ There are many other strategies for defining HVGs, based on a variety of metrics
 
 Here, we used the variance of the log-expression values because the log-transformation protects against genes with strong expression in only one or two cells.
 This reduces the risk that the set of top HVGs is not dominated by genes with (mostly uninteresting) outlier expression patterns.
-
-We also save the HSC dataset to file for later use, using `saveRDS()` as previously described.
-
-```{r}
-saveRDS(sce.hsc, file="hsc_data.rds")
-```
 
 # Fine-tuning the mean-variance trend fit
 
