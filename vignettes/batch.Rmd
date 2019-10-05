@@ -19,4 +19,4 @@ bibliography: ref.bib
 
 # Redirection notice
 
-See https://osca.bioconductor.org/data-integration.html for the latest content.
+See https://osca.bioconductor.org/integrating-datasets.html for the latest content.
