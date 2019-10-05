@@ -1,39 +1,27 @@
 Package: simpleSingleCell 
 Title: A step-by-step workflow for low-level analysis of single-cell RNA-seq data with Bioconductor
-Version: 1.9.9
-Date: 2019-09-30
+Version: 1.9.10
+Date: 2019-10-04
 Authors@R: c(person(role=c("aut", "cre"), "Aaron", "Lun", email = "infinite.monkeys.with.keyboards@gmail.com"),
         person(role="aut", "Davis", "McCarthy"),
         person(role="aut", "John", "Marioni"))
-Description: Redirects to the "Orchestrating Single-Cell Analyses with Bioconductor" book. 
-        Most vignettes here are retained largely for back-compatibility with existing links.
-Imports: BiocStyle, callr, rmarkdown
-Suggests: knitr, 
+Description: 
+        Almost all content that was previously in these workflows have been
+        migrated to the "Orchestrating Single-Cell Analyses with Bioconductor"
+        book at https://osca.bioconductor.org. Most vignettes here are retained
+        largely for back-compatibility with existing external links, and
+        provide links to the relevant OSCA book chapters.
+Suggests: knitr,
+        rmarkdown,
+        BiocStyle,
         readxl,
         R.utils,
-        Matrix,
         SingleCellExperiment,
         scater,
         scran,
-        DropletUtils,
-        org.Hs.eg.db,
-        org.Mm.eg.db,
-        EnsDb.Hsapiens.v86,
-        TxDb.Mmusculus.UCSC.mm10.ensGene,
-        dynamicTreeCut,
-        cluster,
-        igraph,
-        Rtsne,
-        pheatmap,
         limma,
-        edgeR,
-        BiocParallel,
         BiocFileCache,
-        BiocNeighbors,
-        BiocSingular,
-        batchelor,
-        scRNAseq,
-        TENxBrainData
+        org.Mm.eg.db
 License: Artistic-2.0
 Encoding: UTF-8
 LazyData: true
