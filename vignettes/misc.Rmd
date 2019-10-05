@@ -49,15 +49,44 @@ This is quantified by computing Spearman's rho, which accommodates non-linear re
 Non-zero correlations between pairs of genes provide evidence for their co-regulation.
 However, the noise in the data requires some statistical analysis to determine whether a correlation is significantly non-zero.
 
-To demonstrate, we use the `correlatePairs` function to identify significant correlations between the various histocompatability antigens in the haematopoietic stem cell (HSC) dataset [@wilson2015combined].
+To demonstrate, we use the `correlatePairs` function to identify significant correlations between the various histocompatability antigens in the haematopoietic stem cell (HSC) Smart-seq2 dataset [@wilson2015combined].
+Counts were obtained from NCBI GEO as a supplementary file using the accession number [GSE61533](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE61533), and are used to generate a `SingleCellExperiment` as shown below.
+
+```{r}
+library(BiocFileCache)
+bfc <- BiocFileCache("raw_data", ask=FALSE)
+wilson.fname <- bfcrpath(bfc, file.path("ftp://ftp.ncbi.nlm.nih.gov/geo/series",
+    "GSE61nnn/GSE61533/suppl/GSE61533_HTSEQ_count_results.xls.gz"))
+library(R.utils)
+wilson.name2 <- "GSE61533_HTSEQ_count_results.xls"
+gunzip(wilson.fname, destname=wilson.name2, remove=FALSE, overwrite=TRUE)
+
+library(readxl)
+all.counts <- read_excel(wilson.name2)
+gene.names <- all.counts$ID
+all.counts <- as.matrix(all.counts[,-1])
+rownames(all.counts) <- gene.names
+
+library(SingleCellExperiment)
+sce.hsc <- SingleCellExperiment(list(counts=all.counts))
+is.spike <- grepl("^ERCC", rownames(sce.hsc))
+sce.hsc <- splitAltExps(sce.hsc, ifelse(is.spike, "ERCC", "gene"))
+
+library(scater)
+sce.hsc <- addQCPerCell(sce.hsc)
+spike.drop <- quickCellQC(colData(sce.hsc))
+sce.hsc <- sce.hsc[,!spike.drop$discard]
+
+library(scran)
+sce.hsc <- computeSumFactors(sce.hsc)
+sce.hsc <- logNormCounts(sce.hsc)
+```
+
 The significance of each correlation is determined using a permutation test.
 For each pair of genes, the null hypothesis is that the expression profiles of two genes are independent.
 Shuffling the profiles and recalculating the correlation yields a null distribution that is used to obtain a _p_-value for each observed correlation value [@phipson2010permutation].
 
 ```{r}
-library(scran)
-sce.hsc <- readRDS("hsc_data.rds")    
-
 set.seed(100)
 var.cor <- correlatePairs(sce.hsc, subset.row=grep("^H2-", rownames(sce.hsc)))
 head(var.cor)
@@ -114,14 +143,13 @@ For example, `computeSumFactors()` will apply a somewhat stringent filter based 
 Other applications will not do any abundance-based filtering at all (e.g., `denoisePCA()`) to preserve biological signal from lowly expressed genes.
 
 Nonetheless, if global filtering is desired, it is simple to achieve by simply subsetting the `SingleCellExperiment` object.
-The example below demonstrates how we _could_ remove genes with average counts less than 1 in the `r simpleSingleCell:::.link("reads", NULL, "416B dataset")`.
+The example below demonstrates how we _could_ remove genes with average counts less than 1 in the HSC dataset.
 The number of `TRUE` values in `demo.keep` corresponds to the number of retained rows/genes after filtering.
 
 ```{r}
-sce.416b <- readRDS("416B_data.rds")
-ave.counts <- calculateAverage(sce.416b)
+ave.counts <- calculateAverage(sce.hsc)
 demo.keep <- ave.counts >= 1
-filtered.sce.416b <- sce.416b[demo.keep,]
+filtered.sce.hsc <- sce.hsc[demo.keep,]
 summary(demo.keep)
 ```
 
