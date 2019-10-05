@@ -31,11 +31,6 @@ opts_chunk$set(error=FALSE, message=FALSE, warning=FALSE, cache=TRUE)
 opts_chunk$set(fig.asp=1)
 ```
 
-```{r, cache=FALSE, echo=FALSE, results="hide"}
-simpleSingleCell:::.compile("var") # HSC 
-simpleSingleCell:::.compile("reads") # 416B
-```
-
 # Overview
 
 Here, we describe a few additional analyses that can be performed with single-cell RNA sequencing data.
