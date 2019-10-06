@@ -110,7 +110,7 @@ plotExpression(sce.hsc, features="Fos", x="Jun")
 
 The use of `correlatePairs` is primarily intended to identify correlated gene pairs for validation studies.
 Obviously, non-zero correlations do not provide evidence for a direct regulatory interaction, let alone specify causality.
-To construct regulatory networks involving many genes, we suggest using dedicated packages such as `r CRANpkg("WCGNA")`.
+To construct regulatory networks involving many genes, we suggest using dedicated packages such as `r Biocpkg("WCGNA")`.
 
 __Comments from Aaron:__
 
