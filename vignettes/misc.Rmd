@@ -68,7 +68,7 @@ is.spike <- grepl("^ERCC", rownames(sce.hsc))
 sce.hsc <- splitAltExps(sce.hsc, ifelse(is.spike, "ERCC", "gene"))
 
 library(scater)
-sce.hsc <- addQCPerCell(sce.hsc)
+sce.hsc <- addPerCellQC(sce.hsc)
 spike.drop <- quickPerCellQC(colData(sce.hsc))
 sce.hsc <- sce.hsc[,!spike.drop$discard]
 
