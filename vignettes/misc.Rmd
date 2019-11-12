@@ -197,8 +197,7 @@ For example, model fitting is not possible if all cells in one experimental cond
 
 ```{r}
 design <- model.matrix(~ G1 + G2M, assignments$score)
-fit.block <- trendVar(sce.th2, design=design, parametric=TRUE, use.spikes=NA)
-dec.block <- decomposeVar(sce.th2, fit.block)
+dec.block <- modelGeneVar(sce.th2, design=design) 
 
 library(limma)
 sce.th2.block <- sce.th2
