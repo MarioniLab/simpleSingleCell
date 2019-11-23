@@ -134,7 +134,7 @@ The "optimal" choice of filtering strategy depends on the downstream application
 A more aggressive filter is usually required to remove discreteness and to avoid zeroes, e.g., for normalization purposes.
 By comparison, the filter statistic for hypothesis testing is mainly required to be independent of the test statistic under the null hypothesis [@bourgon2010independent].
 Given these differences in priorities, we (or the relevant function) will filter at each step as appropriate, rather than applying a single filter for the entire analysis.
-For example, `computeSumFactors()` will apply a somewhat stringent filter based on the average count, while `trendVar()` will apply a relatively relaxed filter based on the average log-expression.
+For example, `computeSumFactors()` will apply a somewhat stringent filter based on the average count, while `fitTrendVar()` will apply a relatively relaxed filter based on the average log-expression.
 Other applications will not do any abundance-based filtering at all (e.g., `denoisePCA()`) to preserve biological signal from lowly expressed genes.
 
 Nonetheless, if global filtering is desired, it is simple to achieve by simply subsetting the `SingleCellExperiment` object.
@@ -218,14 +218,14 @@ sce.th2$G1score <- sce.th2.block$G1score <- assignments$score$G1
 sce.th2$G2Mscore <- sce.th2.block$G2Mscore <- assignments$score$G2M
 
 # Without blocking on phase score.
-fit <- trendVar(sce.th2, parametric=TRUE, use.spikes=NA) 
-sce.th2 <- denoisePCA(sce.th2, technical=fit$trend)
+dec.th2 <- modelGeneVar(sce.th2)
+sce.th2 <- denoisePCA(sce.th2, dec.th2)
 fontsize <- theme(axis.text=element_text(size=12), axis.title=element_text(size=16))
-out <- plotReducedDim(sce.th2, use_dimred="PCA", ncomponents=2, colour_by="G1score", 
+out <- plotReducedDim(sce.th2, dimred="PCA", ncomponents=2, colour_by="G1score", 
     size_by="G2Mscore") + fontsize + ggtitle("Before removal")
 
 # After blocking on the phase score.
-out2 <- plotReducedDim(sce.th2.block, use_dimred="PCA", ncomponents=2, 
+out2 <- plotReducedDim(sce.th2.block, dimred="PCA", ncomponents=2, 
     colour_by="G1score", size_by="G2Mscore") + fontsize + 
     ggtitle("After removal")
 multiplot(out, out2, cols=2)
@@ -237,8 +237,8 @@ In Figure \@ref(fig:diffusionth2), cells are arranged along a trajectory in the 
 The first diffusion component is likely to correspond to T~H~2 differentiation, given that a key regulator _Gata3_ [@zhu2006gata3] changes in expression from left to right.
 
 ```{r diffusionth2, fig.cap="A diffusion map for the T~H~2 dataset, where each cell is coloured by its expression of _Gata3_. A larger `sigma` is used compared to the default value to obtain a smoother plot."}
-plotDiffusionMap(sce.th2.block, colour_by="Gata3",
-    run_args=list(use_dimred="PCA", sigma=25)) + fontsize
+sce.th2.block <- runDiffusionMap(sce.th2.block, dimred="PCA", sigma=25)
+plotDiffusionMap(sce.th2.block, colour_by="Gata3") + fontsize
 ```
 
 # Concluding remarks 
