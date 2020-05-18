@@ -11,9 +11,15 @@ Description:
         book at https://osca.bioconductor.org. Most vignettes here are retained
         largely for back-compatibility with existing external links, and
         provide links to the relevant OSCA book chapters.
-Suggests: knitr,
+Imports:
+        utils,
+        methods,
+        knitr,
+        callr,
         rmarkdown,
-        BiocStyle,
+        CodeDepends,
+        BiocStyle
+Suggests: 
         readxl,
         R.utils,
         SingleCellExperiment,
@@ -30,4 +36,4 @@ biocViews: ImmunoOncologyWorkflow, Workflow, SingleCellWorkflow
 Workflow: True
 NeedsCompilation: no
 URL: https://www.bioconductor.org/help/workflows/simpleSingleCell/ 
-RoxygenNote: 6.1.1
+RoxygenNote: 7.1.0
