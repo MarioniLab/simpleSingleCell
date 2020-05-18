@@ -8,7 +8,7 @@ book:
 		mv blah $$x; \
 	done
 	cd OSCA && ${R_HOME}/bin/R -e "bookdown::render_book('index.Rmd')"
-	rm -rf OSCA/_bookdown_files/*_cache
+	rm -rf OSCA/_bookdown_files/
 
 clean: 
 	rm -rf *_cache *_files
