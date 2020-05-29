@@ -9,7 +9,7 @@ book: clone
 		cat $$x | sed "s/rebook/simpleSingleCell/g" > blah; \
 		mv blah $$x; \
 	done
-#	cd OSCA && ${R_HOME}/bin/R -e "bookdown::render_book('index.Rmd')"
+	cd OSCA && ${R_HOME}/bin/R -e "bookdown::render_book('index.Rmd')"
 	rm -rf OSCA/_bookdown_files/
 
 clean: 
