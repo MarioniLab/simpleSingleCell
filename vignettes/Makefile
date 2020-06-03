@@ -1,10 +1,9 @@
 all: book
 
-clone:
+OSCA:
 	git clone https://github.com/Bioconductor/OSCABase OSCA
-	cd OSCA && git checkout rebook
 
-book: clone
+book: OSCA
 	for x in $(shell ls OSCA/*.Rmd); do \
 		cat $$x | sed "s/rebook/simpleSingleCell/g" > blah; \
 		mv blah $$x; \
