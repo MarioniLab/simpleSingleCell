@@ -1,7 +1,7 @@
 Package: simpleSingleCell
 Title: A step-by-step workflow for low-level analysis of single-cell RNA-seq data with Bioconductor
-Version: 1.13.4
-Date: 2020-06-02
+Version: 1.13.5
+Date: 2020-06-19
 Authors@R: c(person(role=c("aut", "cre"), "Aaron", "Lun", email = "infinite.monkeys.with.keyboards@gmail.com"),
         person(role="aut", "Davis", "McCarthy"),
         person(role="aut", "John", "Marioni"))
@@ -27,7 +27,8 @@ Suggests:
         scran,
         limma,
         BiocFileCache,
-        org.Mm.eg.db
+        org.Mm.eg.db,
+        clustree
 License: Artistic-2.0
 Encoding: UTF-8
 LazyData: true
