@@ -1,7 +1,7 @@
 Package: simpleSingleCell
 Title: A step-by-step workflow for low-level analysis of single-cell RNA-seq data with Bioconductor
-Version: 1.13.5
-Date: 2020-06-19
+Version: 1.13.6
+Date: 2020-07-02
 Authors@R: c(person(role=c("aut", "cre"), "Aaron", "Lun", email = "infinite.monkeys.with.keyboards@gmail.com"),
         person(role="aut", "Davis", "McCarthy"),
         person(role="aut", "John", "Marioni"))
