@@ -6,11 +6,15 @@ Authors@R: c(person(role=c("aut", "cre"), "Aaron", "Lun", email = "infinite.monk
         person(role="aut", "Davis", "McCarthy"),
         person(role="aut", "John", "Marioni"))
 Description: 
-        Almost all content that was previously in these workflows have been
-        migrated to the "Orchestrating Single-Cell Analyses with Bioconductor"
-        book at https://osca.bioconductor.org. Most vignettes here are retained
-        largely for back-compatibility with existing external links, and
-        provide links to the relevant OSCA book chapters.
+        Once a proud workflow package, this is now a shell of its former self.
+        Almost all of its content has been cannibalized for use in the
+        "Orchestrating Single-Cell Analyses with Bioconductor" book at
+        https://osca.bioconductor.org. Most vignettes here are retained as
+        reminders of the glory that once was, also providing redirection for
+        existing external links to the relevant OSCA book chapters. The final
+        task of this package - and perhaps its greatest indignity! - is to
+        act as a vessel for compiling its successor on the Bioconductor build
+        system. 
 Imports:
         utils,
         methods,
@@ -27,8 +31,7 @@ Suggests:
         scran,
         limma,
         BiocFileCache,
-        org.Mm.eg.db,
-        clustree
+        org.Mm.eg.db
 License: Artistic-2.0
 Encoding: UTF-8
 LazyData: true
