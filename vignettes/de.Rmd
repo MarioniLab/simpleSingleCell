@@ -8,7 +8,9 @@ vignette: >
   %\VignetteIndexEntry{10. Detecting differential expression}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}    
-output: BiocStyle::html_document
+output: 
+  BiocStyle::html_document
+    toc: false    
 bibliography: ref.bib
 ---
    

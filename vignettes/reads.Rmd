@@ -17,10 +17,12 @@ vignette: >
   %\VignetteIndexEntry{02. Read count data}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}    
-output: BiocStyle::html_document
+output: 
+  BiocStyle::html_document:
+    toc: false
 bibliography: ref.bib
 ---
 
-# Redirection notice 
+# Redirection notice {-}
 
 See https://osca.bioconductor.org/b-smart-seq2-dataset.html for the latest content.

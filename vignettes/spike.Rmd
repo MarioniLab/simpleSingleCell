@@ -17,11 +17,13 @@ vignette: >
   %\VignetteIndexEntry{07. Spike-in normalization}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}    
-output: BiocStyle::html_document
+output: 
+  BiocStyle::html_document:
+    toc: false       
 bibliography: ref.bib
 ---
 
-# Redirection notice
+# Redirection notice {-}
 
 See https://osca.bioconductor.org/normalization.html#spike-norm for the latest content.
 

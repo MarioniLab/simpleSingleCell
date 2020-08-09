@@ -13,10 +13,10 @@ vignette: >
 output: 
   BiocStyle::html_document:
     titlecaps: false
-    toc_float: true
+    toc: false
 bibliography: ref.bib
 ---
 
-# Redirection notice
+# Redirection notice {-}
 
 See https://osca.bioconductor.org/integrating-datasets.html for the latest content.

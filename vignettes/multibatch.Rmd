@@ -13,10 +13,10 @@ vignette: >
 output: 
   BiocStyle::html_document:
     titlecaps: false
-    toc_float: true
+    toc: false
 bibliography: ref.bib
 ---
 
-# Redirection notice
+# Redirection notice {-}
 
 See https://osca.bioconductor.org/merged-pancreas.html for the latest content.

@@ -8,10 +8,12 @@ vignette: >
   %\VignetteIndexEntry{08. Detecting doublets}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
-output: BiocStyle::html_document
+output: 
+  BiocStyle::html_document:
+    toc: false
 bibliography: ref.bib
 ---
 
-# Redirection notice
+# Redirection notice {-}
 
 See https://osca.bioconductor.org/doublet-detection.html for the latest content.

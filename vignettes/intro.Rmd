@@ -19,27 +19,12 @@ vignette: >
   %\VignetteEncoding{UTF-8}    
 output: 
   BiocStyle::html_document:
-    toc_float: true
+    toc: false
     titlecaps: no
 bibliography: ref.bib
 ---
 
-```{r style, echo=FALSE, results='hide', message=FALSE, cache=FALSE}
-library(BiocStyle)
-library(knitr)
-opts_chunk$set(error=FALSE, message=FALSE, warning=FALSE, cache=TRUE)
-```
-
-# Workflow version information
-
-**R version**: `r R.version.string`
-
-**Bioconductor version**: `r BiocManager::version()`
-
-**Package**: `r packageVersion("simpleSingleCell")`
-
-
-# Redirection Notice
+# Redirection notice {-}
 
 All previous content related to these workflows have been migrated to the 
 [**Orchestrating Single-Cell Analysis with Bioconductor** book](https://osca.bioconductor.org).
