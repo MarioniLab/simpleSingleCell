@@ -15,7 +15,7 @@ Description:
         task of this package - and perhaps its greatest indignity! - is to
         act as a vessel for compiling its successor on the Bioconductor build
         system. 
-Imports:
+OriginalImports:
         utils,
         methods,
         knitr,
@@ -23,7 +23,7 @@ Imports:
         rmarkdown,
         CodeDepends,
         BiocStyle
-Suggests: 
+OriginalSuggests: 
         readxl,
         R.utils,
         SingleCellExperiment,
