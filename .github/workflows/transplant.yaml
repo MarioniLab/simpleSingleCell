@@ -1,0 +1,18 @@
+on:
+  push:
+  schedule:
+    - cron: '0 3 * * *'
+
+jobs:
+  transplantation:
+    name: "Incorporating the latest changes"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: github-actions/checkout@v2
+      - name: Transplant book contents
+        uses: LTLA/TrojanBookBuilder@master
+        with:
+          book: Bioconductor/OrchestratingSingleCellAnalysis
+      - name: Committing changes
+        uses: peter-evans/create-pull-request@v3
