@@ -1,15 +1,13 @@
-all: book
+all: compiled
 
-OSCA:
-	git clone https://github.com/Bioconductor/OSCABase OSCA
-
-book: OSCA
-	for x in $(shell ls OSCA/*.Rmd); do \
-		cat $$x | sed "s/rebook/simpleSingleCell/g" > blah; \
-		mv blah $$x; \
+# Need to get rebook submitted so this is no longer required.
+compiled: 
+	for x in $(shell ls book/*.Rmd); do 
+		cat $$x | sed "s/rebook/simpleSingleCell/g" > blah; 
+		mv blah $$x; 
 	done
-	cd OSCA && ${R_HOME}/bin/R -e "bookdown::render_book('index.Rmd')"
-	rm -rf OSCA/_bookdown_files/
+	cd book && ${R_HOME}/bin/R -e "bookdown::render_book('index.Rmd')"
+	rm -rf book/_bookdown_files/
 
 clean: 
 	rm -rf *_cache *_files
