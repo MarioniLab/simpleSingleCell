@@ -41,8 +41,7 @@ Workflow: True
 NeedsCompilation: no
 URL: https://www.bioconductor.org/help/workflows/simpleSingleCell/ 
 RoxygenNote: 7.1.0
-Imports: utils,
-  AnnotationHub,
+Imports: AnnotationHub,
   AUCell,
   basilisk,
   batchelor,
@@ -97,13 +96,14 @@ Imports: utils,
   TENxBrainData,
   TENxPBMCData,
   tradeSeq,
+  utils,
   uwot,
-  viridi
-Suggests: readxl,
-  BiocFileCache,
+  viridis
+Suggests: BiocFileCache,
   limma,
   org.Mm.eg.db,
   R.utils,
+  readxl,
   scater,
   scran,
   SingleCellExperiment
