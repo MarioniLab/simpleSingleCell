@@ -16,8 +16,10 @@ jobs:
         uses: LTLA/TrojanBookBuilder@master
         with:
           book: Bioconductor/OrchestratingSingleCellAnalysis
-      - name: Committing changes
-        uses: peter-evans/create-pull-request@v3
-        with:
-          title: "Incorporated the latest changes to the OSCA book."
-          committer: "LTLA <infinite.monkeys.with.keyboards@gmail.com>"
+      - name: Committing to master
+        run: | 
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A
+          git commit -m "Incorporate latest changes from book."
+          git push
