@@ -1,7 +1,7 @@
 Package: simpleSingleCell
 Title: A step-by-step workflow for low-level analysis of single-cell RNA-seq data with Bioconductor
-Version: 1.13.7
-Date: 2020-07-12
+Version: 1.13.8
+Date: 2020-08-10
 Authors@R: c(person(role=c("aut", "cre"), "Aaron", "Lun", email = "infinite.monkeys.with.keyboards@gmail.com"),
         person(role="aut", "Davis", "McCarthy"),
         person(role="aut", "John", "Marioni"))
@@ -15,7 +15,7 @@ Description:
         task of this package - and perhaps its greatest indignity! - is to
         act as a vessel for compiling its successor on the Bioconductor build
         system. 
-OriginalImports:
+OriginalImports: 
         utils,
         methods,
         knitr,
@@ -41,3 +41,69 @@ Workflow: True
 NeedsCompilation: no
 URL: https://www.bioconductor.org/help/workflows/simpleSingleCell/ 
 RoxygenNote: 7.1.0
+Imports: utils,
+  AnnotationHub,
+  AUCell,
+  basilisk,
+  batchelor,
+  BiocFileCache,
+  BiocNeighbors,
+  BiocParallel,
+  BiocSingular,
+  BiocStyle,
+  bluster,
+  callr,
+  celldex,
+  cluster,
+  clustree,
+  CodeDepends,
+  DelayedMatrixStats,
+  dendextend,
+  DropletUtils,
+  dynamicTreeCut,
+  edgeR,
+  EnsDb.Hsapiens.v86,
+  ggbeeswarm,
+  GO.db,
+  gridExtra,
+  GSEABase,
+  HCAData,
+  igraph,
+  iSEE,
+  knitr,
+  limma,
+  Matrix,
+  methods,
+  MouseGastrulationData,
+  msigdbr,
+  org.Hs.eg.db,
+  org.Mm.eg.db,
+  PCAtools,
+  pheatmap,
+  rebook,
+  rmarkdown,
+  RMTstat,
+  robustbase,
+  Rtsne,
+  scater,
+  scPCA,
+  scran,
+  scRNAseq,
+  scuttle,
+  SingleCellExperiment,
+  SingleR,
+  slingshot,
+  statmod,
+  TENxBrainData,
+  TENxPBMCData,
+  tradeSeq,
+  uwot,
+  viridi
+Suggests: readxl,
+  BiocFileCache,
+  limma,
+  org.Mm.eg.db,
+  R.utils,
+  scater,
+  scran,
+  SingleCellExperiment
