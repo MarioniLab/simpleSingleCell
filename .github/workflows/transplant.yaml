@@ -1,7 +1,8 @@
 on:
   push:
   schedule:
-    - cron: '0 3 * * *'
+    - cron: '0 8 * * *'
+    - cron: '0 20 * * *'
 
 name: transplantation
 
@@ -9,13 +10,19 @@ jobs:
   transplantation:
     name: "Incorporating the latest changes"
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        branch: ["master"]
     steps:
       - name: Check out repo
         uses: actions/checkout@v2
+        with:
+          ref: ${{ matrix.branch }}
       - name: Transplant book contents
         uses: LTLA/TrojanBookBuilder@master
         with:
           book: Bioconductor/OrchestratingSingleCellAnalysis
+          branch: ${{ matrix.branch }}
       - name: Committing to master
         run: | 
           git config --local user.email "action@github.com"
