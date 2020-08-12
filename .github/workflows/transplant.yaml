@@ -35,4 +35,6 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.BIOC_PRIVATE_KEY }}
       - name: Pushing to Bioconductor
-        run : git push git@git.bioconductor.org:packages/simpleSingleCell ${{ matrix.branch }}
+        run : |
+          ssh-keyscan -t rsa git.bioconductor.org >> /home/runner/.ssh/known_hosts
+          git push git@git.bioconductor.org:packages/simpleSingleCell ${{ matrix.branch }}
