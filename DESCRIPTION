@@ -1,7 +1,7 @@
 Package: simpleSingleCell
 Title: A step-by-step workflow for low-level analysis of single-cell RNA-seq data with Bioconductor
-Version: 1.13.17
-Date: 2020-08-21
+Version: 1.13.18
+Date: 2020-08-23
 Authors@R: c(person(role=c("aut", "cre"), "Aaron", "Lun", email = "infinite.monkeys.with.keyboards@gmail.com"),
         person(role="aut", "Davis", "McCarthy"),
         person(role="aut", "John", "Marioni"))
@@ -11,11 +11,8 @@ Description:
         "Orchestrating Single-Cell Analyses with Bioconductor" book at
         https://osca.bioconductor.org. Most vignettes here are retained as
         reminders of the glory that once was, also providing redirection for
-        existing external links to the relevant OSCA book chapters. The final
-        task of this package - and perhaps its greatest indignity! - is to
-        act as a vessel for compiling its successor on the Bioconductor build
-        system. 
-OriginalImports: 
+        existing external links to the relevant OSCA book chapters. 
+Imports: 
         utils,
         methods,
         knitr,
@@ -23,7 +20,7 @@ OriginalImports:
         rmarkdown,
         CodeDepends,
         BiocStyle
-OriginalSuggests: 
+Suggests: 
         readxl,
         R.utils,
         SingleCellExperiment,
@@ -41,67 +38,3 @@ Workflow: True
 NeedsCompilation: no
 URL: https://www.bioconductor.org/help/workflows/simpleSingleCell/ 
 RoxygenNote: 7.1.0
-Imports: AnnotationHub,
-  AUCell,
-  basilisk,
-  batchelor,
-  BiocFileCache,
-  BiocNeighbors,
-  BiocParallel,
-  BiocSingular,
-  BiocStyle,
-  bluster,
-  callr,
-  celldex,
-  cluster,
-  clustree,
-  CodeDepends,
-  DelayedMatrixStats,
-  dendextend,
-  DropletUtils,
-  dynamicTreeCut,
-  edgeR,
-  EnsDb.Hsapiens.v86,
-  ggbeeswarm,
-  GO.db,
-  gridExtra,
-  GSEABase,
-  HCAData,
-  igraph,
-  iSEE,
-  knitr,
-  limma,
-  methods,
-  MouseGastrulationData,
-  msigdbr,
-  org.Hs.eg.db,
-  org.Mm.eg.db,
-  PCAtools,
-  pheatmap,
-  rmarkdown,
-  RMTstat,
-  robustbase,
-  Rtsne,
-  scater,
-  scPCA,
-  scran,
-  scRNAseq,
-  scuttle,
-  SingleCellExperiment,
-  SingleR,
-  slingshot,
-  statmod,
-  TENxBrainData,
-  TENxPBMCData,
-  tradeSeq,
-  utils,
-  uwot,
-  viridis
-Suggests: BiocFileCache,
-  limma,
-  org.Mm.eg.db,
-  R.utils,
-  readxl,
-  scater,
-  scran,
-  SingleCellExperiment
